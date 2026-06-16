@@ -5,6 +5,9 @@ node_modules
 dist
 dist-ssr
 
+# Test coverage
+coverage
+
 # Logs
 logs
 *.log

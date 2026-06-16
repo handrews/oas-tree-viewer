@@ -73,6 +73,22 @@ npm run preview  # serve the production build
 npm run typecheck
 ```
 
+## Tests
+
+```bash
+npm test         # run the suite once (Vitest)
+npm run test:watch
+npm run coverage # run with v8 coverage; writes coverage/ (HTML + lcov) and fails below threshold
+```
+
+Specs live in [`test/`](test) mirroring `src/`, built on a `test/helpers.ts` that runs the
+real pipeline (`loadDocument → assembleOad → resolveOad`). They cover the core logic — the
+reference resolver, OAS classifier + 3.1/3.2 descriptor, model, parser, loader, assembler —
+plus jsdom tests for the input form and detail panel. The d3/SVG canvas and tree view are
+out of scope for unit coverage (they need real browser layout) and are excluded from the
+coverage denominator; they stay verified via the browser/preview workflow. Coverage is
+gated by thresholds in `vitest.config.ts`.
+
 ## Architecture
 
 A clean **model layer** decoupled from rendering:
