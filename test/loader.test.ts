@@ -54,6 +54,16 @@ describe("loadDocument (upload)", () => {
     });
     expect(doc.retrievalUri).toBe("https://host/api.yaml");
   });
+
+  it("derives a file:// retrieval URI from the file name when none is given", async () => {
+    const doc = await loadDocument({
+      source: "upload",
+      filename: "entry.yaml",
+      text: valid(),
+      isEntry: true,
+    });
+    expect(doc.retrievalUri).toBe("file:///entry.yaml");
+  });
 });
 
 describe("loadDocument (url)", () => {

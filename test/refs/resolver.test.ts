@@ -159,6 +159,42 @@ describe("resolveOad — unresolved references", () => {
   });
 });
 
+describe("resolveOad — file:// base for uploaded files", () => {
+  it("resolves a relative cross-document ref via the synthesized file:// base", async () => {
+    const entry = await makeDoc(
+      `openapi: 3.1.0
+info: { title: E, version: '1' }
+paths:
+  /a:
+    get:
+      operationId: op
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: 'shared.yaml#/components/schemas/Pet' }
+`,
+      { isEntry: true, filename: "entry.yaml" },
+    );
+    const shared = await makeDoc(
+      `openapi: 3.1.0
+info: { title: S, version: '1' }
+paths: {}
+components:
+  schemas:
+    Pet: { type: object }
+`,
+      { filename: "shared.yaml" },
+    );
+    const result = resolveOad(makeOad(entry, shared));
+    const edge = result.edges.find((e) => e.refString === "shared.yaml#/components/schemas/Pet");
+    expect(edge?.status).toBe("resolved");
+    expect(edge?.targetDocId).toBe(shared.id);
+    expect(edge?.targetNodeId).toBe("/components/schemas/Pet");
+  });
+});
+
 describe("resolveOad — lookup maps", () => {
   it("indexes incoming references by target", () => {
     const incoming = refs.byTarget.get(refKey(entryId, "/components/schemas/Thing")) ?? [];

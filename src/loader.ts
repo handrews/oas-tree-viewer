@@ -51,7 +51,11 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
   } else {
     text = input.text;
     filename = input.filename;
-    retrievalUri = input.retrievalUri?.trim() || undefined;
+    // With no provided retrieval URL, fall back to a file:// URL built from the
+    // file name. A browser only exposes an uploaded file's basename, but this still
+    // lets relatively-referenced sibling files (e.g. `shared.yaml#/...`) resolve the
+    // same way they would when served over HTTP.
+    retrievalUri = input.retrievalUri?.trim() || fileUriFromName(input.filename);
   }
 
   const { value, format } = parseDocument(text, filename);
@@ -123,5 +127,14 @@ function filenameFromUrl(url: string): string | undefined {
     return segment || undefined;
   } catch {
     return undefined;
+  }
+}
+
+/** Build a `file://` base URI from an uploaded file's name (its basename). */
+function fileUriFromName(filename: string): string {
+  try {
+    return new URL(filename, "file:///").href;
+  } catch {
+    return `file:///${encodeURIComponent(filename)}`;
   }
 }
