@@ -42,6 +42,12 @@ export interface TreeNode {
   valueKind: ValueKind;
   /** Semantic OAS type label, set by the classifier (e.g. "Operation Object"). */
   oasType?: string;
+  /**
+   * The grammar type expected at this node's slot (e.g. "Operation", "Parameter",
+   * "Schema"), set by the classifier. A Reference Object inherits the expected type of
+   * the slot it occupies, so this — not `oasType` — drives reference type-compatibility.
+   */
+  expectedType?: string;
   /** Coarse coloring bucket, set by the classifier (defaults to a structural bucket). */
   category?: NodeCategory;
   /** True when this object is a Reference Object (contains a `$ref`). */

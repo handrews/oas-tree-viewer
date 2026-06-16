@@ -1,12 +1,10 @@
 # OAS Structure Viewer
 
 A TypeScript web app that reads an **OpenAPI Description (OAD)** and renders its parsed
-structure as **parent/child node-link trees** — every object, array, and scalar shown as
-a node connected to its parent, with each node labeled by its OpenAPI Specification (OAS)
-type.
-
-This is **v1: the tree view**. A later version will resolve `$ref` references and draw
-them as edges across documents (the data model and canvas already anticipate this).
+structure as collapsible **indented trees** — every object, array, and scalar shown as a
+row, with each node labeled by its OpenAPI Specification (OAS) type — and resolves
+references, drawing them as **on-demand arcs** between the referencing field and its target
+(including across documents).
 
 ## What it does
 
@@ -24,6 +22,22 @@ them as edges across documents (the data model and canvas already anticipate thi
   shared zoom/pan canvas (entry document leftmost). Click a row's **disclosure triangle**
   (or double-click the row) to expand/collapse; click a row to inspect it in the detail
   panel (JSON Pointer, OAS type, value, `$ref` target, base URI).
+
+### References
+
+Resolves `$ref` (in Reference, Path Item, and Schema objects) and `operationRef` (in Link
+objects), with JSON-Schema-correct base-URI handling: nested `$id` re-scopes the base, and
+targets are located by JSON Pointer **or** `$anchor`/plain-name fragment, same-document or
+across the loaded documents (matched by `$self` / retrieval URI).
+
+- Selecting a row reveals its reference arc(s); the detail panel shows **Resolves to →**
+  and **Referenced by ←** (both clickable to navigate). A **Show all references** toggle
+  draws the whole web.
+- A reference must land on a slot of the matching **expected type** (a Reference Object
+  inherits the type of the slot it occupies; `operationRef` must hit an Operation).
+- Outcomes: **resolved** (arc), **type-mismatch** (red error arc + "expected X, found Y"),
+  **broken** (fragment not found) and **external** (target document not loaded) — the last
+  two show a ⚠ marker on the row instead of a dangling line.
 
 ### Error handling
 
@@ -50,7 +64,8 @@ Then add documents (the first is the **entry document**) and click **Render OAD*
 
 Sample OADs live in [`public/fixtures/`](public/fixtures) and are served at
 `/fixtures/<name>` by the dev server (e.g. a two-document 3.1 OAD: `petstore-3.1.yaml`
-referencing `shared-3.1.yaml`, and a 3.2 example `tictactoe-3.2.yaml`).
+referencing `shared-3.1.yaml`; a 3.2 example `tictactoe-3.2.yaml`; and `refs-3.1.yaml` +
+`refs-shared-3.1.yaml`, which exercise every reference location and outcome).
 
 ```bash
 npm run build    # type-check (tsc) + production build to dist/
@@ -60,8 +75,7 @@ npm run typecheck
 
 ## Architecture
 
-A clean **model layer** (decoupled from rendering) so the upcoming reference-resolution
-work can reuse it:
+A clean **model layer** decoupled from rendering:
 
 | Layer | Files |
 | --- | --- |
@@ -70,14 +84,17 @@ work can reuse it:
 | Model | `src/model/jsonPointer.ts`, `src/model/treeBuilder.ts` |
 | OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts` |
 | Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
+| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts` |
 | Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/detailPanel.ts`, `src/render/colors.ts` |
 | UI | `src/ui/oadForm.ts`, `src/main.ts` |
 
-Each node keeps a stable **JSON Pointer** id, each document keeps its **base URI**
-(retrieval URI or `$self`), and every `$ref` node stores its raw target — the hooks the
-future resolver will use to draw cross-document reference edges.
+Each node keeps a stable **JSON Pointer** id and an `expectedType` (its grammar slot type),
+and each document keeps its **base URI** (`$self` / retrieval URI) — the foundation the
+resolver uses. Documents and `$id` schemas are indexed together as URI-identified
+**resources**, so a reference resolves its target resource once and then locates the node.
 
-## Not yet implemented (v1)
+## Not yet implemented
 
-Reference resolution / edges; fragment (non-OpenAPI) referenced documents; editing;
-search/filter; export.
+`operationId` (name-based) Link references; `$dynamicRef`/`$dynamicAnchor`; fetching
+external referenced documents not already loaded; fragment (non-OpenAPI) referenced
+documents; editing; search/filter; export.

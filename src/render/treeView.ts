@@ -48,6 +48,12 @@ export class DocumentView {
   private readonly cb: DocumentViewCallbacks;
   private rowSel: Selection<SVGGElement, RowDatum, SVGGElement, unknown> | null = null;
   private selectedId: string | null = null;
+  /** Current horizontal offset of this document's group within the viewport. */
+  private offsetX = 0;
+  /** Every node by id (incl. collapsed), for anchor/reveal lookups. */
+  private readonly nodeIndex = new Map<string, CNode>();
+  /** Local (pre-offset) anchor position of each currently visible row. */
+  private visiblePos = new Map<string, { x: number; y: number }>();
 
   constructor(parent: SVGGElement, doc: OadDocument, cb: DocumentViewCallbacks) {
     this.doc = doc;
@@ -63,12 +69,60 @@ export class DocumentView {
 
     this.rootHier = hierarchy<TreeNode>(doc.root) as CNode;
     this.collapseDeep(this.rootHier, 0);
+    walk(this.rootHier, (n) => this.nodeIndex.set(n.data.id, n));
     this.render();
   }
 
   /** Position this document's group at the given x offset (entry first => x 0). */
   setOffset(x: number): void {
+    this.offsetX = x;
     this.group.attr("transform", `translate(${x}, 0)`);
+  }
+
+  /**
+   * Viewport-space anchor (the row's dot) for a node, resolving a hidden node to its
+   * nearest visible ancestor (`collapsed: true`). Returns null if the node isn't here.
+   */
+  anchorViewport(id: string): { x: number; y: number; collapsed: boolean } | null {
+    if (!this.nodeIndex.has(id)) return null;
+    let pos = this.visiblePos.get(id);
+    let collapsed = false;
+    if (!pos) {
+      collapsed = true;
+      let ancestor = this.nodeIndex.get(id)?.parent as CNode | null | undefined;
+      while (ancestor && !this.visiblePos.has(ancestor.data.id)) {
+        ancestor = ancestor.parent as CNode | null | undefined;
+      }
+      if (ancestor) pos = this.visiblePos.get(ancestor.data.id);
+    }
+    if (!pos) return null;
+    return { x: this.offsetX + pos.x, y: pos.y, collapsed };
+  }
+
+  /** Expand any collapsed ancestors of `id` so its row becomes visible. */
+  revealPath(id: string): void {
+    const node = this.nodeIndex.get(id);
+    if (!node) return;
+    let changed = false;
+    let ancestor = node.parent as CNode | null | undefined;
+    while (ancestor) {
+      if (ancestor._children) {
+        ancestor.children = ancestor._children;
+        ancestor._children = undefined;
+        changed = true;
+      }
+      ancestor = ancestor.parent as CNode | null | undefined;
+    }
+    if (changed) {
+      this.render();
+      this.cb.onLayoutChanged();
+    }
+  }
+
+  /** Select a node by id (no-op if absent). */
+  selectById(id: string): void {
+    const node = this.nodeIndex.get(id);
+    if (node) this.select(node.data);
   }
 
   expandAll(): void {
@@ -145,6 +199,15 @@ export class DocumentView {
     visit(this.rootHier, 0);
 
     const colWidth = Math.max(MIN_COL_W, maxDepth * INDENT + LABEL_BUDGET);
+
+    // Record each visible row's local dot position for edge anchoring.
+    this.visiblePos = new Map();
+    rows.forEach((r, i) => {
+      this.visiblePos.set(r.node.data.id, {
+        x: PAD + r.depth * INDENT + DOT_DX,
+        y: HEADER_H + PAD + ROW_H / 2 + i * ROW_H,
+      });
+    });
 
     this.treeG.selectAll("*").remove();
 

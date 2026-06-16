@@ -1,0 +1,48 @@
+openapi: 3.1.0
+$self: https://example.com/oad/entry.yaml
+info:
+  title: References Demo
+  version: 1.0.0
+  description: Exercises every reference location and outcome.
+paths:
+  # Path Item $ref -> a Path Item in the shared document (resolved, cross-document)
+  /pets:
+    $ref: shared.yaml#/components/pathItems/Common
+  /links:
+    get:
+      operationId: getLinks
+      parameters:
+        # Reference Object in a Parameter slot -> shared Parameter (resolved, cross-document)
+        - $ref: shared.yaml#/components/parameters/SharedLimit
+        # Reference Object in a Parameter slot -> a Schema (TYPE-MISMATCH)
+        - $ref: '#/components/schemas/Thing'
+        # Reference Object -> a component that does not exist (BROKEN)
+        - $ref: '#/components/parameters/Missing'
+        # Reference Object -> a document not loaded in this OAD (EXTERNAL)
+        - $ref: https://elsewhere.example/api.yaml#/components/parameters/Foo
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                # Schema $ref by $anchor (resolved, cross-document, $id/$anchor)
+                $ref: https://example.com/schemas/pet#PetAnchor
+          links:
+            self:
+              # operationRef -> an Operation (resolved)
+              operationRef: '#/paths/~1links/get'
+            wrong:
+              # operationRef -> a Schema (TYPE-MISMATCH)
+              operationRef: '#/components/schemas/Thing'
+components:
+  schemas:
+    Thing:
+      type: object
+      properties:
+        pet:
+          # Schema $ref by $id (resolved, cross-document)
+          $ref: https://example.com/schemas/pet
+        self:
+          # Schema $ref by same-document JSON Pointer (resolved)
+          $ref: '#/components/schemas/Thing'

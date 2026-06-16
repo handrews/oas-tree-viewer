@@ -1,0 +1,34 @@
+openapi: 3.1.0
+$self: https://example.com/oad/shared.yaml
+info:
+  title: Shared Components
+  version: 1.0.0
+  description: Referenced document — a reusable Path Item, Parameter, and Schema.
+paths: {}
+components:
+  pathItems:
+    Common:
+      description: A reusable path item.
+      get:
+        operationId: sharedGet
+        responses:
+          '200':
+            description: OK
+  parameters:
+    SharedLimit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+  schemas:
+    Pet:
+      $id: https://example.com/schemas/pet
+      $anchor: PetAnchor
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string

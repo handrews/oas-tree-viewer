@@ -19,6 +19,10 @@ export function classifyDocument(root: TreeNode, version: VersionFamily): void {
 
 /** A node expected to be a single object of `typeRef` (or a Reference Object). */
 function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors): void {
+  // Record the slot's expected type before anything else, so a Reference Object here
+  // inherits the type it stands in for (used by reference type-compatibility checks).
+  node.expectedType = typeRef;
+
   const isSchema = typeRef === "Schema";
   const ref = node.valueKind === "object" ? refStringOf(node) : undefined;
 
