@@ -1,6 +1,6 @@
 // The multi-document OAD input form. Collects an ordered list of documents — each a
-// local upload (with optional retrieval URL) or a URL fetch — with exactly one marked
-// as the entry document, then hands the inputs to the caller to load and render.
+// local upload (with optional retrieval URL) or a URL fetch. The first document is
+// always the entry document; any later documents are additional (referenced) documents.
 // Per-row and OAD-level errors are displayed back in the form.
 
 import type { DocInput } from "../loader";
@@ -9,7 +9,7 @@ export interface RenderOutcome {
   ok: boolean;
   /** Per-row errors keyed by the row's index in the submitted input list. */
   rowErrors?: Record<number, string>;
-  /** An OAD-level error (entry count, version mismatch). */
+  /** An OAD-level error (currently only version mismatch). */
   oadError?: string;
 }
 
@@ -17,7 +17,6 @@ export interface OadFormCallbacks {
   onRender: (inputs: DocInput[]) => Promise<RenderOutcome>;
 }
 
-const ENTRY_RADIO_NAME = "oad-entry";
 let nextRowSeq = 1;
 
 export class OadForm {
@@ -31,9 +30,10 @@ export class OadForm {
     container.innerHTML = `
       <form class="oad-form" novalidate>
         <p class="form-intro">
-          Add the documents that make up your OpenAPI Description. Mark exactly one as the
-          <strong>entry document</strong>. Every document must be a complete OpenAPI 3.1 or 3.2
-          document; all documents must share the same version.
+          Add the documents that make up your OpenAPI Description. The <strong>first
+          document is the entry document</strong>; any others are additional (referenced)
+          documents. Every document must be a complete OpenAPI 3.1 or 3.2 document, and all
+          documents must share the same version.
         </p>
         <div class="rows"></div>
         <div class="form-actions">
@@ -48,35 +48,35 @@ export class OadForm {
     this.rowsWrap = form.querySelector<HTMLElement>(".rows")!;
     this.oadErrorEl = form.querySelector<HTMLElement>(".oad-error")!;
 
-    form.querySelector<HTMLButtonElement>(".add-row")!.addEventListener("click", () => this.addRow(false));
+    form.querySelector<HTMLButtonElement>(".add-row")!.addEventListener("click", () => this.addRow());
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       void this.submit();
     });
 
-    this.addRow(true);
+    this.addRow();
   }
 
-  private addRow(isEntry: boolean): void {
+  private addRow(): void {
     const row = new DocRow(() => this.removeRow(row));
     this.rows.push(row);
     this.rowsWrap.appendChild(row.el);
-    if (isEntry) row.setEntry(true);
-    this.updateRemoveButtons();
+    this.refreshRows();
   }
 
   private removeRow(row: DocRow): void {
-    const wasEntry = row.isEntry();
     this.rows = this.rows.filter((r) => r !== row);
     row.el.remove();
-    // Keep exactly-one-entry easy: if we removed the entry, promote the first row.
-    if (wasEntry && this.rows.length > 0) this.rows[0]!.setEntry(true);
-    this.updateRemoveButtons();
+    this.refreshRows();
   }
 
-  private updateRemoveButtons(): void {
+  /** Keep each row's role label and remove-button state in sync with its position. */
+  private refreshRows(): void {
     const removable = this.rows.length > 1;
-    this.rows.forEach((r) => r.setRemovable(removable));
+    this.rows.forEach((row, i) => {
+      row.setRole(i === 0 ? "Entry document" : `Additional document ${i}`, i === 0);
+      row.setRemovable(removable);
+    });
   }
 
   private async submit(): Promise<void> {
@@ -84,11 +84,13 @@ export class OadForm {
     this.rows.forEach((r) => r.setError(null));
 
     // Collect inputs; presence problems (no file / no URL) are reported per row.
+    // The first row is always the entry document.
     const inputs: DocInput[] = [];
     let hadPresenceError = false;
-    for (const row of this.rows) {
+    for (let i = 0; i < this.rows.length; i++) {
+      const row = this.rows[i]!;
       try {
-        inputs.push(await row.collect());
+        inputs.push(await row.collect(i === 0));
       } catch (e) {
         row.setError(e instanceof Error ? e.message : String(e));
         hadPresenceError = true;
@@ -121,10 +123,10 @@ export class OadForm {
 /** One document row in the form. Owns its DOM and reads its own state on demand. */
 class DocRow {
   readonly el: HTMLElement;
+  private readonly roleEl: HTMLElement;
   private readonly fileInput: HTMLInputElement;
   private readonly retrievalInput: HTMLInputElement;
   private readonly urlInput: HTMLInputElement;
-  private readonly entryRadio: HTMLInputElement;
   private readonly uploadFields: HTMLElement;
   private readonly urlFields: HTMLElement;
   private readonly errorEl: HTMLElement;
@@ -136,10 +138,7 @@ class DocRow {
     this.el.className = "doc-row";
     this.el.innerHTML = `
       <div class="row-top">
-        <label class="entry-label">
-          <input type="radio" name="${ENTRY_RADIO_NAME}" class="entry" />
-          <span>Entry document</span>
-        </label>
+        <span class="row-role"></span>
         <div class="source-toggle">
           <label><input type="radio" name="${srcName}" class="src" value="upload" checked /> Upload</label>
           <label><input type="radio" name="${srcName}" class="src" value="url" /> URL</label>
@@ -156,7 +155,7 @@ class DocRow {
       <p class="row-error" hidden></p>
     `;
 
-    this.entryRadio = this.q(".entry");
+    this.roleEl = this.q(".row-role");
     this.fileInput = this.q(".file");
     this.retrievalInput = this.q(".retrieval");
     this.urlInput = this.q(".url");
@@ -171,12 +170,9 @@ class DocRow {
     );
   }
 
-  isEntry(): boolean {
-    return this.entryRadio.checked;
-  }
-
-  setEntry(value: boolean): void {
-    this.entryRadio.checked = value;
+  setRole(text: string, isEntry: boolean): void {
+    this.roleEl.textContent = text;
+    this.roleEl.classList.toggle("is-entry", isEntry);
   }
 
   setRemovable(value: boolean): void {
@@ -197,8 +193,7 @@ class DocRow {
   }
 
   /** Build the DocInput for this row, throwing on missing file/URL. */
-  async collect(): Promise<DocInput> {
-    const isEntry = this.isEntry();
+  async collect(isEntry: boolean): Promise<DocInput> {
     if (this.currentSource() === "url") {
       const url = this.urlInput.value.trim();
       if (!url) throw new Error("Enter a URL to fetch, or switch this row to Upload.");

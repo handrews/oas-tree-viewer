@@ -1,25 +1,36 @@
-// Renders one document as a collapsible, left-to-right D3 node-link tree inside a
-// <g> group. The canvas owns positioning of these groups; this class owns the tree
-// itself: layout, collapse/expand state, selection, and reporting its extent.
+// Renders one document as a collapsible, indented "filesystem" tree inside a <g> group:
+// one row per visible node, children indented under their parent, expanding straight
+// down. The canvas tiles these columns side by side horizontally. This class owns the
+// tree itself: collapse/expand state, selection, and reporting its extent. Everything is
+// drawn in SVG so future cross-document reference edges share one coordinate space.
 
-import { hierarchy, tree, select } from "d3";
+import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
 import { colorFor } from "./colors";
 
-/** A hierarchy node augmented with layout coords and collapsed-children storage. */
+/** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
-  x?: number;
-  y?: number;
   _children?: CNode[];
   children?: CNode[];
 };
 
-const ROW_H = 22; // vertical space per visible node
-const COL_W = 220; // horizontal space per depth level
+interface RowDatum {
+  node: CNode;
+  depth: number;
+}
+
+const ROW_H = 22; // vertical space per row
+const INDENT = 20; // horizontal indent per depth level
+const DOT_DX = 16; // dot offset from the row's indent
+const LABEL_DX = 28; // label offset from the row's indent
 const HEADER_H = 48;
 const PAD = 16;
-const LABEL_BUDGET = 250; // rough width reserved for the rightmost labels
+const MIN_COL_W = 360;
+const LABEL_BUDGET = 300;
+
+const TRI_CLOSED = "M-2,-4 L4,0 L-2,4 Z"; // ▶
+const TRI_OPEN = "M-4,-2 L4,-2 L0,4 Z"; //   ▼
 
 export interface DocumentViewCallbacks {
   onSelect: (doc: OadDocument, node: TreeNode) => void;
@@ -35,7 +46,7 @@ export class DocumentView {
   private readonly treeG: Selection<SVGGElement, unknown, null, undefined>;
   private readonly rootHier: CNode;
   private readonly cb: DocumentViewCallbacks;
-  private nodeSel: Selection<SVGGElement, CNode, SVGGElement, unknown> | null = null;
+  private rowSel: Selection<SVGGElement, RowDatum, SVGGElement, unknown> | null = null;
   private selectedId: string | null = null;
 
   constructor(parent: SVGGElement, doc: OadDocument, cb: DocumentViewCallbacks) {
@@ -48,16 +59,16 @@ export class DocumentView {
     this.treeG = this.group
       .append("g")
       .attr("class", "tree")
-      .attr("transform", `translate(${PAD + 8}, ${HEADER_H + PAD})`);
+      .attr("transform", `translate(${PAD}, ${HEADER_H + PAD + ROW_H / 2})`);
 
     this.rootHier = hierarchy<TreeNode>(doc.root) as CNode;
     this.collapseDeep(this.rootHier, 0);
     this.render();
   }
 
-  /** Position this document's group at the given y offset (entry first => y 0). */
-  setOffset(y: number): void {
-    this.group.attr("transform", `translate(0, ${y})`);
+  /** Position this document's group at the given x offset (entry first => x 0). */
+  setOffset(x: number): void {
+    this.group.attr("transform", `translate(${x}, 0)`);
   }
 
   expandAll(): void {
@@ -72,7 +83,6 @@ export class DocumentView {
   }
 
   collapseAll(): void {
-    // Collapse every node below the root.
     const collapse = (n: CNode): void => {
       if (n.children) {
         n.children.forEach(collapse);
@@ -89,7 +99,7 @@ export class DocumentView {
 
   clearSelection(): void {
     this.selectedId = null;
-    this.nodeSel?.classed("selected", false);
+    this.rowSel?.classed("selected", false);
   }
 
   // ── internals ────────────────────────────────────────────────────────────
@@ -119,86 +129,99 @@ export class DocumentView {
 
   private select(node: TreeNode): void {
     this.selectedId = node.id;
-    this.nodeSel?.classed("selected", (d) => d.data.id === this.selectedId);
+    this.rowSel?.classed("selected", (d) => d.node.data.id === this.selectedId);
     this.cb.onSelect(this.doc, node);
   }
 
   private render(): void {
-    tree<TreeNode>().nodeSize([ROW_H, COL_W])(this.rootHier);
-    const nodes = this.rootHier.descendants() as CNode[];
-    const links = this.rootHier.links();
+    // Flatten visible nodes depth-first into rows.
+    const rows: RowDatum[] = [];
+    let maxDepth = 0;
+    const visit = (node: CNode, depth: number): void => {
+      rows.push({ node, depth });
+      if (depth > maxDepth) maxDepth = depth;
+      node.children?.forEach((child) => visit(child, depth + 1));
+    };
+    visit(this.rootHier, 0);
 
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let maxY = 0;
-    for (const n of nodes) {
-      minX = Math.min(minX, n.x ?? 0);
-      maxX = Math.max(maxX, n.x ?? 0);
-      maxY = Math.max(maxY, n.y ?? 0);
-    }
-    const offset = -minX; // shift so the topmost node sits at y = 0
+    const colWidth = Math.max(MIN_COL_W, maxDepth * INDENT + LABEL_BUDGET);
 
     this.treeG.selectAll("*").remove();
 
-    this.treeG
+    const rowSel = this.treeG
       .append("g")
-      .attr("class", "links")
-      .selectAll("path")
-      .data(links)
-      .join("path")
-      .attr("class", "link")
-      .attr("d", (d) => linkPath(d.source as CNode, d.target as CNode, offset));
-
-    const nodeSel = this.treeG
-      .append("g")
-      .attr("class", "nodes")
-      .selectAll<SVGGElement, CNode>("g")
-      .data(nodes)
+      .attr("class", "rows")
+      .selectAll<SVGGElement, RowDatum>("g.row")
+      .data(rows)
       .join("g")
-      .attr("class", "node")
-      .classed("selected", (d) => d.data.id === this.selectedId)
-      .attr("transform", (d) => `translate(${d.y ?? 0}, ${(d.x ?? 0) + offset})`)
+      .attr("class", "row")
+      .classed("selected", (d) => d.node.data.id === this.selectedId)
+      .attr("transform", (_d, i) => `translate(0, ${i * ROW_H})`)
       .on("click", (event: MouseEvent, d) => {
         event.stopPropagation();
-        this.select(d.data);
+        this.select(d.node.data);
+      })
+      .on("dblclick", (event: MouseEvent, d) => {
+        event.stopPropagation();
+        this.toggle(d.node);
       });
 
-    nodeSel
+    // Full-width transparent hit/hover background per row.
+    rowSel
+      .append("rect")
+      .attr("class", "row-bg")
+      .attr("x", -PAD / 2)
+      .attr("y", -ROW_H / 2)
+      .attr("width", colWidth)
+      .attr("height", ROW_H);
+
+    // Disclosure triangle for expandable nodes.
+    rowSel
+      .filter((d) => hasChildren(d.node))
+      .append("path")
+      .attr("class", "disclosure")
+      .attr("transform", (d) => `translate(${d.depth * INDENT + 4}, 0)`)
+      .attr("d", (d) => (d.node.children ? TRI_OPEN : TRI_CLOSED))
+      .on("click", (event: MouseEvent, d) => {
+        event.stopPropagation();
+        this.toggle(d.node);
+      });
+
+    // Colored category dot.
+    rowSel
       .append("circle")
-      .attr("r", 5.5)
-      .attr("class", (d) => (d.data.isReference ? "marker is-ref" : "marker"))
-      .attr("fill", (d) => (d._children ? "var(--surface)" : colorFor(d.data.category)))
-      .attr("stroke", (d) => colorFor(d.data.category))
-      .style("cursor", (d) => (hasChildren(d) ? "pointer" : "default"))
-      .on("click", (event: MouseEvent, d) => {
-        event.stopPropagation();
-        this.toggle(d);
-      });
+      .attr("class", (d) => (d.node.data.isReference ? "marker is-ref" : "marker"))
+      .attr("r", 4)
+      .attr("cx", (d) => d.depth * INDENT + DOT_DX)
+      .attr("cy", 0)
+      .attr("fill", (d) => (d.node._children ? "var(--surface)" : colorFor(d.node.data.category)))
+      .attr("stroke", (d) => colorFor(d.node.data.category));
 
-    const label = nodeSel
+    // Single-line label: key, optional collapsed-count, then dim type/value.
+    const label = rowSel
       .append("text")
       .attr("class", "node-label")
+      .attr("x", (d) => d.depth * INDENT + LABEL_DX)
       .attr("dy", "0.32em")
-      .attr("x", 10)
       .attr("text-anchor", "start");
 
-    label.each(function (this: SVGTextElement, d: CNode) {
+    label.each(function (this: SVGTextElement, d: RowDatum) {
       const sel = select(this);
-      sel.append("tspan").attr("class", "k").text(primaryLabel(d.data));
-      const secondary = secondaryLabel(d.data);
-      if (secondary) {
-        sel.append("tspan").attr("class", "t").attr("dx", "7").text(truncate(secondary, 42));
-      }
-      const hidden = d._children?.length;
+      sel.append("tspan").attr("class", "k").text(primaryLabel(d.node.data));
+      const hidden = d.node._children?.length;
       if (hidden) {
-        sel.append("tspan").attr("class", "count").attr("dx", "7").text(`(+${hidden})`);
+        sel.append("tspan").attr("class", "count").attr("dx", "6").text(`(+${hidden})`);
+      }
+      const secondary = secondaryLabel(d.node.data);
+      if (secondary) {
+        sel.append("tspan").attr("class", "t").attr("dx", "8").text(truncate(secondary, 48));
       }
     });
 
-    this.nodeSel = nodeSel;
+    this.rowSel = rowSel;
 
-    this.height = HEADER_H + PAD + (maxX - minX) + PAD;
-    this.width = PAD + 8 + maxY + LABEL_BUDGET;
+    this.height = HEADER_H + PAD + rows.length * ROW_H + PAD;
+    this.width = colWidth + PAD;
   }
 
   private renderHeader(): void {
@@ -236,16 +259,6 @@ function walk(node: CNode, fn: (n: CNode) => void): void {
 
 function hasChildren(node: CNode): boolean {
   return Boolean(node.children?.length || node._children?.length);
-}
-
-/** A horizontal cubic-bezier link between two laid-out nodes. */
-function linkPath(s: CNode, t: CNode, offset: number): string {
-  const sx = s.y ?? 0;
-  const sy = (s.x ?? 0) + offset;
-  const tx = t.y ?? 0;
-  const ty = (t.x ?? 0) + offset;
-  const mx = (sx + tx) / 2;
-  return `M${sx},${sy}C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
 }
 
 function headerTitle(doc: OadDocument): string {

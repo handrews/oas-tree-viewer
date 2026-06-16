@@ -80,13 +80,12 @@ body {
   margin-bottom: 0.55rem;
   flex-wrap: wrap;
 }
-.entry-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+.row-role {
   font-weight: 600;
+  color: var(--text-dim);
+}
+.row-role.is-entry {
   color: var(--accent);
-  cursor: pointer;
 }
 .source-toggle {
   display: inline-flex;
@@ -245,16 +244,29 @@ body {
   cursor: grabbing;
 }
 
-/* SVG tree elements */
-.link {
-  fill: none;
-  stroke: var(--border);
-  stroke-width: 1.2px;
+/* SVG indented-tree rows */
+.row {
+  cursor: pointer;
 }
-.node circle.marker {
+.row-bg {
+  fill: transparent;
+}
+.row:hover .row-bg {
+  fill: rgba(255, 255, 255, 0.04);
+}
+.row.selected .row-bg {
+  fill: rgba(233, 69, 96, 0.12);
+}
+.disclosure {
+  fill: var(--text-dim);
+}
+.row:hover .disclosure {
+  fill: var(--text);
+}
+circle.marker {
   stroke-width: 1.5px;
 }
-.node circle.marker.is-ref {
+circle.marker.is-ref {
   stroke-dasharray: 2.5 1.5;
   stroke-width: 2px;
 }
@@ -275,11 +287,11 @@ body {
   fill: var(--link);
   font-size: 10px;
 }
-.node.selected .node-label .k {
+.row.selected .node-label .k {
   fill: var(--accent);
   font-weight: 700;
 }
-.node.selected circle.marker {
+.row.selected circle.marker {
   stroke: var(--accent);
   stroke-width: 3px;
 }

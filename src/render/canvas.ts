@@ -81,16 +81,16 @@ export class Canvas {
     this.fit();
   }
 
-  /** Stack document groups top to bottom, entry first, sized to current extents. */
+  /** Lay document groups out left to right, entry first, sized to current extents. */
   private retile(): void {
-    let y = 0;
+    let x = 0;
     for (const view of this.views) {
-      view.setOffset(y);
-      y += view.height + DOC_GAP;
+      view.setOffset(x);
+      x += view.width + DOC_GAP;
     }
   }
 
-  /** Fit all content into view, top-aligned so the entry document leads. */
+  /** Fit all content into view (entry document leftmost). */
   fit(): void {
     const node = this.viewport.node();
     const svgNode = this.svg.node();
@@ -108,8 +108,11 @@ export class Canvas {
     const sh = svgNode.clientHeight || 600;
     const margin = 48;
     const k = Math.min((sw - margin) / bbox.width, (sh - margin) / bbox.height, 1.2);
-    const tx = (sw - bbox.width * k) / 2 - bbox.x * k;
-    const ty = 24 - bbox.y * k;
+    const scaledW = bbox.width * k;
+    const scaledH = bbox.height * k;
+    // Center when the content fits; otherwise pin to a small margin (top-left).
+    const tx = (scaledW < sw ? (sw - scaledW) / 2 : 24) - bbox.x * k;
+    const ty = (scaledH < sh ? (sh - scaledH) / 2 : 24) - bbox.y * k;
 
     this.svg
       .transition()

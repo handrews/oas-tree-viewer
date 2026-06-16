@@ -25,12 +25,6 @@ export class UnsupportedVersionError extends OadError {}
 
 // ── OAD-level errors ───────────────────────────────────────────────────────
 
-/** No document was marked as the entry document. */
-export class NoEntryError extends OadError {}
-
-/** More than one document was marked as the entry document. */
-export class MultipleEntryError extends OadError {}
-
 /** Documents mix OAS 3.1 and 3.2, which is unsupported for now. */
 export class VersionMismatchError extends OadError {}
 

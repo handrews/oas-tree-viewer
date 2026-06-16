@@ -10,27 +10,30 @@ them as edges across documents (the data model and canvas already anticipate thi
 
 ## What it does
 
-- Loads an OAD made of **one or more documents**: an **entry document** plus any number of
-  additional documents. Each document is loaded by **file upload** (with an optional
-  retrieval URL) or **URL fetch**.
+- Loads an OAD made of **one or more documents**: the **first document is the entry
+  document**, any others are additional (referenced) documents. Each document is loaded by
+  **file upload** (with an optional retrieval URL) or **URL fetch**.
 - Parses **JSON or YAML** and validates that each document is a complete **OAS 3.1 or 3.2**
   document.
 - Builds a tree of JSON-Pointer-addressed nodes and **classifies** each node by its OAS
   type (OpenAPI, Info, Paths, Path Item, Operation, Components, Schema, …), flagging
   Reference (`$ref`) objects. OAS 3.2 additions are recognized (`$self`, `query`,
   `additionalOperations`, `mediaTypes`).
-- Draws one collapsible D3 tree per document on a shared zoom/pan canvas, entry document
-  first. Click a node's **dot** to expand/collapse; click its **label** to inspect it in
-  the detail panel (JSON Pointer, OAS type, value, `$ref` target, base URI).
+- Draws one collapsible, **indented "filesystem" tree** per document (one row per node,
+  children indented under their parent), with the documents laid out **side by side** on a
+  shared zoom/pan canvas (entry document leftmost). Click a row's **disclosure triangle**
+  (or double-click the row) to expand/collapse; click a row to inspect it in the detail
+  panel (JSON Pointer, OAS type, value, `$ref` target, base URI).
 
 ### Error handling
 
-Three distinct, clearly-surfaced error kinds, plus entry validation:
+Three distinct, clearly-surfaced error kinds:
 
 - **Parse error** — the document is not valid JSON/YAML (shown on its row).
 - **Not an OpenAPI document** — parses, but has no valid root `openapi` field (shown on its row).
 - **Version mismatch** — the OAD mixes OAS 3.1 and 3.2 (shown above the form).
-- **Entry count** — exactly one document must be marked as the entry.
+
+The entry document is always the first one, so there are no "missing/duplicate entry" errors.
 
 ## Requirements
 
@@ -43,7 +46,7 @@ npm install
 npm run dev      # Vite dev server at http://localhost:5173
 ```
 
-Then add documents, mark exactly one as the **entry document**, and click **Render OAD**.
+Then add documents (the first is the **entry document**) and click **Render OAD**.
 
 Sample OADs live in [`public/fixtures/`](public/fixtures) and are served at
 `/fixtures/<name>` by the dev server (e.g. a two-document 3.1 OAD: `petstore-3.1.yaml`
