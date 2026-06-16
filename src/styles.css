@@ -1,0 +1,383 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #0f3460;
+  --accent: #e94560;
+  --text: #eaeaea;
+  --text-dim: #8899aa;
+  --border: #2a3a5a;
+  --link: #53b8f5;
+  --error: #ff6b81;
+  --font: "Helvetica Neue", Arial, sans-serif;
+  --mono: "SF Mono", "Courier New", monospace;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.45;
+}
+
+#app-header {
+  padding: 1rem 1.25rem 0.75rem;
+}
+#app-header h1 {
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+#app-header .tagline {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+#app {
+  padding: 0 1.25rem 2rem;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+/* ── Input form ───────────────────────────────────────────────────────── */
+
+.oad-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.form-intro {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+.form-intro strong {
+  color: var(--text);
+}
+
+.doc-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.6rem;
+  background: var(--surface2);
+}
+.doc-row.has-error {
+  border-color: var(--error);
+}
+.row-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+  flex-wrap: wrap;
+}
+.entry-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+.source-toggle {
+  display: inline-flex;
+  gap: 0.85rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.source-toggle label {
+  cursor: pointer;
+}
+.row-top .remove {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.row-top .remove:hover {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.upload-fields,
+.url-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.upload-fields[hidden],
+.url-fields[hidden] {
+  display: none;
+}
+.doc-row input[type="file"],
+.doc-row input[type="url"] {
+  flex: 1 1 240px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+  font-family: var(--mono);
+}
+.doc-row input[type="file"] {
+  font-family: var(--font);
+}
+
+.row-error {
+  margin-top: 0.5rem;
+  color: var(--error);
+  font-size: 0.82rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+.oad-form button {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.oad-form .add-row {
+  background: transparent;
+  color: var(--link);
+}
+.oad-form .render {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  margin-left: auto;
+}
+.oad-error {
+  margin-top: 0.7rem;
+  color: var(--error);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* ── Viewer (canvas + detail) ─────────────────────────────────────────── */
+
+#viewer {
+  display: flex;
+  gap: 1rem;
+  height: 74vh;
+  min-height: 480px;
+  margin-top: 1.1rem;
+}
+#viewer[hidden] {
+  display: none;
+}
+
+#canvas-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Narrow panes (e.g. an embedded preview): stack the canvas above the details. */
+@media (max-width: 900px) {
+  #viewer {
+    flex-direction: column;
+    height: auto;
+  }
+  #canvas-wrap {
+    height: 60vh;
+    min-height: 380px;
+  }
+  #detail-panel {
+    width: auto;
+  }
+}
+.canvas-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.canvas-toolbar button {
+  font-family: var(--font);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+.canvas-toolbar button:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+.tree-canvas {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+.tree-canvas:active {
+  cursor: grabbing;
+}
+
+/* SVG tree elements */
+.link {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.2px;
+}
+.node circle.marker {
+  stroke-width: 1.5px;
+}
+.node circle.marker.is-ref {
+  stroke-dasharray: 2.5 1.5;
+  stroke-width: 2px;
+}
+.node-label {
+  font: 12px var(--font);
+  fill: var(--text);
+  pointer-events: none;
+  user-select: none;
+}
+.node-label .k {
+  fill: var(--text);
+}
+.node-label .t {
+  fill: var(--text-dim);
+  font-style: italic;
+}
+.node-label .count {
+  fill: var(--link);
+  font-size: 10px;
+}
+.node.selected .node-label .k {
+  fill: var(--accent);
+  font-weight: 700;
+}
+.node.selected circle.marker {
+  stroke: var(--accent);
+  stroke-width: 3px;
+}
+
+.doc-title {
+  font: 600 13px var(--font);
+  fill: var(--text);
+}
+.doc-sub {
+  font: 11px var(--mono);
+  fill: var(--text-dim);
+}
+.doc-header-bg {
+  fill: var(--surface2);
+  stroke: var(--border);
+}
+.entry-badge rect {
+  fill: var(--accent);
+}
+.entry-badge text {
+  fill: #fff;
+  font: 700 9px var(--font);
+}
+
+/* ── Detail panel + legend ────────────────────────────────────────────── */
+
+#detail-panel {
+  width: 330px;
+  flex: none;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+#detail-panel h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+  color: var(--link);
+}
+.legend {
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.legend-list {
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.legend-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.node-detail .hint {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+}
+.detail-grid dt {
+  color: var(--text-dim);
+}
+.detail-grid dd {
+  word-break: break-word;
+}
+.detail-grid code {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--link);
+  background: var(--bg);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+}
+.pill {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+}
+.dim {
+  color: var(--text-dim);
+}

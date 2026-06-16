@@ -1,0 +1,43 @@
+openapi: 3.2.0
+$self: https://example.com/tictactoe.yaml
+info:
+  title: Tic Tac Toe
+  version: 2.0.0
+  description: Exercises OAS 3.2 additions ($self, query, additionalOperations, mediaTypes).
+paths:
+  /board:
+    get:
+      operationId: getBoard
+      responses:
+        '200':
+          description: The current board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+    query:
+      operationId: queryBoard
+      description: A QUERY-method operation (new in 3.2).
+      responses:
+        '200':
+          description: Query result
+    additionalOperations:
+      PURGE:
+        operationId: purgeBoard
+        description: A non-standard HTTP method (new in 3.2).
+        responses:
+          '204':
+            description: Cleared
+components:
+  mediaTypes:
+    application/json:
+      schema:
+        type: object
+  schemas:
+    Board:
+      type: object
+      properties:
+        squares:
+          type: array
+          items:
+            type: string

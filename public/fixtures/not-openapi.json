@@ -1,0 +1,5 @@
+{
+  "title": "Just some JSON",
+  "items": [1, 2, 3],
+  "nested": { "a": true, "b": null }
+}

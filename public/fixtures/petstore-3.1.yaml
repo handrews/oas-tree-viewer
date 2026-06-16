@@ -1,0 +1,76 @@
+openapi: 3.1.0
+info:
+  title: Pet Store
+  version: 1.0.0
+  description: Entry document of a small multi-document OAD.
+  license:
+    name: MIT
+servers:
+  - url: https://api.example.com/v1
+tags:
+  - name: pets
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      tags: [pets]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+      responses:
+        '200':
+          description: A list of pets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: 'shared-3.1.yaml#/components/schemas/Pet'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: createPet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: 'shared-3.1.yaml#/components/schemas/Pet'
+      responses:
+        '201':
+          description: Created
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getPet
+      responses:
+        '200':
+          description: A pet
+          content:
+            application/json:
+              schema:
+                $ref: 'shared-3.1.yaml#/components/schemas/Pet'
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
