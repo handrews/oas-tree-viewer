@@ -18,6 +18,12 @@ export interface UploadInput {
   source: "upload";
   filename: string;
   text: string;
+  /**
+   * Path of the file relative to a chosen folder (its `webkitRelativePath`), when the
+   * file came from a directory upload. Used — in preference to the bare file name — to
+   * build the `file://` base URI so subdirectory-relative references line up.
+   */
+  relativePath?: string;
   /** Optional URL the file was originally retrieved from (its base URI). */
   retrievalUri?: string;
   isEntry: boolean;
@@ -51,11 +57,11 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
   } else {
     text = input.text;
     filename = input.filename;
-    // With no provided retrieval URL, fall back to a file:// URL built from the
-    // file name. A browser only exposes an uploaded file's basename, but this still
-    // lets relatively-referenced sibling files (e.g. `shared.yaml#/...`) resolve the
-    // same way they would when served over HTTP.
-    retrievalUri = input.retrievalUri?.trim() || fileUriFromName(input.filename);
+    // With no provided retrieval URL, fall back to a file:// URL built from the file's
+    // path. A directory upload gives a relative path (e.g. `oad/schemas/pet.yaml`) so
+    // subdirectory-relative references resolve; a single-file upload only exposes the
+    // basename. Either way sibling files line up the way they would when served over HTTP.
+    retrievalUri = input.retrievalUri?.trim() || fileUriFrom(input.relativePath ?? input.filename);
   }
 
   const { value, format } = parseDocument(text, filename);
@@ -130,11 +136,11 @@ function filenameFromUrl(url: string): string | undefined {
   }
 }
 
-/** Build a `file://` base URI from an uploaded file's name (its basename). */
-function fileUriFromName(filename: string): string {
+/** Build a `file://` base URI from an uploaded file's path (basename or relative path). */
+function fileUriFrom(path: string): string {
   try {
-    return new URL(filename, "file:///").href;
+    return new URL(path, "file:///").href;
   } catch {
-    return `file:///${encodeURIComponent(filename)}`;
+    return `file:///${encodeURIComponent(path)}`;
   }
 }

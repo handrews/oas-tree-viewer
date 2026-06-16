@@ -8,6 +8,7 @@ import type { Oad, OadDocument } from "../src/types";
 
 export interface MakeDocOptions {
   filename?: string;
+  relativePath?: string;
   retrievalUri?: string;
   isEntry?: boolean;
 }
@@ -17,6 +18,7 @@ export function makeDoc(yaml: string, opts: MakeDocOptions = {}): Promise<OadDoc
     source: "upload",
     filename: opts.filename ?? "doc.yaml",
     text: yaml,
+    relativePath: opts.relativePath,
     retrievalUri: opts.retrievalUri,
     isEntry: opts.isEntry ?? false,
   });

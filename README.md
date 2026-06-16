@@ -9,8 +9,10 @@ references, drawing them as **on-demand arcs** between the referencing field and
 ## What it does
 
 - Loads an OAD made of **one or more documents**: the **first document is the entry
-  document**, any others are additional (referenced) documents. Each document is loaded by
-  **file upload** (with an optional retrieval URL) or **URL fetch**.
+  document** (use **Make entry** to promote another), any others are additional (referenced)
+  documents. Each document is loaded by **file upload** (with an optional retrieval URL),
+  **URL fetch**, or **Load folder** — a whole directory at once, preserving each file's
+  relative path.
 - Parses **JSON or YAML** and validates that each document is a complete **OAS 3.1 or 3.2**
   document.
 - Builds a tree of JSON-Pointer-addressed nodes and **classifies** each node by its OAS
@@ -38,6 +40,12 @@ across the loaded documents (matched by `$self` / retrieval URI).
 - Outcomes: **resolved** (arc), **type-mismatch** (red error arc + "expected X, found Y"),
   **broken** (fragment not found) and **external** (target document not loaded) — the last
   two show a ⚠ marker on the row instead of a dangling line.
+- **Base URI** of an uploaded file: a provided retrieval URL, else `$self`, else a `file://`
+  URL built from the file's path. A **Load folder** upload preserves each file's relative
+  path, so subdirectory-relative references (`schemas/pet.yaml#/…`) resolve the same way
+  they would when served over HTTP. Supplying a **folder base URL** maps the folder's
+  contents onto that URL (replacing the implicit `file://` base) — useful to preview how an
+  OAD would resolve when served from a real location.
 
 ### Error handling
 

@@ -96,8 +96,34 @@ body {
 .source-toggle label {
   cursor: pointer;
 }
-.row-top .remove {
+.row-actions {
   margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.file-name {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+.row-top .make-entry {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--link);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+.row-top .make-entry:hover {
+  border-color: var(--link);
+}
+.row-top .remove {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-dim);
@@ -145,8 +171,21 @@ body {
 
 .form-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.6rem;
   margin-top: 0.4rem;
+}
+.oad-form .folder-base {
+  flex: 1 1 220px;
+  min-width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.45rem 0.55rem;
+  font-size: 0.82rem;
+  font-family: var(--mono);
 }
 .oad-form button {
   font-family: var(--font);
@@ -156,7 +195,8 @@ body {
   cursor: pointer;
   border: 1px solid var(--border);
 }
-.oad-form .add-row {
+.oad-form .add-row,
+.oad-form .add-folder {
   background: transparent;
   color: var(--link);
 }

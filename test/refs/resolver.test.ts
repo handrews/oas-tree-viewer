@@ -193,6 +193,76 @@ components:
     expect(edge?.targetDocId).toBe(shared.id);
     expect(edge?.targetNodeId).toBe("/components/schemas/Pet");
   });
+
+  it("resolves a subdirectory-relative ref using each file's relative path", async () => {
+    const entry = await makeDoc(
+      `openapi: 3.1.0
+info: { title: E, version: '1' }
+paths:
+  /a:
+    get:
+      operationId: op
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: 'schemas/pet.yaml#/components/schemas/Pet' }
+`,
+      { isEntry: true, filename: "entry.yaml", relativePath: "oad/entry.yaml" },
+    );
+    const pet = await makeDoc(
+      `openapi: 3.1.0
+info: { title: P, version: '1' }
+paths: {}
+components:
+  schemas:
+    Pet: { type: object }
+`,
+      { filename: "pet.yaml", relativePath: "oad/schemas/pet.yaml" },
+    );
+    const result = resolveOad(makeOad(entry, pet));
+    const edge = result.edges.find(
+      (e) => e.refString === "schemas/pet.yaml#/components/schemas/Pet",
+    );
+    expect(edge?.status).toBe("resolved");
+    expect(edge?.targetDocId).toBe(pet.id);
+  });
+
+  it("resolves across a folder mapped onto an http base URL", async () => {
+    const entry = await makeDoc(
+      `openapi: 3.1.0
+info: { title: E, version: '1' }
+paths:
+  /a:
+    get:
+      operationId: op
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: 'schemas/pet.yaml#/components/schemas/Pet' }
+`,
+      { isEntry: true, retrievalUri: "https://example.com/api/openapi.yaml" },
+    );
+    const pet = await makeDoc(
+      `openapi: 3.1.0
+info: { title: P, version: '1' }
+paths: {}
+components:
+  schemas:
+    Pet: { type: object }
+`,
+      { retrievalUri: "https://example.com/api/schemas/pet.yaml" },
+    );
+    const result = resolveOad(makeOad(entry, pet));
+    const edge = result.edges.find(
+      (e) => e.refString === "schemas/pet.yaml#/components/schemas/Pet",
+    );
+    expect(edge?.status).toBe("resolved");
+    expect(edge?.targetDocId).toBe(pet.id);
+  });
 });
 
 describe("resolveOad — lookup maps", () => {

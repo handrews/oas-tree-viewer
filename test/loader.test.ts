@@ -64,6 +64,17 @@ describe("loadDocument (upload)", () => {
     });
     expect(doc.retrievalUri).toBe("file:///entry.yaml");
   });
+
+  it("uses the relative path (directory upload) for the file:// base", async () => {
+    const doc = await loadDocument({
+      source: "upload",
+      filename: "pet.yaml",
+      relativePath: "oad/schemas/pet.yaml",
+      text: valid(),
+      isEntry: false,
+    });
+    expect(doc.retrievalUri).toBe("file:///oad/schemas/pet.yaml");
+  });
 });
 
 describe("loadDocument (url)", () => {
