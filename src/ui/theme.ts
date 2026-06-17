@@ -39,7 +39,7 @@ export function setupTheme(header: HTMLElement): void {
   sync();
 }
 
-function initialTheme(): Theme {
+export function initialTheme(): Theme {
   let stored: string | null = null;
   try {
     stored = localStorage.getItem(STORAGE_KEY);
@@ -55,6 +55,6 @@ function currentTheme(): Theme {
   return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
 }
 
-function applyTheme(theme: Theme): void {
+export function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute("data-theme", theme);
 }
