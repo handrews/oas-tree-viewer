@@ -57,10 +57,16 @@ export class Canvas {
     toolbar.addEventListener("click", (e) => this.onToolbar(e));
     container.appendChild(toolbar);
     this.showAllBtn = toolbar.querySelector<HTMLButtonElement>('[data-act="showall"]')!;
+    this.showAllBtn.setAttribute("aria-pressed", "false");
 
     this.svg = select(container)
       .append("svg")
       .attr("class", "tree-canvas")
+      .attr("role", "img")
+      .attr(
+        "aria-label",
+        "Document structure trees — an interactive visual; use the toolbar above and the detail panel to inspect nodes",
+      )
       .attr("width", "100%")
       .attr("height", "100%");
 
@@ -301,6 +307,7 @@ export class Canvas {
     } else if (act === "showall") {
       this.showAll = !this.showAll;
       this.showAllBtn.classList.toggle("active", this.showAll);
+      this.showAllBtn.setAttribute("aria-pressed", String(this.showAll));
       this.refreshEdges();
     }
   }

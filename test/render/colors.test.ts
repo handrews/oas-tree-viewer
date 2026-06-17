@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categoryColor, categoryLabel, colorFor, legendOrder } from "../../src/render/colors";
+import { categoryClass, categoryLabel, legendOrder } from "../../src/render/colors";
 import type { NodeCategory } from "../../src/types";
 
 const ALL: NodeCategory[] = [
@@ -17,19 +17,16 @@ const ALL: NodeCategory[] = [
 ];
 
 describe("colors", () => {
-  it("has a hex color and a label for every category", () => {
-    for (const c of ALL) {
-      expect(categoryColor[c]).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(categoryLabel[c]).toBeTruthy();
-    }
+  it("has a label for every category", () => {
+    for (const c of ALL) expect(categoryLabel[c]).toBeTruthy();
   });
 
-  it("colorFor falls back to object for an undefined category", () => {
-    expect(colorFor(undefined)).toBe(categoryColor.object);
-    expect(colorFor("schema")).toBe(categoryColor.schema);
+  it("categoryClass maps a category to its cat- class, defaulting to object", () => {
+    for (const c of ALL) expect(categoryClass(c)).toBe(`cat-${c}`);
+    expect(categoryClass(undefined)).toBe("cat-object");
   });
 
   it("legendOrder references only known categories", () => {
-    for (const c of legendOrder) expect(categoryColor[c]).toBeDefined();
+    for (const c of legendOrder) expect(categoryLabel[c]).toBeTruthy();
   });
 });

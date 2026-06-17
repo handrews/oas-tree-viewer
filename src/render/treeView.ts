@@ -7,7 +7,7 @@
 import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
-import { colorFor } from "./colors";
+import { categoryClass } from "./colors";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -250,15 +250,19 @@ export class DocumentView {
         this.toggle(d.node);
       });
 
-    // Colored category dot.
+    // Colored category dot. Color comes from the category class (themed via CSS);
+    // collapsed nodes read as hollow, reference nodes get a dashed ring.
     rowSel
       .append("circle")
-      .attr("class", (d) => (d.node.data.isReference ? "marker is-ref" : "marker"))
+      .attr("class", (d) => {
+        const parts = ["marker", categoryClass(d.node.data.category)];
+        if (d.node.data.isReference) parts.push("is-ref");
+        if (d.node._children) parts.push("collapsed");
+        return parts.join(" ");
+      })
       .attr("r", 4)
       .attr("cx", (d) => d.depth * INDENT + DOT_DX)
-      .attr("cy", 0)
-      .attr("fill", (d) => (d.node._children ? "var(--surface)" : colorFor(d.node.data.category)))
-      .attr("stroke", (d) => colorFor(d.node.data.category));
+      .attr("cy", 0);
 
     // Single-line label: key, optional collapsed-count, then dim type/value.
     const label = rowSel
