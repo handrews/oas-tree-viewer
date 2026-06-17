@@ -7,17 +7,66 @@
 }
 
 :root {
-  --bg: #1a1a2e;
-  --surface: #16213e;
-  --surface2: #0f3460;
-  --accent: #e94560;
-  --text: #eaeaea;
-  --text-dim: #8899aa;
-  --border: #2a3a5a;
-  --link: #53b8f5;
-  --error: #ff6b81;
+  /* Theme-independent tokens. Filled controls use an olive that reads (>=4.5:1)
+     with white text in both themes; the emphasis text color (--accent) varies. */
+  --accent-solid: #606c38;
+  --on-accent: #ffffff;
   --font: "Helvetica Neue", Arial, sans-serif;
   --mono: "SF Mono", "Courier New", monospace;
+}
+
+/* Dark theme — "Serene Forest Retreat". Also the default before JS sets a theme.
+   Error/warn and category colors are tuned for >=AA text / >=3:1 graphics here. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #332a1f;
+  --surface: #44372a;
+  --surface2: #473a28;
+  --text: #fefaea;
+  --text-dim: #c1b69e;
+  --border: #5c4c39;
+  --accent: #c7d29e;
+  --link: #c7d29e;
+  --error: #ff9a72;
+  --warn: #f5b14e;
+  --cat-root: #ef5b76;
+  --cat-structure: #53b8f5;
+  --cat-operation: #f5a623;
+  --cat-schema: #7ed957;
+  --cat-io: #b06ef5;
+  --cat-meta: #aab6c4;
+  --cat-security: #f55d7a;
+  --cat-reference: #ffd166;
+  --cat-object: #6f93c9;
+  --cat-array: #4fb8c4;
+  --cat-scalar: #9aa6bd;
+}
+
+/* Light theme — "Enchanted Forest Walk". Category colors darkened to read on cream. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fefae0;
+  --surface: #f4edcf;
+  --surface2: #ece4c3;
+  --text: #283618;
+  --text-dim: #566030;
+  --border: #d9cfa6;
+  --accent: #46531f;
+  --link: #764a19;
+  --error: #8f3214;
+  --warn: #9a5b00;
+  --cat-root: #c52d44;
+  --cat-structure: #1f6fb0;
+  --cat-operation: #a85e0a;
+  --cat-schema: #3f8f2f;
+  --cat-io: #7a3fb0;
+  --cat-meta: #566472;
+  --cat-security: #b53a62;
+  --cat-reference: #8a6f0d;
+  --cat-object: #3a587f;
+  --cat-array: #27737f;
+  --cat-scalar: #4b5670;
 }
 
 body {
@@ -30,9 +79,28 @@ body {
 
 #app-header {
   padding: 1rem 1.25rem 0.75rem;
+  position: relative;
 }
 #app-header h1 {
   font-size: 1.4rem;
+  color: var(--accent);
+}
+.theme-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  border-color: var(--accent);
   color: var(--accent);
 }
 #app-header .tagline {
@@ -162,6 +230,11 @@ body {
 .doc-row input[type="file"] {
   font-family: var(--font);
 }
+.doc-row input::placeholder,
+.oad-form .folder-base::placeholder {
+  color: var(--text-dim);
+  opacity: 1;
+}
 
 .row-error {
   margin-top: 0.5rem;
@@ -201,9 +274,9 @@ body {
   color: var(--link);
 }
 .oad-form .render {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
   font-weight: 600;
   margin-left: auto;
 }
@@ -292,10 +365,10 @@ body {
   fill: transparent;
 }
 .row:hover .row-bg {
-  fill: rgba(255, 255, 255, 0.04);
+  fill: color-mix(in srgb, var(--text) 8%, transparent);
 }
 .row.selected .row-bg {
-  fill: rgba(233, 69, 96, 0.12);
+  fill: color-mix(in srgb, var(--accent-solid) 18%, transparent);
 }
 .disclosure {
   fill: var(--text-dim);
@@ -310,6 +383,33 @@ circle.marker.is-ref {
   stroke-dasharray: 2.5 1.5;
   stroke-width: 2px;
 }
+
+/* Category colors (themed via --cat-*): tree markers fill+stroke, legend swatches background. */
+.marker.cat-root { fill: var(--cat-root); stroke: var(--cat-root); }
+.marker.cat-structure { fill: var(--cat-structure); stroke: var(--cat-structure); }
+.marker.cat-operation { fill: var(--cat-operation); stroke: var(--cat-operation); }
+.marker.cat-schema { fill: var(--cat-schema); stroke: var(--cat-schema); }
+.marker.cat-io { fill: var(--cat-io); stroke: var(--cat-io); }
+.marker.cat-meta { fill: var(--cat-meta); stroke: var(--cat-meta); }
+.marker.cat-security { fill: var(--cat-security); stroke: var(--cat-security); }
+.marker.cat-reference { fill: var(--cat-reference); stroke: var(--cat-reference); }
+.marker.cat-object { fill: var(--cat-object); stroke: var(--cat-object); }
+.marker.cat-array { fill: var(--cat-array); stroke: var(--cat-array); }
+.marker.cat-scalar { fill: var(--cat-scalar); stroke: var(--cat-scalar); }
+/* Collapsed nodes read as hollow: surface fill, category stroke. */
+.marker.collapsed { fill: var(--surface); }
+
+.swatch.cat-root { background: var(--cat-root); }
+.swatch.cat-structure { background: var(--cat-structure); }
+.swatch.cat-operation { background: var(--cat-operation); }
+.swatch.cat-schema { background: var(--cat-schema); }
+.swatch.cat-io { background: var(--cat-io); }
+.swatch.cat-meta { background: var(--cat-meta); }
+.swatch.cat-security { background: var(--cat-security); }
+.swatch.cat-reference { background: var(--cat-reference); }
+.swatch.cat-object { background: var(--cat-object); }
+.swatch.cat-array { background: var(--cat-array); }
+.swatch.cat-scalar { background: var(--cat-scalar); }
 .node-label {
   font: 12px var(--font);
   fill: var(--text);
@@ -349,10 +449,10 @@ circle.marker.is-ref {
   stroke: var(--border);
 }
 .entry-badge rect {
-  fill: var(--accent);
+  fill: var(--accent-solid);
 }
 .entry-badge text {
-  fill: #fff;
+  fill: var(--on-accent);
   font: 700 9px var(--font);
 }
 
@@ -387,12 +487,12 @@ circle.marker.is-ref {
   cursor: default;
 }
 .warn-glyph.status-external {
-  fill: #f5a623;
+  fill: var(--warn);
 }
 .canvas-toolbar button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--on-accent);
 }
 
 /* ── Detail panel + legend ────────────────────────────────────────────── */
@@ -461,8 +561,8 @@ circle.marker.is-ref {
 }
 .pill {
   display: inline-block;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-solid);
+  color: var(--on-accent);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;

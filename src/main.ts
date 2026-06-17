@@ -9,9 +9,12 @@ import { assembleOad } from "./oad";
 import { resolveOad } from "./refs/resolver";
 import { errorMessage } from "./errors";
 import { OadForm } from "./ui/oadForm";
+import { setupTheme } from "./ui/theme";
 import { Canvas } from "./render/canvas";
 import type { DetailContext } from "./render/detailPanel";
 import { renderLegend, renderDetail, clearDetail } from "./render/detailPanel";
+
+setupTheme(document.querySelector<HTMLElement>("#app-header")!);
 
 const inputPanel = document.querySelector<HTMLElement>("#input-panel")!;
 const viewer = document.querySelector<HTMLElement>("#viewer")!;

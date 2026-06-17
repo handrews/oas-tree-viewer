@@ -6,7 +6,7 @@ import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
 import { displayPointer } from "../model/jsonPointer";
 import { descendantCount } from "../model/treeBuilder";
-import { categoryColor, categoryLabel, legendOrder } from "./colors";
+import { categoryClass, categoryLabel, legendOrder } from "./colors";
 
 export interface DetailContext {
   refs: ResolvedRefs;
@@ -18,7 +18,7 @@ export function renderLegend(container: HTMLElement): void {
   const items = legendOrder
     .map(
       (cat) =>
-        `<li><span class="swatch" style="background:${categoryColor[cat]}"></span>${escapeHtml(
+        `<li><span class="swatch ${categoryClass(cat)}"></span>${escapeHtml(
           categoryLabel[cat],
         )}</li>`,
     )

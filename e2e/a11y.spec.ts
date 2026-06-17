@@ -1,17 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import type { AxeResults, Result } from "axe-core";
 import AxeBuilder from "@axe-core/playwright";
 import { renderUploads } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-
-// Rules still analyzed and reported below, but not yet gating. color-contrast is a
-// function of the current (placeholder) palette; Phase 2 redefines both palettes and
-// re-enables this rule as the gate in light AND dark mode.
-// TODO(phase2): remove color-contrast from DEFERRED and assert across both themes.
-const DEFERRED = new Set(["color-contrast"]);
-const gating = (v: Result): boolean =>
-  (v.impact === "serious" || v.impact === "critical") && !DEFERRED.has(v.id);
+const blocking = (v: Result): boolean => v.impact === "serious" || v.impact === "critical";
 
 function summarize(results: AxeResults): string {
   if (results.violations.length === 0) return "no violations";
@@ -23,20 +16,26 @@ function summarize(results: AxeResults): string {
     .join("\n");
 }
 
-test.describe("accessibility (axe-core, WCAG 2.1 A/AA)", () => {
-  test("input form view", async ({ page }, testInfo) => {
-    await page.goto("/");
-    const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
-    testInfo.attach("axe-form-violations", { body: summarize(results), contentType: "text/plain" });
-    console.log(`[axe] form view — ${results.violations.length} violation type(s):\n${summarize(results)}`);
-    expect(results.violations.filter(gating), summarize(results)).toEqual([]);
-  });
+async function setTheme(page: Page, theme: "dark" | "light"): Promise<void> {
+  await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+}
 
-  test("rendered OAD view", async ({ page }, testInfo) => {
-    await renderUploads(page, ["refs-3.1.yaml", "refs-shared-3.1.yaml"]);
-    const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
-    testInfo.attach("axe-rendered-violations", { body: summarize(results), contentType: "text/plain" });
-    console.log(`[axe] rendered view — ${results.violations.length} violation type(s):\n${summarize(results)}`);
-    expect(results.violations.filter(gating), summarize(results)).toEqual([]);
+// Both palettes must pass WCAG 2.1 A/AA — including color-contrast, which is the
+// acceptance gate for the theming work.
+for (const theme of ["dark", "light"] as const) {
+  test.describe(`accessibility — ${theme} theme (axe-core, WCAG 2.1 A/AA)`, () => {
+    test("input form view", async ({ page }) => {
+      await page.goto("/");
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
+    test("rendered OAD view", async ({ page }) => {
+      await renderUploads(page, ["refs-3.1.yaml", "refs-shared-3.1.yaml"]);
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
   });
-});
+}
