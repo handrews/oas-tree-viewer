@@ -1,44 +1,13 @@
-// Light/dark theme: applies a data-theme on <html> (read by the CSS token sets),
-// defaulting to the OS preference and remembering an explicit choice. Renders a
-// small toggle into the header. Colors all live in CSS custom properties, so a
-// theme switch is just the attribute flip — nothing re-renders.
+// Light/dark theme helpers: a data-theme on <html> drives the CSS token sets. The
+// initial theme follows a stored choice, else the OS preference. Colors all live in
+// CSS custom properties, so a theme switch is just the attribute flip — nothing
+// re-renders. The toggle button itself lives in ThemeToggle.svelte.
 
 export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "oas-tree-viewer:theme";
 
-/** Apply the initial theme and mount the toggle button into `header`. */
-export function setupTheme(header: HTMLElement): void {
-  applyTheme(initialTheme());
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "theme-toggle";
-
-  const sync = (): void => {
-    const dark = currentTheme() === "dark";
-    btn.textContent = dark ? "☾" : "☀";
-    btn.setAttribute("aria-pressed", String(dark));
-    const target = dark ? "light" : "dark";
-    btn.setAttribute("aria-label", `Switch to ${target} theme`);
-    btn.title = `Switch to ${target} theme`;
-  };
-
-  btn.addEventListener("click", () => {
-    const next: Theme = currentTheme() === "dark" ? "light" : "dark";
-    applyTheme(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // Storage may be unavailable (private mode); the choice just won't persist.
-    }
-    sync();
-  });
-
-  header.appendChild(btn);
-  sync();
-}
-
+/** The theme to use on load: an explicit stored choice, else the OS preference. */
 export function initialTheme(): Theme {
   let stored: string | null = null;
   try {
@@ -51,10 +20,22 @@ export function initialTheme(): Theme {
   return prefersLight ? "light" : "dark";
 }
 
-function currentTheme(): Theme {
+/** The theme currently applied to <html>. */
+export function currentTheme(): Theme {
   return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
 }
 
+/** Apply a theme by flipping the data-theme attribute the CSS reads. */
 export function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute("data-theme", theme);
+}
+
+/** Apply a theme and remember the choice (best-effort; storage may be unavailable). */
+export function setTheme(theme: Theme): void {
+  applyTheme(theme);
+  try {
+    localStorage.setItem(STORAGE_KEY, theme);
+  } catch {
+    // Storage may be unavailable (private mode); the choice just won't persist.
+  }
 }

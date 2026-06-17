@@ -47,6 +47,9 @@ export default defineConfig({
         "src/render/canvas.ts", // SVG + d3 (verified in-browser)
         "src/render/treeView.ts", // SVG + d3 (verified in-browser)
         "src/render/TreeCanvas.svelte", // d3 island wrapper (verified in-browser)
+        "src/render/DetailPanel.svelte", // presentation (logic lives in detail.ts; browser-verified)
+        "src/ui/OadForm.svelte", // presentation (logic lives in oadForm.ts; browser-verified)
+        "src/ui/ThemeToggle.svelte", // presentation (logic lives in theme.ts; browser-verified)
         "src/types.ts", // type declarations only
         "src/refs/types.ts", // type declarations (+ trivial refKey)
         "src/vite-env.d.ts",

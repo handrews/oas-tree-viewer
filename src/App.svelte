@@ -1,22 +1,19 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { tick } from "svelte";
   import type { Oad, OadDocument, TreeNode } from "./types";
   import type { ResolvedRefs } from "./refs/types";
   import type { DocInput } from "./loader";
-  import { OadForm } from "./ui/oadForm";
+  import OadForm from "./ui/OadForm.svelte";
   import type { RenderOutcome } from "./ui/oadForm";
-  import { setupTheme } from "./ui/theme";
+  import ThemeToggle from "./ui/ThemeToggle.svelte";
   import TreeCanvas from "./render/TreeCanvas.svelte";
-  import { renderLegend, renderDetail, clearDetail } from "./render/detailPanel";
-  import type { DetailContext } from "./render/detailPanel";
+  import DetailPanel from "./render/DetailPanel.svelte";
+  import type { DetailContext } from "./render/detail";
   import { runPipeline, docLabel } from "./app/bootstrap";
 
-  // Imperative leaves (form, theme, detail panel) still own their DOM this pass; App
-  // owns the reactive app state and drives them.
-  let header: HTMLElement;
-  let inputPanel: HTMLElement;
+  // App owns the reactive app state and renders the form, canvas, and detail panel as
+  // components.
   let viewerEl: HTMLElement;
-  let detailEl: HTMLElement;
   let treeCanvas: { navigateTo: (docId: string, nodeId: string) => void } | undefined = $state();
 
   let oad = $state<Oad | null>(null);
@@ -44,35 +41,20 @@
     viewerEl?.scrollIntoView({ behavior: "smooth", block: "start" });
     return { ok: true };
   }
-
-  onMount(() => {
-    setupTheme(header);
-    new OadForm(inputPanel, { onRender });
-  });
-
-  // A fresh OAD resets the panel to the legend + empty hint.
-  $effect(() => {
-    if (oad && detailEl) renderLegend(detailEl);
-  });
-
-  // Selection drives the detail subsection (legend stays put above it).
-  $effect(() => {
-    if (!detailEl || !oad) return;
-    if (selected && detailCtx) renderDetail(detailEl, selected.doc, selected.node, detailCtx);
-    else clearDetail(detailEl);
-  });
 </script>
 
-<header id="app-header" bind:this={header}>
+<header id="app-header">
   <h1>OAS Structure Viewer</h1>
   <p class="tagline">
     Parent/child structure of an OpenAPI Description, document by document.
   </p>
+  <ThemeToggle />
 </header>
 
 <main id="app">
-  <!-- The input form is rendered into here by ui/oadForm.ts -->
-  <section id="input-panel" bind:this={inputPanel} aria-label="OAD input"></section>
+  <section id="input-panel" aria-label="OAD input">
+    <OadForm {onRender} />
+  </section>
 
   <section id="viewer" bind:this={viewerEl} hidden={!oad}>
     {#if oad}
@@ -84,6 +66,8 @@
         bind:this={treeCanvas}
       />
     {/if}
-    <aside id="detail-panel" bind:this={detailEl} aria-label="Selected node details"></aside>
+    <aside id="detail-panel" aria-label="Selected node details">
+      <DetailPanel {selected} ctx={detailCtx} />
+    </aside>
   </section>
 </main>
