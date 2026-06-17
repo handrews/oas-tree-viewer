@@ -495,6 +495,11 @@ circle.marker.is-ref {
   color: var(--link);
 }
 .nav-ref {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
   color: var(--text);
   cursor: pointer;
   text-decoration: underline;

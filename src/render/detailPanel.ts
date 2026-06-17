@@ -122,7 +122,7 @@ function outgoingItem(e: ReferenceEdge, ctx: DetailContext): string {
       e.status === "type-mismatch"
         ? `<div class="ref-note">expected <strong>${escapeHtml(e.requiredType)}</strong>, found <strong>${escapeHtml(e.targetType ?? "?")}</strong></div>`
         : "";
-    return `<div class="ref-item">${badge}<a class="nav-ref" data-nav-doc="${escapeHtml(e.targetDocId)}" data-nav-node="${escapeHtml(e.targetNodeId)}">${label}</a>${note}</div>`;
+    return `<div class="ref-item">${badge}<button type="button" class="nav-ref" data-nav-doc="${escapeHtml(e.targetDocId)}" data-nav-node="${escapeHtml(e.targetNodeId)}">${label}</button>${note}</div>`;
   }
   return `<div class="ref-item">${badge}<code>${escapeHtml(e.refString)}</code><div class="ref-note">${e.status === "external" ? "target document not loaded" : "fragment not found"}</div></div>`;
 }
@@ -131,7 +131,7 @@ function incomingItem(e: ReferenceEdge, ctx: DetailContext): string {
   const label = `${escapeHtml(ctx.docLabel(e.sourceDocId))} <code>${escapeHtml(
     displayPointer(e.sourceObjectId),
   )}</code>`;
-  return `<div class="ref-item">${statusBadge(e.status)}<a class="nav-ref" data-nav-doc="${escapeHtml(e.sourceDocId)}" data-nav-node="${escapeHtml(e.sourceObjectId)}">${label}</a></div>`;
+  return `<div class="ref-item">${statusBadge(e.status)}<button type="button" class="nav-ref" data-nav-doc="${escapeHtml(e.sourceDocId)}" data-nav-node="${escapeHtml(e.sourceObjectId)}">${label}</button></div>`;
 }
 
 function statusBadge(status: string): string {

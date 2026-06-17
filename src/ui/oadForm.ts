@@ -54,7 +54,7 @@ export class OadForm {
         <div class="form-actions">
           <button type="button" class="add-row">+ Add document</button>
           <button type="button" class="add-folder">Load folder…</button>
-          <input type="url" class="folder-base" placeholder="Base URL for the folder (optional)" />
+          <input type="url" class="folder-base" aria-label="Base URL for the folder (optional)" placeholder="Base URL for the folder (optional)" />
           <input type="file" class="folder-input" webkitdirectory multiple hidden />
           <button type="submit" class="render">Render OAD</button>
         </div>
@@ -338,18 +338,18 @@ function manualMarkup(srcName: string): string {
   return `
     <div class="row-top">
       <span class="row-role"></span>
-      <div class="source-toggle">
+      <div class="source-toggle" role="radiogroup" aria-label="Document source">
         <label><input type="radio" name="${srcName}" class="src" value="upload" checked /> Upload</label>
         <label><input type="radio" name="${srcName}" class="src" value="url" /> URL</label>
       </div>
       ${rowActions()}
     </div>
     <div class="upload-fields">
-      <input type="file" class="file" accept=".json,.yaml,.yml,application/json,text/yaml" />
-      <input type="url" class="retrieval" placeholder="Retrieval URL (optional — base URI this file came from)" />
+      <input type="file" class="file" aria-label="OpenAPI document file to upload" accept=".json,.yaml,.yml,application/json,text/yaml" />
+      <input type="url" class="retrieval" aria-label="Retrieval URL (optional — base URI this file came from)" placeholder="Retrieval URL (optional — base URI this file came from)" />
     </div>
     <div class="url-fields" hidden>
-      <input type="url" class="url" placeholder="https://example.com/openapi.yaml" />
+      <input type="url" class="url" aria-label="Document URL to fetch" placeholder="https://example.com/openapi.yaml" />
     </div>
     <p class="row-error" hidden></p>
   `;
@@ -363,7 +363,7 @@ function preloadedMarkup(): string {
       ${rowActions()}
     </div>
     <div class="upload-fields">
-      <input type="url" class="retrieval" placeholder="Retrieval URL (optional — overrides the file:// base)" />
+      <input type="url" class="retrieval" aria-label="Retrieval URL (optional — overrides the file:// base)" placeholder="Retrieval URL (optional — overrides the file:// base)" />
     </div>
     <p class="row-error" hidden></p>
   `;
