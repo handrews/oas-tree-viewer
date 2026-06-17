@@ -1,25 +1,61 @@
 import { defineConfig } from "vitest/config";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { playwright } from "@vitest/browser-playwright";
 
 export default defineConfig({
   test: {
-    // Most specs are pure logic (node). DOM specs opt in with a
-    // `// @vitest-environment jsdom` docblock at the top of the file.
-    environment: "node",
-    include: ["test/**/*.test.ts"],
+    projects: [
+      {
+        // Pure-logic + jsdom DOM specs. DOM specs opt in with a
+        // `// @vitest-environment jsdom` docblock at the top of the file.
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["test/**/*.test.ts"],
+          exclude: ["test/browser/**"],
+        },
+      },
+      {
+        // Real-browser component/integration specs (the d3 island needs real
+        // layout: getBBox/fit). Driven by vitest-browser-svelte in Playwright.
+        plugins: [svelte({ hot: false })],
+        // Resolve svelte to its client build (mount lives there, not in the
+        // default SSR entry index-server.js).
+        resolve: { conditions: ["browser"] },
+        // Pre-bundle the island's deps so the browser run doesn't reload mid-test.
+        optimizeDeps: { include: ["d3", "yaml"] },
+        test: {
+          name: "browser",
+          include: ["test/browser/**/*.svelte.test.ts"],
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: true,
+            instances: [{ browser: "chromium" }],
+          },
+        },
+      },
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       // Measure against all source, not just files a test happened to import.
-      include: ["src/**/*.ts"],
+      include: ["src/**/*.{ts,svelte}"],
       exclude: [
-        "src/main.ts", // bootstrap / DOM wiring
+        "src/main.ts", // bootstrap / mount
+        "src/App.svelte", // shell wiring (verified in-browser + e2e)
         "src/render/canvas.ts", // SVG + d3 (verified in-browser)
         "src/render/treeView.ts", // SVG + d3 (verified in-browser)
+        "src/render/TreeCanvas.svelte", // d3 island wrapper (verified in-browser)
+        "src/render/DetailPanel.svelte", // presentation (logic lives in detail.ts; browser-verified)
+        "src/ui/OadForm.svelte", // presentation (logic lives in oadForm.ts; browser-verified)
+        "src/ui/ThemeToggle.svelte", // presentation (logic lives in theme.ts; browser-verified)
         "src/types.ts", // type declarations only
         "src/refs/types.ts", // type declarations (+ trivial refKey)
+        "src/vite-env.d.ts",
       ],
-      // Floors sit just under the measured baseline (stmts 95 / branch 84 /
-      // funcs 100 / lines 97) so the gate blocks regressions without being flaky.
+      // Floors sit just under the measured baseline so the gate blocks
+      // regressions without being flaky.
       thresholds: {
         statements: 93,
         branches: 80,

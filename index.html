@@ -6,24 +6,7 @@
     <title>OAS Structure Viewer</title>
   </head>
   <body>
-    <header id="app-header">
-      <h1>OAS Structure Viewer</h1>
-      <p class="tagline">
-        Parent/child structure of an OpenAPI Description, document by document.
-      </p>
-    </header>
-
-    <main id="app">
-      <!-- The input form is rendered here by ui/oadForm.ts -->
-      <section id="input-panel" aria-label="OAD input"></section>
-
-      <!-- The tree canvas + detail panel are rendered here after a render -->
-      <section id="viewer" hidden>
-        <div id="canvas-wrap" aria-label="Document trees"></div>
-        <aside id="detail-panel" aria-label="Selected node details"></aside>
-      </section>
-    </main>
-
+    <div id="root"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

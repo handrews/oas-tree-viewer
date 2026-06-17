@@ -14,6 +14,10 @@ coverage
 /blob-report/
 /playwright/.cache/
 
+# Vitest browser mode
+.vitest-attachments
+**/__screenshots__/
+
 # Logs
 logs
 *.log

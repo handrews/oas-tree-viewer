@@ -16,5 +16,14 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["src", "test", "e2e", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": [
+    "src",
+    "src/**/*.svelte",
+    "test",
+    "e2e",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "svelte.config.js"
+  ]
 }
