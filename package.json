@@ -24,6 +24,7 @@
     "@axe-core/playwright": "^4.11.3",
     "@playwright/test": "^1.61.0",
     "@types/d3": "^7.4.3",
+    "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^4.1.9",
     "jsdom": "^29.1.1",
     "typescript": "^5.6.3",
