@@ -54,6 +54,8 @@ export class DocumentView {
   private readonly nodeIndex = new Map<string, CNode>();
   /** Local (pre-offset) anchor position of each currently visible row. */
   private visiblePos = new Map<string, { x: number; y: number }>();
+  /** Local (pre-offset) right edge of each visible row's label, for right-gutter markers. */
+  private labelEndById = new Map<string, number>();
 
   constructor(parent: SVGGElement, doc: OadDocument, cb: DocumentViewCallbacks) {
     this.doc = doc;
@@ -97,6 +99,29 @@ export class DocumentView {
     }
     if (!pos) return null;
     return { x: this.offsetX + pos.x, y: pos.y, collapsed };
+  }
+
+  /**
+   * Viewport-space anchor at the right edge of a node's label (for status markers
+   * placed in the right gutter, clear of the dot/triangle). Resolves a hidden node
+   * to its nearest visible ancestor's row, like {@link anchorViewport}.
+   */
+  labelEndViewport(id: string): { x: number; y: number } | null {
+    if (!this.nodeIndex.has(id)) return null;
+    let vid = id;
+    let pos = this.visiblePos.get(vid);
+    if (!pos) {
+      let ancestor = this.nodeIndex.get(id)?.parent as CNode | null | undefined;
+      while (ancestor && !this.visiblePos.has(ancestor.data.id)) {
+        ancestor = ancestor.parent as CNode | null | undefined;
+      }
+      if (!ancestor) return null;
+      vid = ancestor.data.id;
+      pos = this.visiblePos.get(vid);
+    }
+    if (!pos) return null;
+    const end = this.labelEndById.get(vid) ?? pos.x;
+    return { x: this.offsetX + end, y: pos.y };
   }
 
   /** Expand any collapsed ancestors of `id` so its row becomes visible. */
@@ -202,6 +227,7 @@ export class DocumentView {
 
     // Record each visible row's local dot position for edge anchoring.
     this.visiblePos = new Map();
+    this.labelEndById = new Map();
     rows.forEach((r, i) => {
       this.visiblePos.set(r.node.data.id, {
         x: PAD + r.depth * INDENT + DOT_DX,
@@ -272,6 +298,7 @@ export class DocumentView {
       .attr("dy", "0.32em")
       .attr("text-anchor", "start");
 
+    const labelEndById = this.labelEndById;
     label.each(function (this: SVGTextElement, d: RowDatum) {
       const sel = select(this);
       sel.append("tspan").attr("class", "k").text(primaryLabel(d.node.data));
@@ -283,6 +310,10 @@ export class DocumentView {
       if (secondary) {
         sel.append("tspan").attr("class", "t").attr("dx", "8").text(truncate(secondary, 48));
       }
+      // Right edge of the rendered label, in the tree group's space (PAD-offset),
+      // so right-gutter status markers can sit just past the text.
+      const bb = this.getBBox();
+      labelEndById.set(d.node.data.id, PAD + bb.x + bb.width);
     });
 
     this.rowSel = rowSel;

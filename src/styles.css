@@ -30,6 +30,10 @@
   --link: #c7d29e;
   --error: #ff9a72;
   --warn: #f5b14e;
+  /* Unresolved-reference glyphs: broken = true error (vermillion),
+     external = missing-doc warning (warm orange). Tuned for >=3:1 on --bg. */
+  --ref-broken: #ff5436;
+  --ref-external: #ff8a3d;
   --cat-root: #ef5b76;
   --cat-structure: #53b8f5;
   --cat-operation: #f5a623;
@@ -56,6 +60,9 @@
   --link: #764a19;
   --error: #8f3214;
   --warn: #9a5b00;
+  /* Darker vermillion / burnt orange so the glyphs clear >=3:1 on the cream --bg. */
+  --ref-broken: #d2331a;
+  --ref-external: #bf5a00;
   --cat-root: #c52d44;
   --cat-structure: #1f6fb0;
   --cat-operation: #a85e0a;
@@ -482,12 +489,17 @@ circle.marker.is-ref {
   fill: context-stroke;
 }
 .warn-glyph {
-  font-size: 13px;
-  fill: var(--error);
+  font-size: 18px;
+  font-weight: 700;
+  fill: var(--ref-broken);
   cursor: default;
 }
 .warn-glyph.status-external {
-  fill: var(--warn);
+  fill: var(--ref-external);
+}
+.warn-glyph .warn-count {
+  font-size: 0.72em;
+  font-weight: 700;
 }
 .canvas-toolbar button.active {
   background: var(--accent-solid);
@@ -629,8 +641,8 @@ circle.marker.is-ref {
   color: #ffd6de;
 }
 .ref-badge.external {
-  background: #6f561f;
-  color: #ffeccf;
+  background: #7a3f12;
+  color: #ffe2cf;
 }
 .ref-note {
   color: var(--text-dim);

@@ -261,25 +261,51 @@ export class Canvas {
       this.warnG.selectAll("text").remove();
       return;
     }
-    const geos: Array<{ edge: ReferenceEdge; s: Anchor }> = [];
+    // Group unresolved refs by the row they land on (several can collapse onto the
+    // same ancestor row). Each group renders one glyph; `broken` outranks `external`.
+    const groups = new Map<string, { x: number; y: number; broken: boolean; count: number }>();
     for (const edge of this.resolved.edges) {
       if (edge.status !== "external" && edge.status !== "broken") continue;
       const sv = this.viewForDoc(edge.sourceDocId);
       if (!sv) continue;
-      const s = sv.anchorViewport(edge.sourceNodeId);
-      if (!s) continue;
-      geos.push({ edge, s });
+      // Anchor in the right gutter, past the label, clear of the dot/triangle.
+      const p = sv.labelEndViewport(edge.sourceNodeId);
+      if (!p) continue;
+      const key = `${Math.round(p.x)}:${Math.round(p.y)}`;
+      const g = groups.get(key);
+      if (g) {
+        g.count += 1;
+        if (edge.status === "broken") g.broken = true;
+      } else {
+        groups.set(key, { x: p.x, y: p.y, broken: edge.status === "broken", count: 1 });
+      }
     }
+    const data = [...groups].map(([key, g]) => ({ key, ...g }));
 
     this.warnG
-      .selectAll<SVGTextElement, { edge: ReferenceEdge; s: Anchor }>("text")
-      .data(geos, (d) => d.edge.id)
+      .selectAll<SVGTextElement, (typeof data)[number]>("text")
+      .data(data, (d) => d.key)
       .join("text")
-      .attr("class", (d) => `warn-glyph status-${d.edge.status}`)
-      .attr("x", (d) => d.s.x - 9)
-      .attr("y", (d) => d.s.y + 4)
-      .attr("text-anchor", "end")
-      .text("⚠");
+      .attr("class", (d) => `warn-glyph status-${d.broken ? "broken" : "external"}`)
+      .attr("x", (d) => d.x + 12)
+      .attr("y", (d) => d.y + 6)
+      .attr("text-anchor", "start")
+      .each(function (this: SVGTextElement, d) {
+        const sel = select(this);
+        sel.selectAll("*").remove();
+        sel.text(null);
+        sel.append("title").text(
+          d.count > 1
+            ? `${d.count} unresolved references on this row`
+            : d.broken
+              ? "Unresolved reference (target not found)"
+              : "Unresolved reference (external document not loaded)",
+        );
+        sel.append("tspan").text("⚠");
+        if (d.count > 1) {
+          sel.append("tspan").attr("class", "warn-count").attr("dx", "1").text(String(d.count));
+        }
+      });
   }
 
   private recenter(x: number, y: number): void {
