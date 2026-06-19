@@ -18,7 +18,7 @@ export default defineConfig({
       {
         // Real-browser component/integration specs (the d3 island needs real
         // layout: getBBox/fit). Driven by vitest-browser-svelte in Playwright.
-        plugins: [svelte({ hot: false })],
+        plugins: [svelte()],
         // Resolve svelte to its client build (mount lives there, not in the
         // default SSR entry index-server.js).
         resolve: { conditions: ["browser"] },

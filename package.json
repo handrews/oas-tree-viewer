@@ -25,7 +25,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
     "@playwright/test": "^1.61.0",
-    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tsconfig/svelte": "^5.0.8",
     "@types/d3": "^7.4.3",
     "@types/node": "^24.0.0",
@@ -36,7 +36,7 @@
     "svelte": "^5.56.3",
     "svelte-check": "^4.6.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.10",
+    "vite": "^8.0.16",
     "vitest": "^4.1.9",
     "vitest-axe": "^0.1.0",
     "vitest-browser-svelte": "^2.1.1"
