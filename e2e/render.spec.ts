@@ -44,6 +44,13 @@ test.describe("references", () => {
     // Resolvable references become arcs; broken/external ones show a ⚠ glyph.
     await expect(page.locator("svg.tree-canvas .arcs path.ref-edge").first()).toBeVisible();
     await expect(page.locator("svg.tree-canvas .warnings text.warn-glyph").first()).toBeVisible();
+
+    // The same problems are written out in the copy-pasteable issue drawer.
+    const issues = page.locator("#issues");
+    await expect(issues).toBeVisible();
+    await expect(issues).toContainText("Unresolved references");
+    await expect(issues.locator(".copy-report")).toBeVisible();
+    await expect(issues.locator(".issue").first()).toBeVisible();
   });
 });
 

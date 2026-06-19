@@ -9,8 +9,10 @@
   import TreeCanvas from "./render/TreeCanvas.svelte";
   import DetailPanel from "./render/DetailPanel.svelte";
   import Legend from "./render/Legend.svelte";
+  import IssueReport from "./render/IssueReport.svelte";
   import type { DetailContext } from "./render/detail";
   import { unreachableDocs } from "./render/reachability";
+  import { collectIssues, type IssueReport as IssueReportData } from "./render/issues";
   import { runPipeline, docLabel } from "./app/bootstrap";
 
   // App owns the reactive app state and renders the form, canvas, and detail panel as
@@ -22,9 +24,13 @@
   let refs = $state<ResolvedRefs | null>(null);
   let selected = $state<{ doc: OadDocument; node: TreeNode } | null>(null);
 
-  // Documents not reachable from the entry (a non-fatal warning), derived from the OAD.
+  // Documents not reachable from the entry (a non-fatal warning), and the aggregated,
+  // copy-pasteable issue report — both derived from the resolved OAD.
   const unreachable = $derived(oad && refs ? unreachableDocs(oad, refs) : []);
   const unreachableDocIds = $derived(new Set(unreachable.map((d) => d.id)));
+  const issueReport = $derived<IssueReportData | null>(
+    oad && refs ? collectIssues(oad, refs, unreachable) : null,
+  );
 
   const detailCtx = $derived<DetailContext | null>(
     oad && refs
@@ -78,4 +84,6 @@
       <DetailPanel {selected} ctx={detailCtx} />
     </aside>
   </section>
+
+  <IssueReport report={issueReport} />
 </main>

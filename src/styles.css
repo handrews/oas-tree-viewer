@@ -817,3 +817,140 @@ body {
   font-size: 0.76rem;
   margin: 0.1rem 0 0 0.2rem;
 }
+
+/* ── Issue report drawer ──────────────────────────────────────────────── */
+
+.issue-drawer {
+  margin-top: 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+}
+.issue-drawer > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--link);
+}
+.issue-drawer > summary::-webkit-details-marker {
+  display: none;
+}
+.issue-drawer > summary::before {
+  content: "▸";
+  color: var(--text-dim);
+}
+.issue-drawer[open] > summary::before {
+  content: "▾";
+}
+.issue-count {
+  min-width: 1.4em;
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: #6f1f2e;
+  color: #ffd6de;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+.issue-count.none {
+  background: var(--surface2);
+  color: var(--text-dim);
+}
+.issue-body {
+  margin-top: 0.7rem;
+}
+.issue-body .hint {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.issue-actions {
+  margin-bottom: 0.6rem;
+}
+.copy-report {
+  font-family: var(--font);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+}
+.copy-report:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+.issue-body h4 {
+  font-size: 0.8rem;
+  margin: 0.9rem 0 0.4rem;
+  color: var(--text);
+}
+.issue-list {
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+.issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.6rem;
+  font-size: 0.82rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--border);
+}
+.issue.status-broken {
+  border-left-color: var(--ref-broken);
+}
+.issue.status-external {
+  border-left-color: var(--ref-external);
+}
+.issue.status-type-mismatch {
+  border-left-color: var(--error);
+}
+.issue.status-unreachable {
+  border-left-color: var(--warn-unreachable);
+}
+/* Status pills reuse the detail panel's vetted (AA-safe, theme-independent) badge colors. */
+.issue-status {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--text-dim);
+}
+.issue-status.status-broken,
+.issue-status.status-type-mismatch {
+  background: #6f1f2e;
+  color: #ffd6de;
+}
+.issue-status.status-external {
+  background: #7a3f12;
+  color: #ffe2cf;
+}
+.issue-status.status-unreachable {
+  background: #5a4d00;
+  color: #fff3c4;
+}
+.issue-loc code,
+.issue-ref {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--link);
+  background: var(--bg);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+}
+.issue-detail {
+  color: var(--text-dim);
+}
