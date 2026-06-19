@@ -49,3 +49,35 @@ jobs:
           name: coverage
           path: coverage/
           if-no-files-found: ignore
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Playwright's own webServer config starts `npm run dev` and waits for it;
+      # in CI it runs with forbidOnly + one retry (see playwright.config.ts).
+      - name: Run e2e tests
+        run: npm run e2e
+
+      # Traces are captured on first retry; keep them when a run fails so the
+      # failure can be inspected with `npx playwright show-trace`.
+      - name: Upload Playwright traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
