@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categoryClass, categoryLabel, legendOrder } from "../../src/render/colors";
+import { categoryClass, categoryShape, categoryLabel, legendOrder } from "../../src/render/colors";
 import type { NodeCategory } from "../../src/types";
 
 const ALL: NodeCategory[] = [
@@ -28,5 +28,15 @@ describe("colors", () => {
 
   it("legendOrder references only known categories", () => {
     for (const c of legendOrder) expect(categoryLabel[c]).toBeTruthy();
+  });
+
+  it("categoryShape is square for object/array/scalar and circle otherwise", () => {
+    expect(categoryShape("object")).toBe("square");
+    expect(categoryShape("array")).toBe("square");
+    expect(categoryShape("scalar")).toBe("square");
+    for (const c of ALL.filter((c) => !["object", "array", "scalar"].includes(c))) {
+      expect(categoryShape(c)).toBe("circle");
+    }
+    expect(categoryShape(undefined)).toBe("circle");
   });
 });

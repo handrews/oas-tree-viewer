@@ -10,6 +10,10 @@ import { refKey } from "../refs/types";
 import { DocumentView } from "./treeView";
 
 const DOC_GAP = 56;
+// Reference arcs leave the source past its label (where ⚠ markers sit) and enter the
+// target just left of its node marker.
+const EDGE_SOURCE_GAP = 10;
+const EDGE_TARGET_GAP = 8;
 
 export interface CanvasCallbacks {
   onSelect: (doc: OadDocument, node: TreeNode) => void;
@@ -247,10 +251,14 @@ export class Canvas {
       const sv = this.viewForDoc(edge.sourceDocId);
       const tv = this.viewForDoc(edge.targetDocId);
       if (!sv || !tv) continue;
-      const s = sv.anchorViewport(edge.sourceNodeId);
+      const sEnd = sv.labelEndViewport(edge.sourceNodeId);
+      const sDot = sv.anchorViewport(edge.sourceNodeId);
       const t = tv.anchorViewport(edge.targetNodeId);
-      if (!s || !t) continue;
-      out.push({ edge, s, t, focused: focusIds.has(edge.id) });
+      if (!sEnd || !sDot || !t) continue;
+      // Source leaves from the right edge of its label; target enters at its left edge.
+      const s: Anchor = { x: sEnd.x + EDGE_SOURCE_GAP, y: sDot.y, collapsed: sDot.collapsed };
+      const target: Anchor = { x: t.x - EDGE_TARGET_GAP, y: t.y, collapsed: t.collapsed };
+      out.push({ edge, s, t: target, focused: focusIds.has(edge.id) });
     }
     return out;
   }

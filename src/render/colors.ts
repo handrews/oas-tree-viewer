@@ -10,6 +10,14 @@ export function categoryClass(category: NodeCategory | undefined): string {
   return `cat-${category ?? "object"}`;
 }
 
+/** Categories drawn as squares (the structural value kinds); everything else is a circle. */
+const SQUARE_CATEGORIES: ReadonlySet<NodeCategory> = new Set(["object", "array", "scalar"]);
+
+/** Marker/swatch shape for a category, used identically in the tree and the legend. */
+export function categoryShape(category: NodeCategory | undefined): "square" | "circle" {
+  return category && SQUARE_CATEGORIES.has(category) ? "square" : "circle";
+}
+
 /** Human-readable name for each category, used in the legend. */
 export const categoryLabel: Record<NodeCategory, string> = {
   root: "OpenAPI root",
@@ -20,9 +28,9 @@ export const categoryLabel: Record<NodeCategory, string> = {
   meta: "Info / metadata",
   security: "Security",
   reference: "Reference ($ref)",
-  object: "Object (untyped)",
-  array: "Array",
-  scalar: "Scalar value",
+  object: "object (untyped)",
+  array: "array",
+  scalar: "scalar value",
 };
 
 /** Categories shown in the legend, in display order. */

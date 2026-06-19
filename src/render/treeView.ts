@@ -7,7 +7,7 @@
 import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
-import { categoryClass } from "./colors";
+import { categoryClass, categoryShape } from "./colors";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -56,6 +56,8 @@ export class DocumentView {
   private visiblePos = new Map<string, { x: number; y: number }>();
   /** Local (pre-offset) right edge of each visible row's label, for right-gutter markers. */
   private labelEndById = new Map<string, number>();
+  /** Header height for this document; grows when a distinct base URI line is shown. */
+  private headerH = HEADER_H;
 
   constructor(parent: SVGGElement, doc: OadDocument, cb: DocumentViewCallbacks) {
     this.doc = doc;
@@ -67,7 +69,7 @@ export class DocumentView {
     this.treeG = this.group
       .append("g")
       .attr("class", "tree")
-      .attr("transform", `translate(${PAD}, ${HEADER_H + PAD + ROW_H / 2})`);
+      .attr("transform", `translate(${PAD}, ${this.headerH + PAD + ROW_H / 2})`);
 
     this.rootHier = hierarchy<TreeNode>(doc.root) as CNode;
     this.collapseDeep(this.rootHier, 0);
@@ -231,7 +233,7 @@ export class DocumentView {
     rows.forEach((r, i) => {
       this.visiblePos.set(r.node.data.id, {
         x: PAD + r.depth * INDENT + DOT_DX,
-        y: HEADER_H + PAD + ROW_H / 2 + i * ROW_H,
+        y: this.headerH + PAD + ROW_H / 2 + i * ROW_H,
       });
     });
 
@@ -276,19 +278,34 @@ export class DocumentView {
         this.toggle(d.node);
       });
 
-    // Colored category dot. Color comes from the category class (themed via CSS);
-    // collapsed nodes read as hollow, reference nodes get a dashed ring.
+    // Colored category marker. Shape encodes the category (object/array/scalar are
+    // squares, everything else a circle), color comes from the category class (themed
+    // via CSS); collapsed nodes read as hollow, reference nodes get a dashed ring.
+    const markerClass = (d: RowDatum): string => {
+      const parts = ["marker", categoryClass(d.node.data.category)];
+      if (d.node.data.isReference) parts.push("is-ref");
+      if (d.node._children) parts.push("collapsed");
+      return parts.join(" ");
+    };
+    const markerX = (d: RowDatum): number => d.depth * INDENT + DOT_DX;
+
     rowSel
+      .filter((d) => categoryShape(d.node.data.category) === "circle")
       .append("circle")
-      .attr("class", (d) => {
-        const parts = ["marker", categoryClass(d.node.data.category)];
-        if (d.node.data.isReference) parts.push("is-ref");
-        if (d.node._children) parts.push("collapsed");
-        return parts.join(" ");
-      })
+      .attr("class", markerClass)
       .attr("r", 4)
-      .attr("cx", (d) => d.depth * INDENT + DOT_DX)
+      .attr("cx", markerX)
       .attr("cy", 0);
+
+    rowSel
+      .filter((d) => categoryShape(d.node.data.category) === "square")
+      .append("rect")
+      .attr("class", markerClass)
+      .attr("width", 8)
+      .attr("height", 8)
+      .attr("x", (d) => markerX(d) - 4)
+      .attr("y", -4)
+      .attr("rx", 1);
 
     // Single-line label: key, optional collapsed-count, then dim type/value.
     const label = rowSel
@@ -318,18 +335,24 @@ export class DocumentView {
 
     this.rowSel = rowSel;
 
-    this.height = HEADER_H + PAD + rows.length * ROW_H + PAD;
+    this.height = this.headerH + PAD + rows.length * ROW_H + PAD;
     this.width = colWidth + PAD;
   }
 
   private renderHeader(): void {
+    // Show the resolution base URI only when it differs from the retrieval URL already
+    // on the sub line (i.e. a $self that re-bases the document, e.g. in OAS 3.2).
+    const base = this.doc.selfUri ?? this.doc.retrievalUri;
+    const showBase = base !== undefined && base !== this.doc.retrievalUri;
+    if (showBase) this.headerH = HEADER_H + 14;
+
     const h = this.group.append("g").attr("class", "doc-header");
     h.append("rect")
       .attr("class", "doc-header-bg")
       .attr("x", 0)
       .attr("y", 0)
       .attr("width", 380)
-      .attr("height", HEADER_H - 10)
+      .attr("height", this.headerH - 10)
       .attr("rx", 6);
 
     h.append("text").attr("class", "doc-title").attr("x", 12).attr("y", 19).text(headerTitle(this.doc));
@@ -338,6 +361,10 @@ export class DocumentView {
       `OAS ${this.doc.oasVersion} · ${this.doc.format}` +
       (this.doc.retrievalUri ? ` · ${this.doc.retrievalUri}` : "");
     h.append("text").attr("class", "doc-sub").attr("x", 12).attr("y", 33).text(truncate(sub, 64));
+
+    if (showBase) {
+      h.append("text").attr("class", "doc-base").attr("x", 12).attr("y", 47).text(truncate(`base: ${base}`, 62));
+    }
 
     if (this.doc.isEntry) {
       const badge = h.append("g").attr("class", "entry-badge").attr("transform", "translate(320, 7)");
