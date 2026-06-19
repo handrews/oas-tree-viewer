@@ -6,6 +6,8 @@ row, with each node labeled by its OpenAPI Specification (OAS) type — and reso
 references, drawing them as **on-demand arcs** between the referencing field and its target
 (including across documents).
 
+_Produced by Henry Andrews using Claude Code._
+
 ## What it does
 
 - Loads an OAD made of **one or more documents**: the **first document is the entry
