@@ -1,55 +1,47 @@
 <script lang="ts">
-  // Multi-document OAD input form. Each row is a local upload (optional retrieval URL) or
-  // a URL fetch; the first row is the entry document. "Load folder" replaces the rows with
-  // one per file in a directory, preserving relative paths. All row state lives here so
-  // submit can collect it; the pure bits are imported from ./oadForm.
+  // Multi-document OAD input form. Each row is one source: a local file OR a local
+  // directory (bundle), and/or a URL. A file's URL is its retrieval/base URI; a URL with
+  // no local file is fetched. A directory expands into one document per file at submit,
+  // with the entry chosen by a picker (only the first row holds the OAD entry). The pure
+  // bits (row → DocInput[], folder shaping, labels) live in ./oadForm.
   import type { DocInput } from "../loader";
   import {
-    DOC_FILE,
-    rebaseFolderUri,
-    pickEntryIndex,
+    rowToInputs,
+    urlFieldLabel,
+    dirLocalSource,
+    type LocalSource,
     type RenderOutcome,
-    type FolderDoc,
   } from "./oadForm";
+  import { readDrop, readDropped, namedFilesFromList } from "./fileDrop";
 
   let { onRender }: { onRender: (inputs: DocInput[]) => Promise<RenderOutcome> } = $props();
 
   interface RowState {
     id: number;
-    preloaded?: { filename: string; relativePath: string; text: string };
-    source: "upload" | "url";
-    files: FileList | null;
-    retrievalUri: string;
+    local: LocalSource;
     url: string;
     error: string | null;
   }
 
   let nextId = 1;
-  function manualRow(): RowState {
-    return { id: nextId++, source: "upload", files: null, retrievalUri: "", url: "", error: null };
-  }
-  function preloadedRow(item: FolderDoc): RowState {
-    return {
-      id: nextId++,
-      preloaded: { filename: item.filename, relativePath: item.relativePath, text: item.text },
-      source: "upload",
-      files: null,
-      retrievalUri: item.retrievalUri ?? "",
-      url: "",
-      error: null,
-    };
-  }
+  const newRow = (): RowState => ({ id: nextId++, local: { kind: "none" }, url: "", error: null });
 
-  let rows = $state<RowState[]>([manualRow()]);
+  let rows = $state<RowState[]>([newRow()]);
   let oadError = $state<string | null>(null);
-  let folderBase = $state("");
-  let folderInputEl: HTMLInputElement;
+  let dragId = $state<number | null>(null);
+
+  // Open the hidden file/folder input that lives in the same row as the clicked button
+  // (keeps the visible buttons keyboard-focusable, unlike a label over a hidden input).
+  function pick(e: MouseEvent, selector: string): void {
+    const zone = (e.currentTarget as HTMLElement).closest(".local-source");
+    (zone?.querySelector(selector) as HTMLInputElement | null)?.click();
+  }
 
   const removable = $derived(rows.length > 1);
   const roleLabel = (i: number): string => (i === 0 ? "Entry document" : `Additional document ${i}`);
 
   function addRow(): void {
-    rows = [...rows, manualRow()];
+    rows = [...rows, newRow()];
   }
   function removeRow(row: RowState): void {
     rows = rows.filter((r) => r !== row);
@@ -57,55 +49,52 @@
   function makeEntry(row: RowState): void {
     rows = [row, ...rows.filter((r) => r !== row)];
   }
-
-  function loadFolderItems(items: FolderDoc[]): void {
-    if (items.length === 0) return;
-    oadError = null;
-    const entryIndex = pickEntryIndex(items);
-    const ordered = [items[entryIndex]!, ...items.filter((_, i) => i !== entryIndex)];
-    rows = ordered.map(preloadedRow);
+  function clearLocal(row: RowState): void {
+    row.local = { kind: "none" };
+    row.error = null;
   }
 
-  async function onFolderChange(): Promise<void> {
-    const input = folderInputEl;
-    const baseUrl = folderBase.trim();
-    const files = [...(input.files ?? [])].filter((f) => DOC_FILE.test(f.name));
-    const items: FolderDoc[] = await Promise.all(
-      files.map(async (f) => {
-        const relativePath = f.webkitRelativePath || f.name;
-        return {
-          filename: f.name,
-          relativePath,
-          text: await f.text(),
-          retrievalUri: baseUrl ? rebaseFolderUri(relativePath, baseUrl) : undefined,
-        };
-      }),
-    );
-    input.value = ""; // allow re-selecting the same folder
-    loadFolderItems(items);
+  async function onFileChange(row: RowState, input: HTMLInputElement): Promise<void> {
+    const file = input.files?.[0];
+    input.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    row.error = null;
+    row.local = { kind: "file", filename: file.name, text: await file.text() };
   }
 
-  async function collect(row: RowState, isEntry: boolean): Promise<DocInput> {
-    const retrievalUri = row.retrievalUri.trim() || undefined;
+  async function loadDir(row: RowState, files: { filename: string; relativePath: string; text: string }[]): Promise<void> {
+    const dir = dirLocalSource(files);
+    if (dir.docs.length === 0) {
+      row.error = "No OpenAPI documents (.json/.yaml) found in that folder.";
+      return;
+    }
+    row.error = null;
+    row.local = dir;
+  }
 
-    if (row.preloaded) {
-      return {
-        source: "upload",
-        filename: row.preloaded.filename,
-        text: row.preloaded.text,
-        relativePath: row.preloaded.relativePath,
-        retrievalUri,
-        isEntry,
-      };
+  async function onFolderChange(row: RowState, input: HTMLInputElement): Promise<void> {
+    const list = input.files;
+    input.value = "";
+    if (!list || list.length === 0) return;
+    await loadDir(row, await namedFilesFromList(list));
+  }
+
+  async function onDrop(row: RowState, e: DragEvent): Promise<void> {
+    e.preventDefault();
+    dragId = null;
+    if (!e.dataTransfer) return;
+    const dropped = await readDrop(e.dataTransfer);
+    if (!dropped) return;
+    if (dropped.kind === "file") {
+      row.error = null;
+      row.local = { kind: "file", filename: dropped.file.name, text: await dropped.file.text() };
+    } else {
+      await loadDir(row, await readDropped(dropped));
     }
-    if (row.source === "url") {
-      const url = row.url.trim();
-      if (!url) throw new Error("Enter a URL to fetch, or switch this row to Upload.");
-      return { source: "url", url, isEntry };
-    }
-    const file = row.files?.[0];
-    if (!file) throw new Error("Choose a file to upload, or switch this row to URL.");
-    return { source: "upload", filename: file.name, text: await file.text(), retrievalUri, isEntry };
+  }
+
+  function setEntry(row: RowState, index: number): void {
+    if (row.local.kind === "dir") row.local = { ...row.local, entryIndex: index };
   }
 
   async function submit(e: SubmitEvent): Promise<void> {
@@ -114,24 +103,34 @@
     for (const r of rows) r.error = null;
 
     const inputs: DocInput[] = [];
-    let hadPresenceError = false;
+    const owners: number[] = []; // rowId for each flattened input, for error attribution
+    let hadError = false;
     for (let i = 0; i < rows.length; i++) {
-      try {
-        inputs.push(await collect(rows[i]!, i === 0));
-      } catch (err) {
-        rows[i]!.error = err instanceof Error ? err.message : String(err);
-        hadPresenceError = true;
+      const res = rowToInputs(rows[i]!.local, rows[i]!.url, i === 0);
+      if ("error" in res) {
+        rows[i]!.error = res.error;
+        hadError = true;
+      } else {
+        for (const inp of res.inputs) {
+          inputs.push(inp);
+          owners.push(rows[i]!.id);
+        }
       }
     }
-    if (hadPresenceError) return;
+    if (hadError) return;
 
     const outcome = await onRender(inputs);
     if (outcome.ok) return;
 
     if (outcome.rowErrors) {
-      for (const [index, message] of Object.entries(outcome.rowErrors)) {
-        const r = rows[Number(index)];
-        if (r) r.error = message;
+      const byRow = new Map<number, string[]>();
+      for (const [idx, message] of Object.entries(outcome.rowErrors)) {
+        const rowId = owners[Number(idx)];
+        if (rowId != null) byRow.set(rowId, [...(byRow.get(rowId) ?? []), message]);
+      }
+      for (const r of rows) {
+        const msgs = byRow.get(r.id);
+        if (msgs) r.error = msgs.join(" ");
       }
     }
     if (outcome.oadError) oadError = outcome.oadError;
@@ -139,34 +138,11 @@
 </script>
 
 <form class="oad-form" novalidate onsubmit={submit}>
-  <p class="form-intro">
-    Add the documents that make up your OpenAPI Description. The <strong
-      >first document is the entry document</strong
-    >; any others are additional (referenced) documents. Or <strong>Load folder</strong> to add a
-    whole directory at once (relative paths are preserved); supply a base URL to map the folder onto
-    a server path instead of the implicit <code>file://</code> base. Every document must be a
-    complete OpenAPI 3.1 or 3.2 document, and all documents must share the same version.
-  </p>
-
   <div class="rows">
     {#each rows as row, i (row.id)}
       <fieldset class="doc-row" class:has-error={row.error}>
         <div class="row-top">
           <span class="row-role" class:is-entry={i === 0}>{roleLabel(i)}</span>
-          {#if row.preloaded}
-            <span class="file-name" title="path within the folder">{row.preloaded.relativePath}</span>
-          {:else}
-            <div class="source-toggle" role="radiogroup" aria-label="Document source">
-              <label>
-                <input type="radio" name={`src-${row.id}`} class="src" value="upload" bind:group={row.source} />
-                Upload
-              </label>
-              <label>
-                <input type="radio" name={`src-${row.id}`} class="src" value="url" bind:group={row.source} />
-                URL
-              </label>
-            </div>
-          {/if}
           <div class="row-actions">
             <button
               type="button"
@@ -186,43 +162,82 @@
           </div>
         </div>
 
-        {#if row.preloaded}
-          <div class="upload-fields">
-            <input
-              type="url"
-              class="retrieval"
-              aria-label="Retrieval URL (optional — overrides the file:// base)"
-              placeholder="Retrieval URL (optional — overrides the file:// base)"
-              bind:value={row.retrievalUri}
-            />
-          </div>
-        {:else}
-          <div class="upload-fields" hidden={row.source === "url"}>
+        <div
+          class="local-source"
+          class:dragging={dragId === row.id}
+          role="group"
+          aria-label="Local file or folder"
+          ondragover={(e) => {
+            e.preventDefault();
+            dragId = row.id;
+          }}
+          ondragleave={() => (dragId = dragId === row.id ? null : dragId)}
+          ondrop={(e) => onDrop(row, e)}
+        >
+          {#if row.local.kind === "none"}
+            <span class="drop-hint">Drop a file or folder, or</span>
+            <button type="button" class="choose-file" onclick={(e) => pick(e, "input.file")}
+              >Choose file…</button
+            >
+            <button type="button" class="choose-folder" onclick={(e) => pick(e, "input.folder-input")}
+              >Choose folder…</button
+            >
             <input
               type="file"
               class="file"
-              aria-label="OpenAPI document file to upload"
+              hidden
               accept=".json,.yaml,.yml,application/json,text/yaml"
-              bind:files={row.files}
+              onchange={(e) => onFileChange(row, e.currentTarget)}
             />
             <input
-              type="url"
-              class="retrieval"
-              aria-label="Retrieval URL (optional — base URI this file came from)"
-              placeholder="Retrieval URL (optional — base URI this file came from)"
-              bind:value={row.retrievalUri}
+              type="file"
+              class="folder-input"
+              hidden
+              onchange={(e) => onFolderChange(row, e.currentTarget)}
+              {...{ webkitdirectory: true }}
             />
-          </div>
-          <div class="url-fields" hidden={row.source !== "url"}>
-            <input
-              type="url"
-              class="url"
-              aria-label="Document URL to fetch"
-              placeholder="https://example.com/openapi.yaml"
-              bind:value={row.url}
-            />
-          </div>
-        {/if}
+          {:else if row.local.kind === "file"}
+            <span class="file-name" title={row.local.filename}>{row.local.filename}</span>
+            <button type="button" class="clear-local" title="Remove file" onclick={() => clearLocal(row)}>×</button>
+          {:else}
+            {@const dir = row.local}
+            <div class="dir-summary">
+              <span class="folder-name" title={dir.folderName}>{dir.folderName}/</span>
+              <span class="dir-count">{dir.docs.length} document{dir.docs.length === 1 ? "" : "s"}</span>
+              <button type="button" class="clear-local" title="Remove folder" onclick={() => clearLocal(row)}>×</button>
+            </div>
+            {#if i === 0}
+              <label class="entry-pick">
+                Entry document
+                <select
+                  class="entry-select"
+                  onchange={(e) => setEntry(row, Number(e.currentTarget.value))}
+                >
+                  {#each dir.docs as doc, di (doc.relativePath)}
+                    <option value={di} selected={di === dir.entryIndex}>{doc.relativePath}</option>
+                  {/each}
+                </select>
+              </label>
+            {/if}
+            <details class="bundle">
+              <summary>Documents in this folder</summary>
+              <ul class="bundle-list">
+                {#each dir.docs as doc, di (doc.relativePath)}
+                  <li class:is-entry-doc={i === 0 && di === dir.entryIndex}>{doc.relativePath}</li>
+                {/each}
+              </ul>
+            </details>
+          {/if}
+        </div>
+
+        <input
+          type="url"
+          class="url"
+          aria-label={urlFieldLabel(row.local.kind)}
+          placeholder={urlFieldLabel(row.local.kind)}
+          bind:value={row.url}
+        />
+
         <p class="row-error" hidden={!row.error}>{row.error}</p>
       </fieldset>
     {/each}
@@ -230,23 +245,6 @@
 
   <div class="form-actions">
     <button type="button" class="add-row" onclick={addRow}>+ Add document</button>
-    <button type="button" class="add-folder" onclick={() => folderInputEl.click()}>Load folder…</button>
-    <input
-      type="url"
-      class="folder-base"
-      aria-label="Base URL for the folder (optional)"
-      placeholder="Base URL for the folder (optional)"
-      bind:value={folderBase}
-    />
-    <input
-      type="file"
-      class="folder-input"
-      multiple
-      hidden
-      bind:this={folderInputEl}
-      onchange={onFolderChange}
-      {...{ webkitdirectory: true }}
-    />
     <button type="submit" class="render">Render OAD</button>
   </div>
 
