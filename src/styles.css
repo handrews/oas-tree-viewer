@@ -437,10 +437,10 @@ body {
 .row:hover .disclosure {
   fill: var(--text);
 }
-circle.marker {
+.marker {
   stroke-width: 1.5px;
 }
-circle.marker.is-ref {
+.marker.is-ref {
   stroke-dasharray: 2.5 1.5;
   stroke-width: 2px;
 }
@@ -492,7 +492,7 @@ circle.marker.is-ref {
   fill: var(--accent);
   font-weight: 700;
 }
-.row.selected circle.marker {
+.row.selected .marker {
   stroke: var(--accent);
   stroke-width: 3px;
 }
@@ -599,6 +599,12 @@ circle.marker.is-ref {
   height: 12px;
   border-radius: 3px;
   flex: none;
+}
+.swatch.shape-circle {
+  border-radius: 50%;
+}
+.swatch.shape-square {
+  border-radius: 2px;
 }
 
 .node-detail .hint {

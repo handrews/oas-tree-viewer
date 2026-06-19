@@ -7,7 +7,7 @@
 import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
-import { categoryClass } from "./colors";
+import { categoryClass, categoryShape } from "./colors";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -276,19 +276,34 @@ export class DocumentView {
         this.toggle(d.node);
       });
 
-    // Colored category dot. Color comes from the category class (themed via CSS);
-    // collapsed nodes read as hollow, reference nodes get a dashed ring.
+    // Colored category marker. Shape encodes the category (object/array/scalar are
+    // squares, everything else a circle), color comes from the category class (themed
+    // via CSS); collapsed nodes read as hollow, reference nodes get a dashed ring.
+    const markerClass = (d: RowDatum): string => {
+      const parts = ["marker", categoryClass(d.node.data.category)];
+      if (d.node.data.isReference) parts.push("is-ref");
+      if (d.node._children) parts.push("collapsed");
+      return parts.join(" ");
+    };
+    const markerX = (d: RowDatum): number => d.depth * INDENT + DOT_DX;
+
     rowSel
+      .filter((d) => categoryShape(d.node.data.category) === "circle")
       .append("circle")
-      .attr("class", (d) => {
-        const parts = ["marker", categoryClass(d.node.data.category)];
-        if (d.node.data.isReference) parts.push("is-ref");
-        if (d.node._children) parts.push("collapsed");
-        return parts.join(" ");
-      })
+      .attr("class", markerClass)
       .attr("r", 4)
-      .attr("cx", (d) => d.depth * INDENT + DOT_DX)
+      .attr("cx", markerX)
       .attr("cy", 0);
+
+    rowSel
+      .filter((d) => categoryShape(d.node.data.category) === "square")
+      .append("rect")
+      .attr("class", markerClass)
+      .attr("width", 8)
+      .attr("height", 8)
+      .attr("x", (d) => markerX(d) - 4)
+      .attr("y", -4)
+      .attr("rx", 1);
 
     // Single-line label: key, optional collapsed-count, then dim type/value.
     const label = rowSel
