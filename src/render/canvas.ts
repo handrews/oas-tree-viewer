@@ -11,9 +11,10 @@ import { DocumentView } from "./treeView";
 
 const DOC_GAP = 56;
 // Reference arcs leave the source past its label (where ⚠ markers sit) and enter the
-// target just left of its node marker.
+// target from the left, with the arrowhead sitting clear to the left of the target's
+// disclosure triangle (which starts ~16px left of the node marker) rather than on top.
 const EDGE_SOURCE_GAP = 10;
-const EDGE_TARGET_GAP = 8;
+const EDGE_TARGET_GAP = 20;
 
 export interface CanvasCallbacks {
   onSelect: (doc: OadDocument, node: TreeNode) => void;
@@ -350,18 +351,17 @@ export class Canvas {
 /** Curved cubic-bezier arc between two viewport-space anchors. */
 function arcPath(s: Anchor, t: Anchor): string {
   const dx = t.x - s.x;
-  let c1x: number;
-  let c2x: number;
-  if (Math.abs(dx) < 12) {
-    // Near-vertical (same column): bow out to one side like an arc diagram.
-    const bow = 40 + Math.abs(t.y - s.y) * 0.15;
-    c1x = s.x + bow;
-    c2x = t.x + bow;
-  } else {
-    const dir = dx >= 0 ? 1 : -1;
-    const c = Math.max(40, Math.abs(dx) * 0.4);
-    c1x = s.x + dir * c;
-    c2x = t.x - dir * c;
-  }
+  const dy = t.y - s.y;
+  // Always leave the source heading right and arrive at the target from its left, so the
+  // arrowhead always points rightward into the target's left edge. When the target is to
+  // the left (same-document refs, or a target column further left) this swings out to the
+  // right before hooking back — an S-curve — instead of cutting straight left. Both control
+  // points share their endpoint's y, so the curve is horizontal at each end; the arrival
+  // control is long enough (and grows with the vertical drop) that the line straightens out
+  // and enters the *left* side of the arrowhead rather than diving into its top or bottom.
+  const out = Math.max(40, Math.min(Math.abs(dx) * 0.45, 140));
+  const into = Math.max(48, Math.min(Math.abs(dx) * 0.3 + Math.abs(dy) * 0.35, 110));
+  const c1x = s.x + out;
+  const c2x = t.x - into;
   return `M${s.x},${s.y} C${c1x},${s.y} ${c2x},${t.y} ${t.x},${t.y}`;
 }
