@@ -44,9 +44,8 @@ function ctxFor(doc: OadDocument): DetailContext & { onNavigate: ReturnType<type
   return { refs: resolveOad(makeOad(doc)), docLabel: () => "doc.yaml", onNavigate };
 }
 
-test("shows the legend and an empty hint when nothing is selected", async () => {
+test("shows an empty hint when nothing is selected", async () => {
   const screen = render(DetailPanel, { selected: null, ctx: null });
-  await expect.element(screen.getByText("Legend")).toBeVisible();
   await expect.element(screen.getByText(/Click a node/)).toBeVisible();
 });
 

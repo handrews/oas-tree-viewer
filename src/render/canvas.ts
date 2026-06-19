@@ -106,7 +106,7 @@ export class Canvas {
     window.addEventListener("resize", () => this.fit());
   }
 
-  render(oad: Oad): void {
+  render(oad: Oad, unreachableDocIds: ReadonlySet<string> = new Set()): void {
     this.viewport.selectAll("*").remove();
     this.views = [];
     this.focusKey = null;
@@ -115,14 +115,19 @@ export class Canvas {
     if (!vpNode) return;
 
     for (const doc of oad.documents) {
-      const view: DocumentView = new DocumentView(vpNode, doc, {
-        onSelect: (d, n) => this.onSelectInternal(d, n),
-        onLayoutChanged: () => {
-          this.retile();
-          this.refreshEdges();
-          this.drawWarnings();
+      const view: DocumentView = new DocumentView(
+        vpNode,
+        doc,
+        {
+          onSelect: (d, n) => this.onSelectInternal(d, n),
+          onLayoutChanged: () => {
+            this.retile();
+            this.refreshEdges();
+            this.drawWarnings();
+          },
         },
-      });
+        unreachableDocIds.has(doc.id),
+      );
       this.views.push(view);
     }
 

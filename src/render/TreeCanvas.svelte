@@ -8,11 +8,13 @@
   let {
     oad,
     refs,
+    unreachableDocIds = new Set<string>(),
     onselect,
     onbackground,
   }: {
     oad: Oad;
     refs: ResolvedRefs | null;
+    unreachableDocIds?: ReadonlySet<string>;
     onselect: (doc: OadDocument, node: TreeNode) => void;
     onbackground: () => void;
   } = $props();
@@ -24,7 +26,7 @@
   // whenever the OAD or resolved references change.
   $effect(() => {
     if (!canvas) canvas = new Canvas(wrap, { onSelect: onselect, onBackground: onbackground });
-    canvas.render(oad);
+    canvas.render(oad, unreachableDocIds);
     if (refs) canvas.setReferences(refs);
   });
 

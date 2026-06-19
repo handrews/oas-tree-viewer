@@ -64,7 +64,7 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
   return {
     OpenApi: {
       label: "OpenAPI Object",
-      category: "root",
+      category: "structural",
       fields: {
         info: { value: "Info" },
         servers: { array: "Server" },
@@ -79,30 +79,30 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
 
     Info: {
       label: "Info Object",
-      category: "meta",
+      category: "metadata",
       fields: { contact: { value: "Contact" }, license: { value: "License" } },
     },
-    Contact: { label: "Contact Object", category: "meta" },
-    License: { label: "License Object", category: "meta" },
+    Contact: { label: "Contact Object", category: "metadata" },
+    License: { label: "License Object", category: "metadata" },
     Server: {
       label: "Server Object",
-      category: "meta",
+      category: "http",
       fields: { variables: { map: "ServerVariable" } },
     },
-    ServerVariable: { label: "Server Variable Object", category: "meta" },
-    ExternalDocs: { label: "External Documentation Object", category: "meta" },
+    ServerVariable: { label: "Server Variable Object", category: "data" },
+    ExternalDocs: { label: "External Documentation Object", category: "metadata" },
     Tag: {
       label: "Tag Object",
-      category: "meta",
+      category: "metadata",
       fields: { externalDocs: { value: "ExternalDocs" } },
     },
 
-    Paths: { label: "Paths Object", category: "structure", mapOf: "PathItem" },
-    PathItem: { label: "Path Item Object", category: "structure", fields: pathItemFields },
+    Paths: { label: "Paths Object", category: "http", mapOf: "PathItem" },
+    PathItem: { label: "Path Item Object", category: "http", fields: pathItemFields },
 
     Operation: {
       label: "Operation Object",
-      category: "operation",
+      category: "http",
       fields: {
         externalDocs: { value: "ExternalDocs" },
         parameters: { array: "Parameter" },
@@ -114,17 +114,17 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
       },
     },
 
-    Components: { label: "Components Object", category: "structure", fields: componentsFields },
+    Components: { label: "Components Object", category: "structural", fields: componentsFields },
 
     Responses: {
       label: "Responses Object",
-      category: "structure",
+      category: "http",
       fields: { default: { value: "Response" } },
       mapOf: "Response",
     },
     Response: {
       label: "Response Object",
-      category: "io",
+      category: "http",
       fields: {
         headers: { map: "Header" },
         content: { map: "MediaType" },
@@ -134,7 +134,7 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
 
     Parameter: {
       label: "Parameter Object",
-      category: "io",
+      category: "http",
       fields: {
         schema: { value: "Schema" },
         content: { map: "MediaType" },
@@ -143,12 +143,12 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
     },
     RequestBody: {
       label: "Request Body Object",
-      category: "io",
+      category: "http",
       fields: { content: { map: "MediaType" } },
     },
     MediaType: {
       label: "Media Type Object",
-      category: "io",
+      category: "data",
       fields: {
         schema: { value: "Schema" },
         examples: { map: "Example" },
@@ -157,22 +157,22 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
     },
     Encoding: {
       label: "Encoding Object",
-      category: "io",
+      category: "data",
       fields: { headers: { map: "Header" } },
     },
     Header: {
       label: "Header Object",
-      category: "io",
+      category: "http",
       fields: {
         schema: { value: "Schema" },
         content: { map: "MediaType" },
         examples: { map: "Example" },
       },
     },
-    Example: { label: "Example Object", category: "meta" },
+    Example: { label: "Example Object", category: "data" },
 
-    Callback: { label: "Callback Object", category: "structure", mapOf: "PathItem" },
-    Link: { label: "Link Object", category: "io", fields: { server: { value: "Server" } } },
+    Callback: { label: "Callback Object", category: "http", mapOf: "PathItem" },
+    Link: { label: "Link Object", category: "http", fields: { server: { value: "Server" } } },
 
     SecurityRequirement: { label: "Security Requirement Object", category: "security" },
     SecurityScheme: {
@@ -195,7 +195,7 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
     // Schema Object (JSON Schema 2020-12 + OAS vocabulary). Recursive.
     Schema: {
       label: "Schema Object",
-      category: "schema",
+      category: "data",
       fields: {
         properties: { map: "Schema" },
         patternProperties: { map: "Schema" },
@@ -220,7 +220,7 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
         xml: { value: "Xml" },
       },
     },
-    Discriminator: { label: "Discriminator Object", category: "schema" },
-    Xml: { label: "XML Object", category: "schema" },
+    Discriminator: { label: "Discriminator Object", category: "data" },
+    Xml: { label: "XML Object", category: "data" },
   };
 }

@@ -48,6 +48,8 @@ export default defineConfig({
         "src/render/treeView.ts", // SVG + d3 (verified in-browser)
         "src/render/TreeCanvas.svelte", // d3 island wrapper (verified in-browser)
         "src/render/DetailPanel.svelte", // presentation (logic lives in detail.ts; browser-verified)
+        "src/render/Legend.svelte", // presentation (legend data lives in colors.ts; browser-verified)
+        "src/render/IssueReport.svelte", // presentation (logic lives in issues.ts; browser-verified)
         "src/ui/OadForm.svelte", // presentation (logic lives in oadForm.ts; browser-verified)
         "src/ui/fileDrop.ts", // drag-drop / FileSystem Entry API (browser-verified)
         "src/ui/ThemeToggle.svelte", // presentation (logic lives in theme.ts; browser-verified)
