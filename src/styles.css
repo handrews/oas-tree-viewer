@@ -515,6 +515,22 @@ body {
   font: 700 9px var(--font);
 }
 
+/* Unreachable document: a yellow warning outline on the header + a badge. The label is the
+   normal text color (not yellow), so contrast never depends on the yellow itself. */
+.doc-header.unreachable .doc-header-bg {
+  stroke: var(--warn-unreachable);
+  stroke-width: 2px;
+}
+.warn-badge rect {
+  fill: none;
+  stroke: var(--warn-unreachable);
+  stroke-width: 1.5px;
+}
+.warn-badge text {
+  fill: var(--text);
+  font: 700 9px var(--font);
+}
+
 /* Reference edges */
 .ref-edge {
   fill: none;

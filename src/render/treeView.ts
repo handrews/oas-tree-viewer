@@ -58,10 +58,13 @@ export class DocumentView {
   private labelEndById = new Map<string, number>();
   /** Header height for this document; grows when a distinct base URI line is shown. */
   private headerH = HEADER_H;
+  /** True when no loaded reference reaches this document from the entry document. */
+  private readonly unreachable: boolean;
 
-  constructor(parent: SVGGElement, doc: OadDocument, cb: DocumentViewCallbacks) {
+  constructor(parent: SVGGElement, doc: OadDocument, cb: DocumentViewCallbacks, unreachable = false) {
     this.doc = doc;
     this.cb = cb;
+    this.unreachable = unreachable;
 
     this.group = select(parent).append("g").attr("class", "doc");
     this.renderHeader();
@@ -360,7 +363,9 @@ export class DocumentView {
     const showBase = base !== undefined && base !== this.doc.retrievalUri;
     if (showBase) this.headerH = HEADER_H + 14;
 
-    const h = this.group.append("g").attr("class", "doc-header");
+    const h = this.group
+      .append("g")
+      .attr("class", this.unreachable ? "doc-header unreachable" : "doc-header");
     h.append("rect")
       .attr("class", "doc-header-bg")
       .attr("x", 0)
@@ -384,6 +389,11 @@ export class DocumentView {
       const badge = h.append("g").attr("class", "entry-badge").attr("transform", "translate(320, 7)");
       badge.append("rect").attr("width", 52).attr("height", 16).attr("rx", 8);
       badge.append("text").attr("x", 26).attr("y", 12).attr("text-anchor", "middle").text("ENTRY");
+    } else if (this.unreachable) {
+      // The entry is reachable by definition, so this never collides with the entry badge.
+      const badge = h.append("g").attr("class", "warn-badge").attr("transform", "translate(286, 7)");
+      badge.append("rect").attr("width", 86).attr("height", 16).attr("rx", 8);
+      badge.append("text").attr("x", 43).attr("y", 12).attr("text-anchor", "middle").text("UNREACHABLE");
     }
   }
 }

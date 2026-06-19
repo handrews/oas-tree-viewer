@@ -10,6 +10,7 @@
   import DetailPanel from "./render/DetailPanel.svelte";
   import Legend from "./render/Legend.svelte";
   import type { DetailContext } from "./render/detail";
+  import { unreachableDocs } from "./render/reachability";
   import { runPipeline, docLabel } from "./app/bootstrap";
 
   // App owns the reactive app state and renders the form, canvas, and detail panel as
@@ -20,6 +21,10 @@
   let oad = $state<Oad | null>(null);
   let refs = $state<ResolvedRefs | null>(null);
   let selected = $state<{ doc: OadDocument; node: TreeNode } | null>(null);
+
+  // Documents not reachable from the entry (a non-fatal warning), derived from the OAD.
+  const unreachable = $derived(oad && refs ? unreachableDocs(oad, refs) : []);
+  const unreachableDocIds = $derived(new Set(unreachable.map((d) => d.id)));
 
   const detailCtx = $derived<DetailContext | null>(
     oad && refs
@@ -62,6 +67,7 @@
       <TreeCanvas
         {oad}
         {refs}
+        {unreachableDocIds}
         onselect={(doc, node) => (selected = { doc, node })}
         onbackground={() => (selected = null)}
         bind:this={treeCanvas}
