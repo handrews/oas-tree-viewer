@@ -346,6 +346,47 @@ body {
   font-weight: 600;
 }
 
+/* ── Demos (configure page) ───────────────────────────────────────────── */
+
+.demos {
+  margin-top: 1.5rem;
+}
+.demos h2 {
+  font-size: 1rem;
+  margin: 0 0 0.6rem;
+}
+.demo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.demo-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem;
+}
+.demo-open {
+  font-family: var(--font);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  background: var(--accent-solid);
+  border: 1px solid var(--accent-solid);
+  color: var(--on-accent);
+}
+.demo-desc {
+  margin: 0.6rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 /* ── Viewer (canvas + detail) ─────────────────────────────────────────── */
 
 #viewer {
@@ -355,8 +396,34 @@ body {
   min-height: 480px;
   margin-top: 1.1rem;
 }
-#viewer[hidden] {
-  display: none;
+
+/* Loading / empty / error states fill the viewer area, centered. */
+.view-status,
+.view-empty,
+.view-error {
+  margin: auto;
+  text-align: center;
+  max-width: 32rem;
+  color: var(--text);
+}
+.view-status {
+  color: var(--text-dim);
+}
+.view-error-msg {
+  color: var(--error);
+  font-weight: 600;
+}
+.view-back {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  background: var(--accent-solid);
+  border: 1px solid var(--accent-solid);
+  color: var(--on-accent);
+  margin-top: 0.8rem;
 }
 
 #canvas-wrap {
@@ -404,6 +471,10 @@ body {
 .canvas-toolbar button:hover {
   border-color: var(--link);
   color: var(--link);
+}
+/* App navigation (leave the explorer) sits at the end of the toolbar row, set apart. */
+.canvas-toolbar .load-another {
+  margin-left: auto;
 }
 .tree-canvas {
   flex: 1;

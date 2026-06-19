@@ -44,6 +44,10 @@ export default defineConfig({
       exclude: [
         "src/main.ts", // bootstrap / mount
         "src/App.svelte", // shell wiring (verified in-browser + e2e)
+        "src/pages/ConfigurePage.svelte", // presentation (logic in oadForm/demos/viewUrl; browser-verified)
+        "src/pages/ViewPage.svelte", // presentation (logic in bootstrap/reachability/issues; browser-verified)
+        "src/app/router.svelte.ts", // live history/location wiring (browser-verified; parsing covered in viewUrl)
+        "src/app/session.svelte.ts", // in-memory handoff holder (browser-verified)
         "src/render/canvas.ts", // SVG + d3 (verified in-browser)
         "src/render/treeView.ts", // SVG + d3 (verified in-browser)
         "src/render/TreeCanvas.svelte", // d3 island wrapper (verified in-browser)

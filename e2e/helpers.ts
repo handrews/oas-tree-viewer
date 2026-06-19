@@ -17,5 +17,7 @@ export async function renderUploads(page: Page, names: string[]): Promise<void> 
     await page.locator(".doc-row").nth(i).locator("input.file").setInputFiles(fixture(names[i]!));
   }
   await page.getByRole("button", { name: "Render OAD" }).click();
-  await expect(page.locator("#viewer")).toBeVisible();
+  // The upload render resolves on the configure page and hands off to the view page; wait
+  // for the actual tree so callers (and axe) act on the rendered state, not a loading frame.
+  await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
 }

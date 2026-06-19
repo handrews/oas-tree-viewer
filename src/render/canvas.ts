@@ -19,6 +19,8 @@ const EDGE_TARGET_GAP = 20;
 export interface CanvasCallbacks {
   onSelect: (doc: OadDocument, node: TreeNode) => void;
   onBackground: () => void;
+  /** Optional: when provided, a right-aligned toolbar button invokes it (leave the explorer). */
+  onLoadAnother?: () => void;
 }
 
 interface Anchor {
@@ -63,6 +65,17 @@ export class Canvas {
     container.appendChild(toolbar);
     this.showAllBtn = toolbar.querySelector<HTMLButtonElement>('[data-act="showall"]')!;
     this.showAllBtn.setAttribute("aria-pressed", "false");
+
+    // App-level navigation lives at the end of the toolbar row when wired (it leaves the
+    // explorer rather than acting on the canvas), kept visually apart via margin-left:auto.
+    if (cb.onLoadAnother) {
+      const another = document.createElement("button");
+      another.type = "button";
+      another.className = "load-another";
+      another.dataset.act = "another";
+      another.textContent = "Load a different OAD";
+      toolbar.appendChild(another);
+    }
 
     this.svg = select(container)
       .append("svg")
@@ -349,6 +362,8 @@ export class Canvas {
       this.showAllBtn.classList.toggle("active", this.showAll);
       this.showAllBtn.setAttribute("aria-pressed", String(this.showAll));
       this.refreshEdges();
+    } else if (act === "another") {
+      this.cb.onLoadAnother?.();
     }
   }
 }

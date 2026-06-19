@@ -11,12 +11,14 @@
     unreachableDocIds = new Set<string>(),
     onselect,
     onbackground,
+    onLoadAnother,
   }: {
     oad: Oad;
     refs: ResolvedRefs | null;
     unreachableDocIds?: ReadonlySet<string>;
     onselect: (doc: OadDocument, node: TreeNode) => void;
     onbackground: () => void;
+    onLoadAnother?: () => void;
   } = $props();
 
   let wrap: HTMLDivElement;
@@ -25,7 +27,8 @@
   // Create the Canvas once (the bound div exists before effects run), then re-render
   // whenever the OAD or resolved references change.
   $effect(() => {
-    if (!canvas) canvas = new Canvas(wrap, { onSelect: onselect, onBackground: onbackground });
+    if (!canvas)
+      canvas = new Canvas(wrap, { onSelect: onselect, onBackground: onbackground, onLoadAnother });
     canvas.render(oad, unreachableDocIds);
     if (refs) canvas.setReferences(refs);
   });
