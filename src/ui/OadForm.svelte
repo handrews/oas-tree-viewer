@@ -73,10 +73,13 @@
   }
 
   async function onFolderChange(row: RowState, input: HTMLInputElement): Promise<void> {
-    const list = input.files;
-    input.value = "";
-    if (!list || list.length === 0) return;
-    await loadDir(row, await namedFilesFromList(list));
+    // Snapshot first: input.files is a live FileList that `input.value = ""` empties in
+    // place, so reading it after the reset (to allow re-picking the same folder) would
+    // see nothing. Copying the File refs into an array keeps the selection.
+    const files = [...(input.files ?? [])];
+    input.value = ""; // allow re-selecting the same folder
+    if (files.length === 0) return;
+    await loadDir(row, await namedFilesFromList(files));
   }
 
   async function onDrop(row: RowState, e: DragEvent): Promise<void> {

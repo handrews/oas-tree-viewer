@@ -50,10 +50,10 @@ export async function readDropped(dropped: DroppedLocal): Promise<NamedFile[]> {
   );
 }
 
-/** Read a directory <input>'s FileList (each File carries `webkitRelativePath`). */
-export function namedFilesFromList(list: FileList): Promise<NamedFile[]> {
+/** Read a directory <input>'s files (each File carries `webkitRelativePath`). */
+export function namedFilesFromList(files: File[]): Promise<NamedFile[]> {
   return Promise.all(
-    [...list].map(async (f) => ({
+    files.map(async (f) => ({
       filename: f.name,
       relativePath: f.webkitRelativePath || f.name,
       text: await f.text(),
