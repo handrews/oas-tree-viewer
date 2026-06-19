@@ -75,6 +75,9 @@ describe("classifyDocument", () => {
     expect(ref.expectedType).toBe("Parameter");
     expect(ref.isReference).toBe(true);
     expect(ref.refTarget).toBe("#/components/parameters/Ref");
+    // A Reference Object is colored as the type it stands in for (Parameter -> http), not
+    // as a structural node; the asterisk marker on its `$ref` row carries the reference cue.
+    expect(ref.category).toBe("http");
   });
 
   it("recognizes 3.2 additions", () => {

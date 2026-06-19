@@ -5,7 +5,6 @@
   import type { OadDocument, TreeNode } from "../types";
   import { displayPointer } from "../model/jsonPointer";
   import { descendantCount } from "../model/treeBuilder";
-  import { categoryClass, categoryShape, categoryLabel, legendOrder } from "./colors";
   import {
     docName,
     baseUri,
@@ -23,15 +22,6 @@
     ctx: DetailContext | null;
   } = $props();
 </script>
-
-<section class="legend">
-  <h3>Legend</h3>
-  <ul class="legend-list">
-    {#each legendOrder as cat (cat)}
-      <li><span class="swatch shape-{categoryShape(cat)} {categoryClass(cat)}"></span>{categoryLabel[cat]}</li>
-    {/each}
-  </ul>
-</section>
 
 {#if selected}
   {@const doc = selected.doc}

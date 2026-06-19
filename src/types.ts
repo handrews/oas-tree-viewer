@@ -10,21 +10,22 @@ export type ValueKind =
   | "null";
 
 /**
- * Coarse semantic bucket used for node coloring. OAS object types map onto these;
- * unclassified structure falls back to "object" / "array" / "scalar".
+ * Coarse semantic bucket used for node coloring. OAS object types map onto one of
+ * five semantic groups; unclassified JSON structure falls back to the generic
+ * "object" / "array" / "scalar" kinds (drawn as squares).
+ *
+ * Reference Objects carry the `structural` group color but are drawn with a distinct
+ * asterisk marker, keyed off `isReference` rather than this category.
  */
 export type NodeCategory =
-  | "root"
-  | "structure"
-  | "operation"
-  | "schema"
-  | "io"
-  | "meta"
-  | "security"
-  | "reference"
-  | "object"
-  | "array"
-  | "scalar";
+  | "structural" // OpenAPI, Components, Reference
+  | "metadata" // Info, Contact, License, External Docs, Tag
+  | "http" // Server, Paths, Path Item, Operation, Parameter, Header, Request Body, Responses, Response, Callback, Link
+  | "data" // Media Type, Encoding, Schema, XML, Discriminator, Server Variable, Example
+  | "security" // Security Scheme, Security Requirement, OAuth Flows, OAuth Flow
+  | "object" // generic JSON object (no OAS type)
+  | "array" // generic JSON array
+  | "scalar"; // generic JSON scalar
 
 /**
  * A single node in a document's parent/child tree.

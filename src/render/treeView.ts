@@ -278,19 +278,33 @@ export class DocumentView {
         this.toggle(d.node);
       });
 
-    // Colored category marker. Shape encodes the category (object/array/scalar are
-    // squares, everything else a circle), color comes from the category class (themed
-    // via CSS); collapsed nodes read as hollow, reference nodes get a dashed ring.
+    // Colored category marker. The reference pointer row itself ($ref / operationRef) is
+    // drawn as a distinct asterisk in the Structural (reference) color; the object that holds
+    // it keeps its own slot-type marker. Every other node uses its category color, shaped as
+    // a square (object/array/scalar) or a circle. Collapsed nodes read as hollow.
+    const isRefField = (d: RowDatum): boolean => {
+      const n = d.node.data;
+      if (n.valueKind !== "string") return false;
+      if (n.key === "$ref") return Boolean(d.node.parent?.data.isReference);
+      return n.key === "operationRef";
+    };
     const markerClass = (d: RowDatum): string => {
       const parts = ["marker", categoryClass(d.node.data.category)];
-      if (d.node.data.isReference) parts.push("is-ref");
       if (d.node._children) parts.push("collapsed");
       return parts.join(" ");
     };
     const markerX = (d: RowDatum): number => d.depth * INDENT + DOT_DX;
 
+    // The reference pointer itself: a six-armed asterisk in the Structural/reference color.
     rowSel
-      .filter((d) => categoryShape(d.node.data.category) === "circle")
+      .filter(isRefField)
+      .append("path")
+      .attr("class", "marker asterisk cat-structural")
+      .attr("d", "M0,-5 L0,5 M-4.33,-2.5 L4.33,2.5 M-4.33,2.5 L4.33,-2.5")
+      .attr("transform", (d) => `translate(${markerX(d)}, 0)`);
+
+    rowSel
+      .filter((d) => !isRefField(d) && categoryShape(d.node.data.category) === "circle")
       .append("circle")
       .attr("class", markerClass)
       .attr("r", 4)
@@ -298,7 +312,7 @@ export class DocumentView {
       .attr("cy", 0);
 
     rowSel
-      .filter((d) => categoryShape(d.node.data.category) === "square")
+      .filter((d) => !isRefField(d) && categoryShape(d.node.data.category) === "square")
       .append("rect")
       .attr("class", markerClass)
       .attr("width", 8)

@@ -8,6 +8,7 @@
   import ThemeToggle from "./ui/ThemeToggle.svelte";
   import TreeCanvas from "./render/TreeCanvas.svelte";
   import DetailPanel from "./render/DetailPanel.svelte";
+  import Legend from "./render/Legend.svelte";
   import type { DetailContext } from "./render/detail";
   import { runPipeline, docLabel } from "./app/bootstrap";
 
@@ -67,6 +68,7 @@
       />
     {/if}
     <aside id="detail-panel" aria-label="Selected node details">
+      <Legend />
       <DetailPanel {selected} ctx={detailCtx} />
     </aside>
   </section>

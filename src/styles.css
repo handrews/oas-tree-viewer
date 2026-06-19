@@ -34,14 +34,13 @@
      external = missing-doc warning (warm orange). Tuned for >=3:1 on --bg. */
   --ref-broken: #ff5436;
   --ref-external: #ff8a3d;
-  --cat-root: #ef5b76;
-  --cat-structure: #53b8f5;
-  --cat-operation: #f5a623;
-  --cat-schema: #7ed957;
-  --cat-io: #b06ef5;
-  --cat-meta: #aab6c4;
+  /* Unreachable-document warning: yellow, distinct from the broken/external glyphs. */
+  --warn-unreachable: #ffd23f;
+  --cat-structural: #53b8f5;
+  --cat-metadata: #aab6c4;
+  --cat-http: #f5a623;
+  --cat-data: #7ed957;
   --cat-security: #f55d7a;
-  --cat-reference: #ffd166;
   --cat-object: #6f93c9;
   --cat-array: #4fb8c4;
   --cat-scalar: #9aa6bd;
@@ -63,14 +62,13 @@
   /* Darker vermillion / burnt orange so the glyphs clear >=3:1 on the cream --bg. */
   --ref-broken: #d2331a;
   --ref-external: #bf5a00;
-  --cat-root: #c52d44;
-  --cat-structure: #1f6fb0;
-  --cat-operation: #a85e0a;
-  --cat-schema: #3f8f2f;
-  --cat-io: #7a3fb0;
-  --cat-meta: #566472;
+  /* Darkened gold-yellow so the unreachable border/badge clears AA on the cream --bg. */
+  --warn-unreachable: #8a6d00;
+  --cat-structural: #1f6fb0;
+  --cat-metadata: #566472;
+  --cat-http: #a85e0a;
+  --cat-data: #3f8f2f;
   --cat-security: #b53a62;
-  --cat-reference: #8a6f0d;
   --cat-object: #3a587f;
   --cat-array: #27737f;
   --cat-scalar: #4b5670;
@@ -440,34 +438,30 @@ body {
 .marker {
   stroke-width: 1.5px;
 }
-.marker.is-ref {
-  stroke-dasharray: 2.5 1.5;
-  stroke-width: 2px;
+/* Reference Objects: an asterisk drawn from strokes (category color), no fill. */
+.marker.asterisk {
+  fill: none;
+  stroke-width: 1.6px;
+  stroke-linecap: round;
 }
 
 /* Category colors (themed via --cat-*): tree markers fill+stroke, legend swatches background. */
-.marker.cat-root { fill: var(--cat-root); stroke: var(--cat-root); }
-.marker.cat-structure { fill: var(--cat-structure); stroke: var(--cat-structure); }
-.marker.cat-operation { fill: var(--cat-operation); stroke: var(--cat-operation); }
-.marker.cat-schema { fill: var(--cat-schema); stroke: var(--cat-schema); }
-.marker.cat-io { fill: var(--cat-io); stroke: var(--cat-io); }
-.marker.cat-meta { fill: var(--cat-meta); stroke: var(--cat-meta); }
+.marker.cat-structural { fill: var(--cat-structural); stroke: var(--cat-structural); }
+.marker.cat-metadata { fill: var(--cat-metadata); stroke: var(--cat-metadata); }
+.marker.cat-http { fill: var(--cat-http); stroke: var(--cat-http); }
+.marker.cat-data { fill: var(--cat-data); stroke: var(--cat-data); }
 .marker.cat-security { fill: var(--cat-security); stroke: var(--cat-security); }
-.marker.cat-reference { fill: var(--cat-reference); stroke: var(--cat-reference); }
 .marker.cat-object { fill: var(--cat-object); stroke: var(--cat-object); }
 .marker.cat-array { fill: var(--cat-array); stroke: var(--cat-array); }
 .marker.cat-scalar { fill: var(--cat-scalar); stroke: var(--cat-scalar); }
-/* Collapsed nodes read as hollow: surface fill, category stroke. */
-.marker.collapsed { fill: var(--surface); }
+/* Collapsed nodes read as hollow: surface fill, category stroke. (Asterisks keep no fill.) */
+.marker.collapsed:not(.asterisk) { fill: var(--surface); }
 
-.swatch.cat-root { background: var(--cat-root); }
-.swatch.cat-structure { background: var(--cat-structure); }
-.swatch.cat-operation { background: var(--cat-operation); }
-.swatch.cat-schema { background: var(--cat-schema); }
-.swatch.cat-io { background: var(--cat-io); }
-.swatch.cat-meta { background: var(--cat-meta); }
+.swatch.cat-structural { background: var(--cat-structural); }
+.swatch.cat-metadata { background: var(--cat-metadata); }
+.swatch.cat-http { background: var(--cat-http); }
+.swatch.cat-data { background: var(--cat-data); }
 .swatch.cat-security { background: var(--cat-security); }
-.swatch.cat-reference { background: var(--cat-reference); }
 .swatch.cat-object { background: var(--cat-object); }
 .swatch.cat-array { background: var(--cat-array); }
 .swatch.cat-scalar { background: var(--cat-scalar); }
@@ -581,10 +575,43 @@ body {
   margin-bottom: 0.6rem;
   color: var(--link);
 }
+/* Legend — a collapsible <details> with several labeled sections. */
 .legend {
   margin-bottom: 1.1rem;
   padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--border);
+}
+.legend > summary {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--link);
+  cursor: pointer;
+  list-style: none;
+}
+.legend > summary::-webkit-details-marker {
+  display: none;
+}
+.legend > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  color: var(--text-dim);
+}
+.legend[open] > summary::before {
+  content: "▾";
+}
+.legend-body {
+  margin-top: 0.6rem;
+}
+.legend-body h4 {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 0.8rem 0 0.35rem;
+}
+.legend-body h4:first-child {
+  margin-top: 0;
 }
 .legend-list {
   list-style: none;
@@ -608,6 +635,67 @@ body {
   border-radius: 50%;
 }
 .swatch.shape-square {
+  border-radius: 2px;
+}
+
+/* Shape examples — neutral color, since they illustrate shape, not a color group. */
+.legend-shape {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+.legend-shape.shape-circle {
+  background: var(--text-dim);
+  border-radius: 50%;
+}
+.legend-shape.shape-square {
+  background: var(--text-dim);
+  border-radius: 2px;
+}
+.legend-shape.shape-asterisk {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* Connection-line examples. */
+.legend-line {
+  width: 22px;
+  height: 0;
+  flex: none;
+  border-top: 2px solid var(--link);
+}
+.legend-line.line-dashed {
+  border-top-style: dashed;
+}
+
+/* Error-icon examples — ⚠ in the two on-tree glyph colors. Sized as large text (>=14pt
+   bold) so the true glyph color clears AA at the 3:1 large-text threshold. */
+.legend-warn {
+  width: 18px;
+  flex: none;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.legend-warn.status-broken {
+  color: var(--ref-broken);
+}
+.legend-warn.status-external {
+  color: var(--ref-external);
+}
+
+/* Unreachable-document swatch — yellow outline, matching the header highlight. */
+.legend-unreachable {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border: 1.5px solid var(--warn-unreachable);
   border-radius: 2px;
 }
 
