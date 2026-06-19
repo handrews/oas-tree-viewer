@@ -35,7 +35,12 @@ function fileWith(name: string, relPath: string): File {
 
 async function setFolder(rowEl: HTMLElement, files: File[]): Promise<void> {
   const input = rowEl.querySelector("input.folder-input") as HTMLInputElement;
-  Object.defineProperty(input, "files", { configurable: true, value: files });
+  // Use a real (live) FileList via DataTransfer — the same kind a folder picker produces,
+  // which `input.value = ""` empties in place. A plain array via defineProperty would not
+  // reproduce that, hiding the "selection lost on reset" bug.
+  const dt = new DataTransfer();
+  for (const f of files) dt.items.add(f);
+  input.files = dt.files;
   input.dispatchEvent(new Event("change", { bubbles: true }));
   await vi.waitFor(() => expect(rowEl.querySelector(".dir-summary")).not.toBeNull());
 }
