@@ -1,6 +1,8 @@
 // Types and pure helpers for the OAD input form. The form itself is OadForm.svelte;
-// the framework-agnostic bits (outcome shape, folder-name handling, entry choice) live
-// here so they stay unit-testable.
+// the framework-agnostic bits (outcome shape, folder-name handling, entry choice,
+// and the row → DocInput[] expansion) live here so they stay unit-testable.
+
+import type { DocInput } from "../loader";
 
 export interface RenderOutcome {
   ok: boolean;
@@ -18,6 +20,16 @@ export interface FolderDoc {
   /** Retrieval URI when a folder base URL was supplied (overrides the file:// base). */
   retrievalUri?: string;
 }
+
+/**
+ * The local part of a document row: nothing, a single file, or a whole directory (a
+ * bundle of documents with one chosen as the entry). The row may also carry a URL,
+ * whose meaning depends on this kind (see {@link urlFieldLabel} / {@link rowToInputs}).
+ */
+export type LocalSource =
+  | { kind: "none" }
+  | { kind: "file"; filename: string; text: string }
+  | { kind: "dir"; folderName: string; docs: FolderDoc[]; entryIndex: number };
 
 /** Filenames that look like OpenAPI documents (JSON/YAML). */
 export const DOC_FILE = /\.(json|ya?ml)$/i;
@@ -47,4 +59,87 @@ export function pickEntryIndex(items: FolderDoc[]): number {
     if (it.relativePath.split("/").length < items[best]!.relativePath.split("/").length) best = i;
   });
   return best;
+}
+
+/** The folder name a directory upload was rooted at (the first path segment). */
+export function folderNameOf(relativePath: string): string {
+  return relativePath.split("/")[0] || relativePath;
+}
+
+/** Keep only the OpenAPI-looking files from a directory selection, shaped as FolderDocs. */
+export function dirDocsFromFiles(
+  files: { filename: string; relativePath: string; text: string }[],
+): FolderDoc[] {
+  return files
+    .filter((f) => DOC_FILE.test(f.filename))
+    .map((f) => ({ filename: f.filename, relativePath: f.relativePath, text: f.text }));
+}
+
+/** Build a directory LocalSource from a folder's files: keep the OAS docs, default the entry. */
+export function dirLocalSource(
+  files: { filename: string; relativePath: string; text: string }[],
+): Extract<LocalSource, { kind: "dir" }> {
+  const docs = dirDocsFromFiles(files);
+  const folderName = files.length ? folderNameOf(files[0]!.relativePath) : "";
+  const entryIndex = docs.length ? pickEntryIndex(docs) : 0;
+  return { kind: "dir", folderName, docs, entryIndex };
+}
+
+/** Label/placeholder for the per-row URL field, which adapts to the local source. */
+export function urlFieldLabel(kind: LocalSource["kind"]): string {
+  switch (kind) {
+    case "file":
+      return "Retrieval URL (optional — base URI this file came from)";
+    case "dir":
+      return "Base URL (optional — maps the folder onto a server path)";
+    default:
+      return "Document URL to fetch";
+  }
+}
+
+/** Either the DocInputs a row expands to, or a presence/validation error for that row. */
+export type RowInputs = { inputs: DocInput[] } | { error: string };
+
+/**
+ * Expand one form row into the DocInput(s) it represents. A single file or a URL is one
+ * input; a directory is one input per document, the chosen entry first. `isRowEntry` marks
+ * whether this row holds the OAD's entry document (only the row's entry doc gets it).
+ */
+export function rowToInputs(local: LocalSource, url: string, isRowEntry: boolean): RowInputs {
+  const trimmedUrl = url.trim();
+
+  if (local.kind === "none") {
+    if (!trimmedUrl) return { error: "Add a file or folder, or enter a URL to fetch." };
+    return { inputs: [{ source: "url", url: trimmedUrl, isEntry: isRowEntry }] };
+  }
+
+  if (local.kind === "file") {
+    return {
+      inputs: [
+        {
+          source: "upload",
+          filename: local.filename,
+          text: local.text,
+          retrievalUri: trimmedUrl || undefined,
+          isEntry: isRowEntry,
+        },
+      ],
+    };
+  }
+
+  // Directory: entry document first, then the rest (preserving order).
+  const { docs, entryIndex } = local;
+  if (docs.length === 0) {
+    return { error: "No OpenAPI documents (.json/.yaml) found in this folder." };
+  }
+  const ordered = [docs[entryIndex]!, ...docs.filter((_, i) => i !== entryIndex)];
+  const inputs: DocInput[] = ordered.map((doc, i) => ({
+    source: "upload",
+    filename: doc.filename,
+    text: doc.text,
+    relativePath: doc.relativePath,
+    retrievalUri: trimmedUrl ? rebaseFolderUri(doc.relativePath, trimmedUrl) : undefined,
+    isEntry: isRowEntry && i === 0,
+  }));
+  return { inputs };
 }
