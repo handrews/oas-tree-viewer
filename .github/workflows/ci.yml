@@ -1,0 +1,51 @@
+name: CI
+
+# Run the test suite and enforce coverage on every PR, plus on pushes to main
+# so the default branch's status (and badge) stays green after a merge.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel an in-flight run when new commits land on the same branch/PR.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test & coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # `npm ci` also runs the `prepare` script (svelte-check + vite build),
+      # so a type error or broken build fails here before tests even start.
+      - name: Install dependencies
+        run: npm ci
+
+      # The vitest "browser" project (the d3 island) drives real Chromium via
+      # Playwright, so the browser binary must be present for `npm run coverage`.
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Runs both vitest projects (unit + browser) and enforces the coverage
+      # thresholds from vitest.config.ts; the text report prints to the log.
+      - name: Run tests with coverage
+        run: npm run coverage
+
+      - name: Upload coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
