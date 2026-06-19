@@ -505,6 +505,10 @@ body {
   font: 11px var(--mono);
   fill: var(--text-dim);
 }
+.doc-base {
+  font: 11px var(--mono);
+  fill: var(--text-dim);
+}
 .doc-header-bg {
   fill: var(--surface2);
   stroke: var(--border);
