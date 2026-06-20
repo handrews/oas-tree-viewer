@@ -139,3 +139,39 @@ describe("component reachability follows $ref chains", () => {
     expect((toB?.diagnostics ?? []).map((d) => d.code)).toEqual(["operation-target-fragile"]);
   });
 });
+
+// 3.2 `additionalOperations`: an Operation in that map still inherits its Path Item's habitat.
+const ADDL = `
+openapi: 3.2.0
+$self: https://example.com/oad/addl
+info: { title: Addl, version: '1.0' }
+paths:
+  /solo: { $ref: '#/components/pathItems/P' }
+  /other:
+    get:
+      operationId: og
+      responses:
+        '200':
+          description: ok
+          links:
+            toQuery:
+              operationRef: '#/components/pathItems/P/additionalOperations/QUERY'
+components:
+  pathItems:
+    P:
+      additionalOperations:
+        QUERY:
+          operationId: pq
+          responses: { '200': { description: ok } }
+`;
+
+describe("additionalOperations Operations inherit the Path Item habitat", () => {
+  it("flags an operationRef to an additionalOperations Operation in a component reached once", async () => {
+    const doc = await makeDoc(ADDL, { filename: "addl.yaml", isEntry: true });
+    const refs = resolveOad(makeOad(doc));
+    const e = refs.edges.find(
+      (x) => x.refString === "#/components/pathItems/P/additionalOperations/QUERY",
+    );
+    expect((e?.diagnostics ?? []).map((d) => d.code)).toEqual(["operation-target-fragile"]);
+  });
+});

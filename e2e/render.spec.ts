@@ -198,3 +198,28 @@ test.describe("component-name references", () => {
     await expect(page).toHaveURL(/disc=uri-first/);
   });
 });
+
+test.describe("operation reference advisories", () => {
+  test("flags operation references by habitat with advisory glyphs and tinted arcs", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=operation-refs");
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+
+    // One ▲ advisory glyph per flagged source row: 5 operation targets + 1 Path Item overlap.
+    await expect(page.locator("svg .advisory-glyph")).toHaveCount(6);
+    // Operation-target arcs tint by severity (webhook/callback/ambiguous/no-path = 4 error,
+    // fragile = 1 warning); the Path Item field-overlap arc stays untinted (glyph-only).
+    await expect(page.locator("svg .ref-edge.diag-error")).toHaveCount(4);
+    await expect(page.locator("svg .ref-edge.diag-warning")).toHaveCount(1);
+
+    // Every reference resolves, so the drawer's six issues are all advisories.
+    const issues = page.locator("#issues");
+    await expect(issues).toBeVisible();
+    await expect(issues.locator(".issue-count")).toHaveText("6");
+    await expect(issues).toContainText("Reference advisories (6)");
+    await expect(issues).toContainText("not directly callable");
+    await expect(issues).toContainText("merge behavior is undefined");
+  });
+});

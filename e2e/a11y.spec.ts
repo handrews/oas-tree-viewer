@@ -37,5 +37,15 @@ for (const theme of ["dark", "light"] as const) {
       const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
+
+    test("operation-reference advisories view", async ({ page }) => {
+      // Exercises the new advisory legend section + glyph/arc colors against the contrast gate.
+      await page.goto("/view?demo=operation-refs");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
   });
 }
