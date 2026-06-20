@@ -8,6 +8,7 @@ import {
   type TypeRef,
   type FieldRule,
   type TypeDescriptor,
+  type ComponentRefSpec,
 } from "./descriptor";
 
 const REF_KEY = "$ref";
@@ -86,6 +87,15 @@ function classifyObjectChildren(node: TreeNode, desc: TypeDescriptor, d: Descrip
     const rule = child.key !== null ? desc.fields?.[child.key] : undefined;
     if (rule) {
       applyRule(child, rule, d);
+    } else if (desc.refKeys && child.key !== null) {
+      // This object's keys are component references (e.g. Security Requirement scheme names).
+      child.componentRef = {
+        refString: child.key,
+        expectedType: desc.refKeys.type,
+        field: desc.refKeys.field,
+      };
+      assignStructural(child);
+      classifyGeneric(child);
     } else if (desc.mapOf) {
       visitValue(child, desc.mapOf, d);
     } else {
@@ -99,7 +109,31 @@ function classifyObjectChildren(node: TreeNode, desc: TypeDescriptor, d: Descrip
 function applyRule(node: TreeNode, rule: FieldRule, d: Descriptors): void {
   if ("value" in rule) visitValue(node, rule.value, d);
   else if ("array" in rule) visitArray(node, rule.array, d);
-  else visitMap(node, rule.map, d);
+  else if ("map" in rule) visitMap(node, rule.map, d);
+  else visitRefValues(node, rule.refValues, d);
+}
+
+/** A map (e.g. Discriminator `mapping`) whose string values are component-or-URI refs. */
+function visitRefValues(node: TreeNode, spec: ComponentRefSpec, d: Descriptors): void {
+  if (node.valueKind !== "object") {
+    assignStructural(node);
+    classifyGeneric(node);
+    return;
+  }
+  node.oasType = `Map of ${labelOf(spec.type, d)}`;
+  node.category = "object";
+  for (const child of node.children) {
+    assignStructural(child);
+    if (child.valueKind === "string") {
+      child.componentRef = {
+        refString: child.scalarValue as string,
+        expectedType: spec.type,
+        field: spec.field,
+      };
+    } else {
+      classifyGeneric(child);
+    }
+  }
 }
 
 /** Recursively assign structural categories to a node's descendants. */

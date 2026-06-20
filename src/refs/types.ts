@@ -1,9 +1,21 @@
 // Types describing resolved references (edges) across an OAD.
 
-export type RefKind = "$ref" | "operationRef";
+import type { ResolutionKind } from "../types";
+
+export type RefKind =
+  | "$ref"
+  | "operationRef"
+  | "discriminatorMapping"
+  | "securityRequirement";
 
 /** Where the reference syntactically appears. */
-export type RefContext = "reference" | "pathItem" | "schema" | "link";
+export type RefContext =
+  | "reference"
+  | "pathItem"
+  | "schema"
+  | "link"
+  | "discriminatorMapping"
+  | "securityRequirement";
 
 export type RefStatus =
   | "resolved" // points at a node of the expected type
@@ -24,6 +36,8 @@ export interface ReferenceEdge {
   resolvedUri?: string;
   kind: RefKind;
   context: RefContext;
+  /** How the reference was interpreted; selects the arrow/marker style. */
+  resolution: ResolutionKind;
   status: RefStatus;
   /** Expected target type (for display, esp. on type-mismatch). */
   requiredType: string;

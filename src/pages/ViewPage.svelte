@@ -3,6 +3,7 @@
   import type { ResolvedRefs } from "../refs/types";
   import type { DocInput } from "../loader";
   import type { ViewRequest } from "../app/viewUrl";
+  import type { ViewerConfig } from "../app/config";
   import TreeCanvas from "../render/TreeCanvas.svelte";
   import DetailPanel from "../render/DetailPanel.svelte";
   import Legend from "../render/Legend.svelte";
@@ -18,7 +19,7 @@
   // The Explore page: resolve the requested documents (a demo, online URLs, or an
   // in-memory upload handoff), run the load → resolve pipeline, and render the tree,
   // legend, detail panel and issue drawer. App owns the route; this page owns the OAD state.
-  let { request }: { request: ViewRequest } = $props();
+  let { request, config }: { request: ViewRequest; config: ViewerConfig } = $props();
 
   let treeCanvas: { navigateTo: (docId: string, nodeId: string) => void } | undefined = $state();
 
@@ -68,7 +69,7 @@
   async function loadInputs(inputs: DocInput[]): Promise<void> {
     const token = ++loadToken;
     status = "loading";
-    const result = await runPipeline(inputs);
+    const result = await runPipeline(inputs, config);
     if (token !== loadToken) return; // a newer request superseded this one
     if (!result.ok) {
       const parts = [

@@ -1,18 +1,29 @@
 // Resolve every reference in an OAD into a ReferenceEdge.
 //
-// References handled: `$ref` in Reference / Path Item / Schema objects, and `operationRef`
-// in Link objects. Resolution is JSON-Schema-correct: documents and `$id`-bearing schemas
-// are both resources identified by a base URI; nested `$id` re-scopes the base, and a
-// target is located by (resource URI) + (JSON Pointer or `$anchor`/plain-name fragment).
+// References handled:
+//  - `$ref` in Reference / Path Item / Schema objects, and `operationRef` in Link objects
+//    — always URI-references (JSON-Schema-correct: documents and `$id`-bearing schemas are
+//    resources identified by a base URI; nested `$id` re-scopes; a target is located by
+//    (resource URI) + (JSON Pointer or `$anchor`/plain-name fragment)).
+//  - Discriminator `mapping` values (→ Schema) and Security Requirement keys (→ Security
+//    Scheme) — each a string that resolves either as a **component name** (a direct lookup
+//    in a Components Object) or as a **URI-reference**, chosen per OAS version + config.
 
-import type { Oad, OadDocument, TreeNode } from "../types";
-import type { ReferenceEdge, RefContext, ResolvedRefs } from "./types";
+import type { Oad, OadDocument, TreeNode, VersionFamily } from "../types";
+import type { ReferenceEdge, RefContext, RefStatus, ResolvedRefs } from "./types";
 import { refKey } from "./types";
+import { type ViewerConfig, defaultConfig } from "../app/config";
 import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
 
 interface Resource {
   rootNode: TreeNode;
   doc: OadDocument;
+}
+
+/** A component-or-URI reference field (Discriminator `mapping` value / Security Requirement key). */
+interface ComponentSpec {
+  expectedType: "Schema" | "SecurityScheme";
+  field: "mapping" | "securityRequirement";
 }
 
 interface RefSource {
@@ -22,8 +33,10 @@ interface RefSource {
   refString: string;
   base: string;
   context: RefContext;
-  kind: "$ref" | "operationRef";
+  kind: ReferenceEdge["kind"];
   requiredType: string;
+  /** Present for component-or-URI reference fields; absent for plain `$ref`/`operationRef`. */
+  component?: ComponentSpec;
 }
 
 interface Indexes {
@@ -32,7 +45,23 @@ interface Indexes {
   anchorByUri: Map<string, TreeNode>;
 }
 
-export function resolveOad(oad: Oad): ResolvedRefs {
+/** Per-resolution context for the version- and config-dependent component rules. */
+interface ResolveCtx {
+  entryDocId: string;
+  config: ViewerConfig;
+  version: VersionFamily;
+}
+
+/** A located (or not) URI-reference target. */
+interface UriResult {
+  status: RefStatus;
+  targetDocId?: string;
+  targetNodeId?: string;
+  targetType?: string;
+  resolvedUri?: string;
+}
+
+export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): ResolvedRefs {
   const indexes: Indexes = {
     pointerIndex: new Map(),
     resourceByUri: new Map(),
@@ -48,8 +77,11 @@ export function resolveOad(oad: Oad): ResolvedRefs {
     walkDoc(doc, pidx, indexes, sources);
   }
 
+  const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
+  const ctx: ResolveCtx = { entryDocId: entry?.id ?? "", config, version: oad.versionFamily };
+
   // Pass 2: resolve.
-  const edges = sources.map((src, i) => resolveSource(src, indexes, i));
+  const edges = sources.map((src, i) => resolveSource(src, indexes, i, ctx));
 
   const bySource = new Map<string, ReferenceEdge[]>();
   const byTarget = new Map<string, ReferenceEdge[]>();
@@ -58,7 +90,8 @@ export function resolveOad(oad: Oad): ResolvedRefs {
     if (edge.sourceObjectId !== edge.sourceNodeId) {
       push(bySource, refKey(edge.sourceDocId, edge.sourceObjectId), edge);
     }
-    if (edge.targetDocId && edge.targetNodeId) {
+    // The root node's id is "" (falsy but valid), so test for presence explicitly.
+    if (edge.targetDocId != null && edge.targetNodeId != null) {
       push(byTarget, refKey(edge.targetDocId, edge.targetNodeId), edge);
     }
   }
@@ -138,6 +171,22 @@ function walkDoc(
       }
     }
 
+    // Component-or-URI reference fields (Discriminator `mapping` value / Security Requirement key).
+    if (node.componentRef) {
+      const cr = node.componentRef;
+      sources.push({
+        doc,
+        sourceObject: node,
+        fieldNode: node,
+        refString: cr.refString,
+        base,
+        context: cr.field === "mapping" ? "discriminatorMapping" : "securityRequirement",
+        kind: cr.field === "mapping" ? "discriminatorMapping" : "securityRequirement",
+        requiredType: cr.expectedType,
+        component: { expectedType: cr.expectedType, field: cr.field },
+      });
+    }
+
     for (const child of node.children) visit(child, base);
   };
 
@@ -146,8 +195,8 @@ function walkDoc(
 
 // ── resolution ───────────────────────────────────────────────────────────────
 
-function resolveSource(src: RefSource, indexes: Indexes, i: number): ReferenceEdge {
-  const edge: ReferenceEdge = {
+function resolveSource(src: RefSource, indexes: Indexes, i: number, ctx: ResolveCtx): ReferenceEdge {
+  const base: ReferenceEdge = {
     id: `edge-${i}`,
     sourceDocId: src.doc.id,
     sourceNodeId: src.fieldNode.id,
@@ -155,36 +204,102 @@ function resolveSource(src: RefSource, indexes: Indexes, i: number): ReferenceEd
     refString: src.refString,
     kind: src.kind,
     context: src.context,
+    resolution: "uri-reference",
     status: "external",
     requiredType: src.requiredType,
   };
 
-  const { uriPart, fragment } = splitFragment(src.refString);
-  const resourceUri = uriPart === "" ? src.base : resolveUri(uriPart, src.base);
-  if (!resourceUri) return edge; // cannot resolve → external
+  const edge = src.component
+    ? resolveComponentEdge(base, src, src.component, indexes, ctx)
+    : { ...base, ...resolveUriRef(src.refString, src.base, src.requiredType, indexes) };
 
-  edge.resolvedUri = withFragment(resourceUri, fragment);
+  // Record how this field resolved so the tree marker can reflect it (uri vs component-name).
+  src.fieldNode.resolvedAs = edge.resolution;
+  return edge;
+}
 
+/** Resolve a string as a URI-reference (the `$ref`/`operationRef` path; reused by components). */
+function resolveUriRef(
+  refString: string,
+  base: string,
+  requiredType: string,
+  indexes: Indexes,
+): UriResult {
+  const { uriPart, fragment } = splitFragment(refString);
+  const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
+  if (!resourceUri) return { status: "external" };
+
+  const resolvedUri = withFragment(resourceUri, fragment);
   const resource = indexes.resourceByUri.get(resourceUri);
-  if (!resource) return edge; // target resource not loaded → external
-
-  edge.targetDocId = resource.doc.id;
+  if (!resource) return { status: "external", resolvedUri };
 
   const target = resolveFragment(fragment, resource, resourceUri, indexes);
-  if (!target) {
-    edge.status = "broken";
-    return edge;
-  }
-
-  edge.targetNodeId = target.id;
-  edge.targetType = target.expectedType;
+  if (!target) return { status: "broken", targetDocId: resource.doc.id, resolvedUri };
 
   const typeOk =
-    target.expectedType === undefined ||
-    src.requiredType === "" ||
-    target.expectedType === src.requiredType;
-  edge.status = typeOk ? "resolved" : "type-mismatch";
-  return edge;
+    target.expectedType === undefined || requiredType === "" || target.expectedType === requiredType;
+  return {
+    status: typeOk ? "resolved" : "type-mismatch",
+    targetDocId: resource.doc.id,
+    targetNodeId: target.id,
+    targetType: target.expectedType,
+    resolvedUri,
+  };
+}
+
+/**
+ * Resolve a Discriminator `mapping` value / Security Requirement key, which is either a
+ * component name or a URI-reference. Precedence (confirmed rules):
+ *  - Security Requirement, 3.1: always a component name (no URI fallback).
+ *  - Security Requirement, 3.2: component name if a match exists, else URI-reference.
+ *  - `mapping`, name-first (default): component name if a match exists, else URI-reference.
+ *  - `mapping`, uri-first (config): URI-reference if it locates a target, else component name.
+ * The "match" is looked up in the entry document's Components (default) or the local doc's.
+ */
+function resolveComponentEdge(
+  base: ReferenceEdge,
+  src: RefSource,
+  spec: ComponentSpec,
+  indexes: Indexes,
+  ctx: ResolveCtx,
+): ReferenceEdge {
+  const key = spec.expectedType === "Schema" ? "schemas" : "securitySchemes";
+  const lookupDocId = ctx.config.componentLookup === "entry" ? ctx.entryDocId : src.doc.id;
+  const nameTarget = indexes.pointerIndex
+    .get(lookupDocId)
+    ?.get(`/components/${key}/${src.refString}`);
+
+  const asName = (): ReferenceEdge =>
+    nameTarget
+      ? {
+          ...base,
+          resolution: "component-name",
+          status: "resolved", // the component's location guarantees its type
+          targetDocId: lookupDocId,
+          targetNodeId: nameTarget.id,
+          targetType: spec.expectedType,
+        }
+      : { ...base, resolution: "component-name", status: "broken" };
+
+  const asUri = (): ReferenceEdge => ({
+    ...base,
+    resolution: "uri-reference",
+    ...resolveUriRef(src.refString, src.base, spec.expectedType, indexes),
+  });
+
+  if (spec.field === "securityRequirement") {
+    if (ctx.version === "3.1") return asName();
+    return nameTarget ? asName() : asUri();
+  }
+
+  // Discriminator mapping.
+  if (ctx.config.mappingPrecedence === "name-first") {
+    return nameTarget ? asName() : asUri();
+  }
+  // uri-first: a URI-reference wins if it locates a target; otherwise fall back to the name.
+  const uri = asUri();
+  if (uri.status === "resolved" || uri.status === "type-mismatch") return uri;
+  return nameTarget ? asName() : uri;
 }
 
 function resolveFragment(

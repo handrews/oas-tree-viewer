@@ -6,7 +6,7 @@
 
   // App is the shell: a fixed header plus the routed page. The two pages own their own
   // state — ConfigurePage collects sources/demos, ViewPage loads and renders the OAD.
-  const viewRequest = $derived(router.route.page === "view" ? router.route.request : null);
+  const view = $derived(router.route.page === "view" ? router.route : null);
 </script>
 
 <header id="app-header">
@@ -18,8 +18,8 @@
 </header>
 
 <main id="app">
-  {#if viewRequest}
-    <ViewPage request={viewRequest} />
+  {#if view}
+    <ViewPage request={view.request} config={view.config} />
   {:else}
     <ConfigurePage />
   {/if}
