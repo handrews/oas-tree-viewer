@@ -15,8 +15,19 @@ const report: IssueReportData = {
       detail: "target not found (the fragment names nothing)",
     },
   ],
+  advisories: [
+    {
+      severity: "error",
+      code: "operation-target-webhook",
+      kind: "operationRef",
+      sourceDoc: "openapi.yaml",
+      sourcePointer: "#/paths/p/get/responses/200/links/x",
+      refString: "#/webhooks/hook/get",
+      detail: "the target Operation is a webhook, which is not directly callable",
+    },
+  ],
   docIssues: [{ severity: "warning", doc: "extra.yaml", detail: "not reachable from the entry document" }],
-  total: 2,
+  total: 3,
 };
 
 test("renders nothing when there is no report", () => {
@@ -27,8 +38,10 @@ test("renders nothing when there is no report", () => {
 test("lists reference and document issues", async () => {
   const screen = render(IssueReport, { report });
   await expect.element(screen.getByText("Unresolved references (1)")).toBeVisible();
+  await expect.element(screen.getByText("Reference advisories (1)")).toBeVisible();
   await expect.element(screen.getByText("Unreachable documents (1)")).toBeVisible();
   await expect.element(screen.getByText("#/missing")).toBeVisible();
+  await expect.element(screen.getByText("#/webhooks/hook/get")).toBeVisible();
   await expect.element(screen.getByText("extra.yaml")).toBeVisible();
   expect(document.querySelector("#issues")).not.toBeNull();
 });

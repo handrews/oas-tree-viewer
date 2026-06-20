@@ -80,6 +80,9 @@
                     <strong>{e.targetType ?? "?"}</strong>
                   </div>
                 {/if}
+                {#each e.diagnostics ?? [] as d (d.code)}
+                  <div class="ref-note advisory severity-{d.severity}">{d.detail}</div>
+                {/each}
               {:else}
                 <code>{e.refString}</code>
                 <div class="ref-note">

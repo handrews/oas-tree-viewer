@@ -968,6 +968,18 @@ body {
   font-size: 0.76rem;
   margin: 0.1rem 0 0 0.2rem;
 }
+/* A semantic advisory on an otherwise-resolved reference. The severity color rides on the left
+   border (the canvas glyph/arc carry the same cue); the text keeps the AA-safe --text-dim. */
+.ref-note.advisory {
+  border-left: 2px solid var(--border);
+  padding-left: 0.35rem;
+}
+.ref-note.advisory.severity-error {
+  border-left-color: var(--error);
+}
+.ref-note.advisory.severity-warning {
+  border-left-color: var(--warn);
+}
 
 /* ── Issue report drawer ──────────────────────────────────────────────── */
 
@@ -1067,6 +1079,14 @@ body {
 .issue.status-unreachable {
   border-left-color: var(--warn-unreachable);
 }
+/* Reference advisories: a resolved reference with a semantic problem — orange (error, the softer
+   of the two error colors) or yellow (warning), matching the on-canvas advisory glyph/arc. */
+.issue.severity-error {
+  border-left-color: var(--error);
+}
+.issue.severity-warning {
+  border-left-color: var(--warn);
+}
 /* Status pills reuse the detail panel's vetted (AA-safe, theme-independent) badge colors. */
 .issue-status {
   display: inline-block;
@@ -1089,9 +1109,14 @@ body {
   background: #7a3f12;
   color: #ffe2cf;
 }
-.issue-status.status-unreachable {
+.issue-status.status-unreachable,
+.issue-status.severity-warning {
   background: #5a4d00;
   color: #fff3c4;
+}
+.issue-status.severity-error {
+  background: #7a3f12;
+  color: #ffe2cf;
 }
 .issue-loc code,
 .issue-ref {
