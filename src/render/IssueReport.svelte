@@ -55,6 +55,20 @@
           </ul>
         {/if}
 
+        {#if report.advisories.length}
+          <h4>Reference advisories ({report.advisories.length})</h4>
+          <ul class="issue-list">
+            {#each report.advisories as a (a.sourceDoc + a.sourcePointer + a.code + a.refString)}
+              <li class="issue severity-{a.severity}">
+                <span class="issue-status severity-{a.severity}">{a.severity}</span>
+                <span class="issue-loc">{a.sourceDoc} <code>{a.sourcePointer}</code></span>
+                <code class="issue-ref">{a.refString}</code>
+                <span class="issue-detail">{a.detail}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+
         {#if report.docIssues.length}
           <h4>Unreachable documents ({report.docIssues.length})</h4>
           <ul class="issue-list">

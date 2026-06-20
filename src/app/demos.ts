@@ -58,6 +58,16 @@ export const demos: Demo[] = [
       urlDoc("component-refs-pets-3.2.yaml"),
     ],
   },
+  {
+    id: "operation-refs",
+    label: "Operation references (3.2)",
+    description:
+      "operationRef Links pointing at Operations in every habitat, so each operation-reference " +
+      "advisory shows: a clean path target, a webhook and a callback (not directly callable), and " +
+      "component Path Items reached by 2 / 1 / 0 paths (ambiguous, fragile, no URL). One Path Item " +
+      "$ref also collides with its target on the “summary” field (undefined merge).",
+    inputs: [urlDoc("operation-refs-3.2.yaml", true)],
+  },
 ];
 
 const byId = new Map(demos.map((d) => [d.id, d]));

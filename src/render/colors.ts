@@ -5,6 +5,7 @@
 // the theme changes.
 
 import type { NodeCategory, ResolutionKind } from "../types";
+import type { EdgeDiagnostic } from "../refs/types";
 
 /** CSS class that selects a category's themed color (--cat-<category>). */
 export function categoryClass(category: NodeCategory | undefined): string {
@@ -104,3 +105,37 @@ export const errorIconLegend: ReadonlyArray<{ status: "broken" | "external"; lab
 export const warningLegend = {
   unreachable: "Document not reachable from the entry document",
 } as const;
+
+/**
+ * Color treatment for a reference advisory (a reference that resolves but is semantically
+ * problematic), keyed off its severity. Mirrors the {@link resolutionStyles} pattern: the legend,
+ * the on-canvas glyph, and the arc tint all read this so they can't drift. Error = the softer of
+ * the two error colors (orange `--error`, distinct from the vermillion `--ref-broken` reserved for
+ * genuinely-broken refs); warning = yellow `--warn`.
+ */
+export type DiagnosticSeverity = EdgeDiagnostic["severity"];
+export interface DiagnosticStyle {
+  /** CSS class selecting the themed color (`diag-error` → --error, `diag-warning` → --warn). */
+  colorClass: string;
+  /** SVG advisory glyph — a triangle, distinct from the ⚠ used for unresolved references. */
+  glyph: string;
+  label: string;
+}
+export const diagnosticStyles: Record<DiagnosticSeverity, DiagnosticStyle> = {
+  error: {
+    colorClass: "diag-error",
+    glyph: "▲",
+    label:
+      "Reference advisory (error) — undefined behavior, or an Operation that is not directly invocable",
+  },
+  warning: {
+    colorClass: "diag-warning",
+    glyph: "▲",
+    label: "Reference advisory (warning) — an operation reference that may break if paths change",
+  },
+};
+
+/** `diagnosticStyles` as an ordered list, for the legend's "Reference advisories" section. */
+export const diagnosticLegend: ReadonlyArray<{ severity: DiagnosticSeverity } & DiagnosticStyle> = (
+  ["error", "warning"] as DiagnosticSeverity[]
+).map((severity) => ({ severity, ...diagnosticStyles[severity] }));

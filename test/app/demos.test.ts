@@ -34,11 +34,15 @@ describe("demos", () => {
     expect(demoInputs("nope")).toBeUndefined();
   });
 
-  it("includes the refs, $self, and component-name reference demos", () => {
-    expect(demos.map((d) => d.id)).toEqual(["refs", "self", "component-refs"]);
+  it("includes the refs, $self, component-name, and operation reference demos", () => {
+    expect(demos.map((d) => d.id)).toEqual(["refs", "self", "component-refs", "operation-refs"]);
     expect(demoInputs("self")![0]!).toMatchObject({ url: "/fixtures/oads/openapi.yaml", isEntry: true });
     expect(demoInputs("component-refs")![0]!).toMatchObject({
       url: "/fixtures/component-refs-3.2.yaml",
+      isEntry: true,
+    });
+    expect(demoInputs("operation-refs")![0]!).toMatchObject({
+      url: "/fixtures/operation-refs-3.2.yaml",
       isEntry: true,
     });
   });

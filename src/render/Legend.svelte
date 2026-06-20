@@ -11,6 +11,7 @@
     referenceLegend,
     lineLegend,
     errorIconLegend,
+    diagnosticLegend,
     warningLegend,
   } from "./colors";
 
@@ -67,6 +68,13 @@
     <ul class="legend-list">
       {#each errorIconLegend as e (e.status)}
         <li><span class="legend-warn status-{e.status}" aria-hidden="true">⚠</span>{e.label}</li>
+      {/each}
+    </ul>
+
+    <h4>Reference advisories</h4>
+    <ul class="legend-list">
+      {#each diagnosticLegend as a (a.severity)}
+        <li><span class="legend-advisory {a.colorClass}" aria-hidden="true">{a.glyph}</span>{a.label}</li>
       {/each}
     </ul>
 

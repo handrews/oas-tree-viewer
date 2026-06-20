@@ -663,6 +663,16 @@ body {
   stroke-dasharray: 4 3;
   opacity: 0.85;
 }
+/* Operation-target advisories tint the arc by severity (orange error / yellow warning); the
+   line stays solid so it reads distinct from the dashed type-mismatch arc. */
+.ref-edge.diag-error {
+  stroke: var(--error);
+  opacity: 0.85;
+}
+.ref-edge.diag-warning {
+  stroke: var(--warn);
+  opacity: 0.85;
+}
 /* Component-name references read as a double line: two thin strokes (.dbl-line) offset above
    and below a transparent gap, so labels underneath stay legible. A zero-width carrier
    (.dbl-head) only supplies the arrowhead at the centerline. */
@@ -697,6 +707,17 @@ body {
 .warn-glyph .warn-count {
   font-size: 0.72em;
   font-weight: 700;
+}
+/* Advisory glyph (▲) for resolved-but-problematic references — orange error / yellow warning,
+   distinct from the ⚠ used for unresolved references. */
+.advisory-glyph {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--error);
+  cursor: default;
+}
+.advisory-glyph.severity-warning {
+  fill: var(--warn);
 }
 .canvas-toolbar button.active {
   background: var(--accent-solid);
@@ -857,6 +878,23 @@ body {
   color: var(--ref-external);
 }
 
+/* Reference-advisory glyph (▲), sized as large text (>=18.66px bold) so the orange/yellow clears
+   the 3:1 large-text contrast threshold, matching the on-canvas advisory glyph. */
+.legend-advisory {
+  width: 18px;
+  flex: none;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.legend-advisory.diag-error {
+  color: var(--error);
+}
+.legend-advisory.diag-warning {
+  color: var(--warn);
+}
+
 /* Unreachable-document swatch — yellow outline, matching the header highlight. */
 .legend-unreachable {
   width: 12px;
@@ -968,6 +1006,18 @@ body {
   font-size: 0.76rem;
   margin: 0.1rem 0 0 0.2rem;
 }
+/* A semantic advisory on an otherwise-resolved reference. The severity color rides on the left
+   border (the canvas glyph/arc carry the same cue); the text keeps the AA-safe --text-dim. */
+.ref-note.advisory {
+  border-left: 2px solid var(--border);
+  padding-left: 0.35rem;
+}
+.ref-note.advisory.severity-error {
+  border-left-color: var(--error);
+}
+.ref-note.advisory.severity-warning {
+  border-left-color: var(--warn);
+}
 
 /* ── Issue report drawer ──────────────────────────────────────────────── */
 
@@ -1067,6 +1117,14 @@ body {
 .issue.status-unreachable {
   border-left-color: var(--warn-unreachable);
 }
+/* Reference advisories: a resolved reference with a semantic problem — orange (error, the softer
+   of the two error colors) or yellow (warning), matching the on-canvas advisory glyph/arc. */
+.issue.severity-error {
+  border-left-color: var(--error);
+}
+.issue.severity-warning {
+  border-left-color: var(--warn);
+}
 /* Status pills reuse the detail panel's vetted (AA-safe, theme-independent) badge colors. */
 .issue-status {
   display: inline-block;
@@ -1089,9 +1147,14 @@ body {
   background: #7a3f12;
   color: #ffe2cf;
 }
-.issue-status.status-unreachable {
+.issue-status.status-unreachable,
+.issue-status.severity-warning {
   background: #5a4d00;
   color: #fff3c4;
+}
+.issue-status.severity-error {
+  background: #7a3f12;
+  color: #ffe2cf;
 }
 .issue-loc code,
 .issue-ref {

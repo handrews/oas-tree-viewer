@@ -13,6 +13,7 @@ import type { Oad, OadDocument, TreeNode, VersionFamily } from "../types";
 import type { ReferenceEdge, RefContext, RefStatus, ResolvedRefs } from "./types";
 import { refKey } from "./types";
 import { type ViewerConfig, defaultConfig } from "../app/config";
+import { annotateDiagnostics } from "./diagnostics";
 import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
 
 interface Resource {
@@ -82,6 +83,10 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
 
   // Pass 2: resolve.
   const edges = sources.map((src, i) => resolveSource(src, indexes, i, ctx));
+
+  // Pass 3: annotate resolved edges with semantic advisories (operation-target callability,
+  // Path Item `$ref` field overlap). Mutates edge.diagnostics in place.
+  annotateDiagnostics(oad, edges, indexes.pointerIndex);
 
   const bySource = new Map<string, ReferenceEdge[]>();
   const byTarget = new Map<string, ReferenceEdge[]>();

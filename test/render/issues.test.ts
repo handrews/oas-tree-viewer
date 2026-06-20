@@ -69,6 +69,38 @@ describe("issues", () => {
     expect(formatIssueReport(report)).toContain("security requirement: apiKey");
   });
 
+  it("collects edge diagnostics as advisories (separate from unresolved refs) and lists them", () => {
+    const refs = refsOf([
+      {
+        status: "resolved",
+        kind: "operationRef",
+        sourceDocId: "a",
+        sourceObjectId: "/paths/p/get/responses/200/links/x",
+        refString: "#/webhooks/hook/get",
+        requiredType: "Operation",
+        diagnostics: [
+          {
+            code: "operation-target-webhook",
+            severity: "error",
+            detail: "the target Operation is a webhook, which is not directly callable",
+          },
+        ],
+      },
+    ]);
+    const report = collectIssues(oad, refs, []);
+    expect(report.refIssues).toHaveLength(0); // the reference itself resolved
+    expect(report.advisories).toHaveLength(1);
+    expect(report.total).toBe(1);
+    const a = report.advisories[0]!;
+    expect(a.severity).toBe("error");
+    expect(a.code).toBe("operation-target-webhook");
+
+    const text = formatIssueReport(report);
+    expect(text).toContain("Reference advisories (1):");
+    expect(text).toContain("operationRef: #/webhooks/hook/get");
+    expect(text).toContain("not directly callable");
+  });
+
   it("collects unreachable documents as warnings", () => {
     const report = collectIssues(oad, refsOf([]), [other]);
     expect(report.docIssues).toEqual([

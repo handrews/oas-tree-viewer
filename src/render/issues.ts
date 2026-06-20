@@ -4,7 +4,7 @@
 // pasted to a maintainer who can't see the diagram.
 
 import type { Oad, OadDocument } from "../types";
-import type { ReferenceEdge, RefKind, ResolvedRefs } from "../refs/types";
+import type { DiagnosticCode, ReferenceEdge, RefKind, ResolvedRefs } from "../refs/types";
 import { displayPointer } from "../model/jsonPointer";
 import { docLabel } from "../app/bootstrap";
 
@@ -22,6 +22,17 @@ export interface RefIssue {
   detail: string;
 }
 
+/** A semantic advisory on a reference that *did* resolve (operation-target / Path Item overlap). */
+export interface RefAdvisory {
+  severity: IssueSeverity;
+  code: DiagnosticCode;
+  kind?: RefKind;
+  sourceDoc: string;
+  sourcePointer: string;
+  refString: string;
+  detail: string;
+}
+
 /** A document-level problem (currently only unreachability). */
 export interface DocIssue {
   severity: "warning";
@@ -32,6 +43,7 @@ export interface DocIssue {
 export interface IssueReport {
   entry: string;
   refIssues: RefIssue[];
+  advisories: RefAdvisory[];
   docIssues: DocIssue[];
   total: number;
 }
@@ -52,17 +64,31 @@ export function collectIssues(
   const label = (id: string): string => docLabel(byId.get(id), id);
 
   const refIssues: RefIssue[] = [];
+  const advisories: RefAdvisory[] = [];
   for (const e of refs.edges) {
-    if (e.status === "resolved") continue;
-    refIssues.push({
-      severity: STATUS_SEVERITY[e.status],
-      status: e.status,
-      kind: e.kind,
-      sourceDoc: label(e.sourceDocId),
-      sourcePointer: displayPointer(e.sourceObjectId),
-      refString: e.refString,
-      detail: refDetail(e),
-    });
+    if (e.status !== "resolved") {
+      refIssues.push({
+        severity: STATUS_SEVERITY[e.status],
+        status: e.status,
+        kind: e.kind,
+        sourceDoc: label(e.sourceDocId),
+        sourcePointer: displayPointer(e.sourceObjectId),
+        refString: e.refString,
+        detail: refDetail(e),
+      });
+    }
+    // A reference can resolve yet still carry advisories (e.g. an operationRef to a webhook).
+    for (const d of e.diagnostics ?? []) {
+      advisories.push({
+        severity: d.severity,
+        code: d.code,
+        kind: e.kind,
+        sourceDoc: label(e.sourceDocId),
+        sourcePointer: displayPointer(e.sourceObjectId),
+        refString: e.refString,
+        detail: d.detail,
+      });
+    }
   }
 
   const entryDoc = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
@@ -75,8 +101,9 @@ export function collectIssues(
   return {
     entry: entryDoc ? docLabel(entryDoc, entryDoc.id) : "(none)",
     refIssues,
+    advisories,
     docIssues,
-    total: refIssues.length + docIssues.length,
+    total: refIssues.length + advisories.length + docIssues.length,
   };
 }
 
@@ -130,6 +157,15 @@ export function formatIssueReport(report: IssueReport): string {
       lines.push(`  [${i.status}] ${i.sourceDoc} ${i.sourcePointer}`);
       lines.push(`      ${refLabel(i.kind)}: ${i.refString}`);
       lines.push(`      ${i.detail}`);
+    }
+  }
+
+  if (report.advisories.length) {
+    lines.push("", `Reference advisories (${report.advisories.length}):`);
+    for (const a of report.advisories) {
+      lines.push(`  [${a.severity}] ${a.sourceDoc} ${a.sourcePointer}`);
+      lines.push(`      ${refLabel(a.kind)}: ${a.refString}`);
+      lines.push(`      ${a.detail}`);
     }
   }
 

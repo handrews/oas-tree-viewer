@@ -47,6 +47,7 @@ export class Canvas {
   private arcs: Selection<SVGGElement, unknown, null, undefined> | null = null;
   private arcsDouble: Selection<SVGGElement, unknown, null, undefined> | null = null;
   private warnG: Selection<SVGGElement, unknown, null, undefined> | null = null;
+  private advisoryG: Selection<SVGGElement, unknown, null, undefined> | null = null;
   private resolved: ResolvedRefs | null = null;
   private focusKey: string | null = null;
   private showAll = false;
@@ -154,6 +155,7 @@ export class Canvas {
             this.retile();
             this.refreshEdges();
             this.drawWarnings();
+            this.drawAdvisories();
           },
         },
         unreachableDocIds.has(doc.id),
@@ -164,6 +166,8 @@ export class Canvas {
     // Edge overlay sits above the document groups.
     const edgeLayer = this.viewport.append("g").attr("class", "edges");
     this.warnG = edgeLayer.append("g").attr("class", "warnings");
+    // Advisory glyphs (resolved-but-problematic references) sit beside the unresolved ⚠ glyphs.
+    this.advisoryG = edgeLayer.append("g").attr("class", "advisories");
     this.arcs = edgeLayer.append("g").attr("class", "arcs");
     // Component-name arcs render as two offset lines (a transparent gap between) so they read
     // as a double line yet stay legible where they cross labels.
@@ -178,6 +182,7 @@ export class Canvas {
     this.resolved = resolved;
     this.focusKey = null;
     this.drawWarnings();
+    this.drawAdvisories();
     this.refreshEdges();
   }
 
@@ -263,10 +268,15 @@ export class Canvas {
     const set = this.showAll ? this.resolved.edges : focus;
     const geos = this.edgeGeometries(set, focusIds);
 
-    const baseClass = (d: EdgeGeo): string =>
-      `ref-edge status-${d.edge.status}` +
-      (d.s.collapsed || d.t.collapsed ? " collapsed" : "") +
-      (d.focused ? " focused" : "");
+    const baseClass = (d: EdgeGeo): string => {
+      const diag = arcDiagSeverity(d.edge);
+      return (
+        `ref-edge status-${d.edge.status}` +
+        (diag ? ` diag-${diag}` : "") +
+        (d.s.collapsed || d.t.collapsed ? " collapsed" : "") +
+        (d.focused ? " focused" : "")
+      );
+    };
     const d3path = (d: EdgeGeo): string => arcPath(d.s, d.t);
     const markerEnd = (d: EdgeGeo): string =>
       resolutionStyles[d.edge.resolution].arrowhead === "open"
@@ -389,6 +399,50 @@ export class Canvas {
       });
   }
 
+  /** Advisory glyphs (▲) for resolved references carrying a semantic problem, in the row gutter. */
+  private drawAdvisories(): void {
+    if (!this.advisoryG) return;
+    if (!this.resolved) {
+      this.advisoryG.selectAll("text").remove();
+      return;
+    }
+    // Group by landing row (several advisories can collapse onto one ancestor row); error
+    // outranks warning for the glyph color, and every detail goes into the tooltip.
+    const groups = new Map<string, { x: number; y: number; error: boolean; details: string[] }>();
+    for (const edge of this.resolved.edges) {
+      if (!edge.diagnostics?.length) continue;
+      const sv = this.viewForDoc(edge.sourceDocId);
+      if (!sv) continue;
+      const p = sv.labelEndViewport(edge.sourceNodeId);
+      if (!p) continue;
+      const key = `${Math.round(p.x)}:${Math.round(p.y)}`;
+      const g = groups.get(key) ?? { x: p.x, y: p.y, error: false, details: [] };
+      for (const d of edge.diagnostics) {
+        if (d.severity === "error") g.error = true;
+        g.details.push(d.detail);
+      }
+      groups.set(key, g);
+    }
+    const data = [...groups].map(([key, g]) => ({ key, ...g }));
+
+    this.advisoryG
+      .selectAll<SVGTextElement, (typeof data)[number]>("text")
+      .data(data, (d) => d.key)
+      .join("text")
+      .attr("class", (d) => `advisory-glyph severity-${d.error ? "error" : "warning"}`)
+      // Sit a little further right than the unresolved ⚠ (at +12), so the two don't collide.
+      .attr("x", (d) => d.x + 30)
+      .attr("y", (d) => d.y + 5)
+      .attr("text-anchor", "start")
+      .each(function (this: SVGTextElement, d) {
+        const sel = select(this);
+        sel.selectAll("*").remove();
+        sel.text(null);
+        sel.append("title").text(d.details.join("\n"));
+        sel.append("tspan").text("▲");
+      });
+  }
+
   private recenter(x: number, y: number): void {
     const svgNode = this.svg.node();
     if (!svgNode) return;
@@ -420,6 +474,21 @@ export class Canvas {
       this.cb.onLoadAnother?.();
     }
   }
+}
+
+/**
+ * The arc tint for an edge's advisories, or null. Path Item field overlaps are deliberately
+ * excluded — that arc is a normal resolved `$ref` and is flagged by the gutter glyph alone; only
+ * operation-target advisories (which are *about* where the arc points) tint the line.
+ */
+function arcDiagSeverity(edge: ReferenceEdge): "error" | "warning" | null {
+  let severity: "error" | "warning" | null = null;
+  for (const d of edge.diagnostics ?? []) {
+    if (d.code === "pathitem-field-overlap") continue;
+    if (d.severity === "error") return "error";
+    severity = "warning";
+  }
+  return severity;
 }
 
 /** Curved cubic-bezier arc between two viewport-space anchors. */

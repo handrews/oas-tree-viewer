@@ -71,6 +71,39 @@ test("shows selected node info, incoming refs, and wires navigation", async () =
   expect(ctx.onNavigate).toHaveBeenCalled();
 });
 
+const OPS_DOC = `
+openapi: 3.2.0
+info: { title: T, version: '1' }
+paths:
+  /a:
+    get:
+      operationId: op
+      responses:
+        '200':
+          description: ok
+          links:
+            hook: { operationRef: '#/webhooks/h/get' }
+webhooks:
+  h:
+    get:
+      operationId: hg
+      responses: { '200': { description: ok } }
+`;
+
+test("lists an operation-target advisory under the selected reference", async () => {
+  const doc = await makeDoc(OPS_DOC, { isEntry: true });
+  const screen = render(DetailPanel, {
+    selected: { doc, node: at(doc.root, "/paths/~1a/get/responses/200/links/hook") },
+    ctx: ctxFor(doc),
+  });
+
+  await expect.element(screen.getByText(/Resolves to/)).toBeVisible();
+  await expect
+    .poll(() => document.querySelector(".ref-note.advisory")?.textContent)
+    .toContain("not directly callable");
+  expect(document.querySelector(".ref-note.advisory.severity-error")).not.toBeNull();
+});
+
 test("Svelte auto-escaping neutralizes scalar values", async () => {
   const doc = await makeDoc(DOC, { isEntry: true });
   const node: TreeNode = {

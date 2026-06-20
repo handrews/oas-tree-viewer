@@ -23,6 +23,28 @@ export type RefStatus =
   | "broken" // resource found, but the fragment names nothing
   | "external"; // the target resource is not among the loaded documents
 
+/**
+ * A semantic problem with a reference that *does* resolve — orthogonal to {@link RefStatus}.
+ * An `operationRef`/`operationId` can resolve to a real Operation yet point somewhere that
+ * isn't (unambiguously) invocable, and a Path Item `$ref` can resolve yet undefined-merge with
+ * its target. These are surfaced as advisories rather than folded into the resolve status.
+ */
+export type DiagnosticCode =
+  | "pathitem-field-overlap" // a field appears next to the $ref AND in the target Path Item
+  | "operation-target-webhook" // op ref → Operation under `webhooks` (not directly callable)
+  | "operation-target-callback" // op ref → Operation under a `callbacks` entry (runtime URL)
+  | "operation-target-ambiguous" // op ref → component Path Item reached by >1 path (which URL?)
+  | "operation-target-fragile" // op ref → component Path Item reached by exactly 1 path
+  | "operation-target-no-path"; // op ref → component Path Item reached by 0 paths (no URL)
+
+export interface EdgeDiagnostic {
+  code: DiagnosticCode;
+  /** Report grouping; the on-canvas/legend color is keyed off this (see colors.ts). */
+  severity: "error" | "warning";
+  /** Color-free human text, e.g. 'also defined in the target: summary, parameters'. */
+  detail: string;
+}
+
 export interface ReferenceEdge {
   id: string;
   /** Document holding the reference. */
@@ -46,6 +68,8 @@ export interface ReferenceEdge {
   targetNodeId?: string;
   /** The target's own expected type (for type-mismatch display). */
   targetType?: string;
+  /** Semantic advisories on an otherwise-resolved reference (set by annotateDiagnostics). */
+  diagnostics?: EdgeDiagnostic[];
 }
 
 export interface ResolvedRefs {

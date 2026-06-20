@@ -1,0 +1,76 @@
+openapi: 3.2.0
+$self: https://example.com/oad/operation-refs
+info:
+  title: Operation references — advisory showcase
+  version: 1.0.0
+  description: >
+    Each Link under /main uses operationRef to point at an Operation in a different habitat, so the
+    viewer can show every operation-reference advisory: a clean path target (no advisory), a webhook
+    and a callback (not directly callable → error), and Components Path Items reached from the Paths
+    Object by 2 / 1 / 0 paths (ambiguous → error, fragile → warning, no URL → error). The /overlap
+    entry adds a Path Item $ref whose `summary` also appears in the target (undefined merge → error).
+paths:
+  /main:
+    get:
+      operationId: mainGet
+      responses:
+        '200':
+          description: OK
+          links:
+            clean: # → an Operation under the Paths Object: directly invocable, no advisory
+              operationRef: '#/paths/~1main/get'
+            toWebhook: # → an Operation under webhooks: not directly callable (error)
+              operationRef: '#/webhooks/petEvent/get'
+            toCallback: # → an Operation under a callback: runtime-expression URL (error)
+              operationRef: '#/paths/~1main/get/callbacks/onData/notifyUrl/post'
+            toAmbiguous: # → a component Path Item reached by 2 paths: which URL? (error)
+              operationRef: '#/components/pathItems/Multi/get'
+            toFragile: # → a component Path Item reached by exactly 1 path (warning)
+              operationRef: '#/components/pathItems/Solo/get'
+            toOrphan: # → a component Path Item reached by 0 paths: no URL to invoke (error)
+              operationRef: '#/components/pathItems/Unused/get'
+      callbacks:
+        onData:
+          notifyUrl:
+            post:
+              operationId: onDataPost
+              responses:
+                '200': { description: OK }
+  /solo:
+    $ref: '#/components/pathItems/Solo' # the single path that reaches Solo
+  /multi-a:
+    $ref: '#/components/pathItems/Multi' # two paths reach Multi → ambiguous
+  /multi-b:
+    $ref: '#/components/pathItems/Multi'
+  /overlap:
+    summary: an inline summary # also present in the target → undefined merge
+    $ref: '#/components/pathItems/Documented'
+webhooks:
+  petEvent:
+    get:
+      operationId: petEventGet
+      responses:
+        '200': { description: OK }
+components:
+  pathItems:
+    Solo:
+      get:
+        operationId: soloGet
+        responses:
+          '200': { description: OK }
+    Multi:
+      get:
+        operationId: multiGet
+        responses:
+          '200': { description: OK }
+    Unused:
+      get:
+        operationId: unusedGet
+        responses:
+          '200': { description: OK }
+    Documented:
+      summary: the referenced summary
+      get:
+        operationId: documentedGet
+        responses:
+          '200': { description: OK }
