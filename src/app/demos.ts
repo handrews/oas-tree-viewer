@@ -44,6 +44,20 @@ export const demos: Demo[] = [
       urlDoc("oads/schemas.yaml"),
     ],
   },
+  {
+    id: "component-refs",
+    label: "Component-name references (3.2)",
+    description:
+      "Implicit connections — discriminator mapping values and Security Requirement keys — resolving " +
+      "as component names (diamond, double line) or URI-references (asterisk, single line). Use the " +
+      "Resolution options to flip the ambiguous “dual” mapping, and to look up the referenced " +
+      "document’s names in the entry vs. the local document.",
+    inputs: [
+      urlDoc("component-refs-3.2.yaml", true),
+      urlDoc("component-refs-shared-3.2.yaml"),
+      urlDoc("component-refs-pets-3.2.yaml"),
+    ],
+  },
 ];
 
 const byId = new Map(demos.map((d) => [d.id, d]));

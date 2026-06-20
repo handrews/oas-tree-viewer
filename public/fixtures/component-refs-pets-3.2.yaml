@@ -1,0 +1,10 @@
+openapi: 3.2.0
+$self: https://example.com/oad/pets
+info:
+  title: Pets
+  version: 1.0.0
+  description: >
+    A second document whose $self is https://example.com/oad/pets, so the entry's "dual"
+    mapping value ("pets") also resolves as a URI-reference to this document. With the default
+    name-first precedence it stays a Schema component; with uri-first it points here instead.
+paths: {}

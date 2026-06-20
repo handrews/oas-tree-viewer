@@ -147,3 +147,54 @@ test.describe("demos, online URLs & bookmarking", () => {
     await expect(page).toHaveURL(/\/configure/);
   });
 });
+
+test.describe("component-name references", () => {
+  test("distinguishes component-name (diamond) from URI (asterisk) markers", async ({ page }) => {
+    await page.goto("/view?demo=component-refs");
+    await page.getByRole("button", { name: "Expand all" }).click();
+
+    // Component names resolve to a diamond; URI-references ($refs and the URI-valued mapping/
+    // security) resolve to an asterisk.
+    await expect(page.locator("svg .marker.diamond")).toHaveCount(6);
+    await expect(page.locator("svg .marker.asterisk").first()).toBeVisible();
+  });
+
+  test("component-name arcs use the open arrowhead + double (offset) lines", async ({ page }) => {
+    await page.goto("/view?demo=component-refs");
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+
+    // The arrowhead carrier supplies the open arrowhead.
+    await expect(page.locator("svg .ref-edge.dbl-head").first()).toHaveAttribute(
+      "marker-end",
+      "url(#ref-arrow-open)",
+    );
+    // The double line is two visible offset strokes.
+    await expect(page.locator("svg .ref-edge.dbl-line").first()).toBeVisible();
+  });
+
+  test("the uri-first config flips the ambiguous mapping from a component name to a URI", async ({ page }) => {
+    await page.goto("/view?demo=component-refs&disc=uri-first");
+    await page.getByRole("button", { name: "Expand all" }).click();
+    // "dual" becomes a URI-reference, so one fewer diamond than the name-first default (6 -> 5).
+    await expect(page.locator("svg .marker.diamond")).toHaveCount(5);
+  });
+
+  test("the entry-vs-local lookup changes resolution in a referenced document", async ({ page }) => {
+    // Default (entry lookup): the referenced doc's names resolve in the entry; 2 issues.
+    await page.goto("/view?demo=component-refs");
+    await expect(page.locator("#issues .issue-count")).toHaveText("2");
+
+    // Local lookup: the referenced doc's entry-only "special" mapping no longer resolves -> 3 issues.
+    await page.goto("/view?demo=component-refs&lookup=local");
+    await expect(page.locator("#issues .issue-count")).toHaveText("3");
+  });
+
+  test("the Resolution options on the configure page feed into the view URL", async ({ page }) => {
+    await page.goto("/configure");
+    await page.locator(".resolution-options > summary").click();
+    await page.locator(".resolution-options select").first().selectOption("uri-first");
+    await page.getByRole("button", { name: "Component-name references (3.2)" }).click();
+    await expect(page).toHaveURL(/disc=uri-first/);
+  });
+});

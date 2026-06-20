@@ -50,6 +50,25 @@ describe("issues", () => {
     expect(mismatch.detail).toBe("expected Operation, found Schema");
   });
 
+  it("describes a broken component-name reference and labels the field in the text report", () => {
+    const refs = refsOf([
+      {
+        status: "broken",
+        resolution: "component-name",
+        kind: "securityRequirement",
+        sourceDocId: "a",
+        sourceObjectId: "/security/0/apiKey",
+        refString: "apiKey",
+        requiredType: "SecurityScheme",
+      },
+    ]);
+    const report = collectIssues(oad, refs, []);
+    const issue = report.refIssues[0]!;
+    expect(issue.detail).toBe('no Security Scheme component named "apiKey"');
+    expect(issue.kind).toBe("securityRequirement");
+    expect(formatIssueReport(report)).toContain("security requirement: apiKey");
+  });
+
   it("collects unreachable documents as warnings", () => {
     const report = collectIssues(oad, refsOf([]), [other]);
     expect(report.docIssues).toEqual([

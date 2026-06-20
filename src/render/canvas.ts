@@ -7,6 +7,7 @@ import type { Selection, ZoomBehavior } from "d3";
 import type { Oad, OadDocument, TreeNode } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
+import { resolutionStyles } from "./colors";
 import { DocumentView } from "./treeView";
 
 const DOC_GAP = 56;
@@ -44,6 +45,7 @@ export class Canvas {
   private views: DocumentView[] = [];
 
   private arcs: Selection<SVGGElement, unknown, null, undefined> | null = null;
+  private arcsDouble: Selection<SVGGElement, unknown, null, undefined> | null = null;
   private warnG: Selection<SVGGElement, unknown, null, undefined> | null = null;
   private resolved: ResolvedRefs | null = null;
   private focusKey: string | null = null;
@@ -102,6 +104,21 @@ export class Canvas {
       .attr("class", "ref-arrowhead")
       .attr("d", "M0,0 L10,5 L0,10 z");
 
+    // Open (stick) arrowhead for component-name references — not filled, so it reads distinct.
+    defs
+      .append("marker")
+      .attr("id", "ref-arrow-open")
+      .attr("viewBox", "0 0 10 10")
+      .attr("refX", 9)
+      .attr("refY", 5)
+      .attr("markerWidth", 11)
+      .attr("markerHeight", 11)
+      .attr("markerUnits", "userSpaceOnUse")
+      .attr("orient", "auto-start-reverse")
+      .append("path")
+      .attr("class", "ref-arrowhead-open")
+      .attr("d", "M1,1 L9,5 L1,9");
+
     this.viewport = this.svg.append("g").attr("class", "viewport");
 
     this.zoomBehavior = zoom<SVGSVGElement, unknown>()
@@ -148,6 +165,9 @@ export class Canvas {
     const edgeLayer = this.viewport.append("g").attr("class", "edges");
     this.warnG = edgeLayer.append("g").attr("class", "warnings");
     this.arcs = edgeLayer.append("g").attr("class", "arcs");
+    // Component-name arcs render as two offset lines (a transparent gap between) so they read
+    // as a double line yet stay legible where they cross labels.
+    this.arcsDouble = edgeLayer.append("g").attr("class", "arcs-double");
 
     this.retile();
     this.fit();
@@ -232,9 +252,10 @@ export class Canvas {
   }
 
   private refreshEdges(): void {
-    if (!this.arcs) return;
+    if (!this.arcs || !this.arcsDouble) return;
     if (!this.resolved) {
       this.arcs.selectAll("path").remove();
+      this.arcsDouble.selectAll("path").remove();
       return;
     }
     const focus = this.focusEdges();
@@ -242,31 +263,64 @@ export class Canvas {
     const set = this.showAll ? this.resolved.edges : focus;
     const geos = this.edgeGeometries(set, focusIds);
 
+    const baseClass = (d: EdgeGeo): string =>
+      `ref-edge status-${d.edge.status}` +
+      (d.s.collapsed || d.t.collapsed ? " collapsed" : "") +
+      (d.focused ? " focused" : "");
+    const d3path = (d: EdgeGeo): string => arcPath(d.s, d.t);
+    const markerEnd = (d: EdgeGeo): string =>
+      resolutionStyles[d.edge.resolution].arrowhead === "open"
+        ? "url(#ref-arrow-open)"
+        : "url(#ref-arrow)";
+    const onClick = (event: MouseEvent, d: EdgeGeo): void => {
+      event.stopPropagation();
+      if (d.edge.targetDocId != null && d.edge.targetNodeId != null) {
+        this.navigateTo(d.edge.targetDocId, d.edge.targetNodeId);
+      }
+    };
+    const single = geos.filter((d) => resolutionStyles[d.edge.resolution].line === "single");
+    const double = geos.filter((d) => resolutionStyles[d.edge.resolution].line === "double");
+
+    // Single-line references: one stroke + the arrowhead.
     this.arcs
       .selectAll<SVGPathElement, EdgeGeo>("path")
-      .data(geos, (d) => d.edge.id)
+      .data(single, (d) => d.edge.id)
       .join("path")
-      .attr(
-        "class",
-        (d) =>
-          `ref-edge status-${d.edge.status}` +
-          (d.s.collapsed || d.t.collapsed ? " collapsed" : "") +
-          (d.focused ? " focused" : ""),
-      )
-      .attr("d", (d) => arcPath(d.s, d.t))
-      .attr("marker-end", "url(#ref-arrow)")
-      .on("click", (event: MouseEvent, d) => {
-        event.stopPropagation();
-        if (d.edge.targetDocId && d.edge.targetNodeId) {
-          this.navigateTo(d.edge.targetDocId, d.edge.targetNodeId);
-        }
-      });
+      .attr("class", baseClass)
+      .attr("d", d3path)
+      .attr("marker-end", markerEnd)
+      .on("click", onClick);
+
+    // Double-line references: two thin strokes offset above/below a transparent gap, plus a
+    // zero-width carrier that supplies the (fixed-size) arrowhead at the centerline.
+    const OFFSET = 1.4;
+    const drawLine = (cls: string, dy: number): void => {
+      this.arcsDouble!
+        .selectAll<SVGPathElement, EdgeGeo>(`path.${cls}`)
+        .data(double, (d) => d.edge.id)
+        .join("path")
+        .attr("class", (d) => `${baseClass(d)} dbl-line ${cls}`)
+        .attr("d", d3path)
+        .attr("transform", `translate(0, ${dy})`)
+        .on("click", onClick);
+    };
+    drawLine("dbl-up", -OFFSET);
+    drawLine("dbl-dn", OFFSET);
+    this.arcsDouble
+      .selectAll<SVGPathElement, EdgeGeo>("path.dbl-head")
+      .data(double, (d) => d.edge.id)
+      .join("path")
+      .attr("class", (d) => `${baseClass(d)} dbl-head`)
+      .attr("d", d3path)
+      .attr("marker-end", markerEnd);
   }
 
   private edgeGeometries(edges: ReferenceEdge[], focusIds: Set<string>): EdgeGeo[] {
     const out: EdgeGeo[] = [];
     for (const edge of edges) {
-      if (!edge.targetDocId || !edge.targetNodeId) continue; // external/broken: no arc
+      // External/broken edges have no located target. The root node's id is "" (falsy but
+      // valid), so test for absence explicitly rather than truthiness.
+      if (edge.targetDocId == null || edge.targetNodeId == null) continue;
       const sv = this.viewForDoc(edge.sourceDocId);
       const tv = this.viewForDoc(edge.targetDocId);
       if (!sv || !tv) continue;

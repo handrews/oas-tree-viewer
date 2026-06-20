@@ -387,6 +387,46 @@ body {
   line-height: 1.45;
 }
 
+/* ── Resolution options (configure page) ──────────────────────────────── */
+
+.resolution-options {
+  margin-top: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+}
+.resolution-options > summary {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--link);
+  cursor: pointer;
+}
+.option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.option-label {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.option-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: var(--font);
+}
+
 /* ── Viewer (canvas + detail) ─────────────────────────────────────────── */
 
 #viewer {
@@ -623,9 +663,27 @@ body {
   stroke-dasharray: 4 3;
   opacity: 0.85;
 }
+/* Component-name references read as a double line: two thin strokes (.dbl-line) offset above
+   and below a transparent gap, so labels underneath stay legible. A zero-width carrier
+   (.dbl-head) only supplies the arrowhead at the centerline. */
+.ref-edge.dbl-line {
+  stroke-width: 1.3px;
+}
+.ref-edge.dbl-head {
+  stroke-width: 0;
+}
 .ref-arrowhead {
   fill: var(--link);
   fill: context-stroke;
+}
+/* Open (stick) arrowhead for component-name references — stroked, not filled, fixed size. */
+.ref-arrowhead-open {
+  fill: none;
+  stroke: var(--link);
+  stroke: context-stroke;
+  stroke-width: 1.4px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .warn-glyph {
   font-size: 18px;
@@ -743,10 +801,13 @@ body {
   background: var(--text-dim);
   border-radius: 2px;
 }
-.legend-shape.shape-asterisk {
+/* Reference markers in the legend wear the Structural reference color, as on the tree. */
+.legend-shape.shape-asterisk,
+.legend-shape.shape-diamond {
   font-weight: 700;
   font-size: 1rem;
   line-height: 1;
+  color: var(--cat-structural);
 }
 
 /* Connection-line examples. */
@@ -756,8 +817,27 @@ body {
   flex: none;
   border-top: 2px solid var(--link);
 }
+.legend-line.line-double {
+  border-top: 3px double var(--link);
+}
 .legend-line.line-dashed {
   border-top-style: dashed;
+}
+/* Type-mismatch arcs are dashed in the error color. */
+.legend-line.line-error {
+  border-top-color: var(--error);
+}
+/* A reference example pairs a line style with its arrowhead (filled vs open). */
+.ref-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.ref-arrow-sample {
+  color: var(--link);
+  font-size: 0.7rem;
+  line-height: 1;
 }
 
 /* Error-icon examples — ⚠ in the two on-tree glyph colors. Sized as large text (>=14pt

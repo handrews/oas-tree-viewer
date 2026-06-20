@@ -34,8 +34,12 @@ describe("demos", () => {
     expect(demoInputs("nope")).toBeUndefined();
   });
 
-  it("includes the refs error showcase and the 3.2 $self demo", () => {
-    expect(demos.map((d) => d.id)).toEqual(["refs", "self"]);
+  it("includes the refs, $self, and component-name reference demos", () => {
+    expect(demos.map((d) => d.id)).toEqual(["refs", "self", "component-refs"]);
     expect(demoInputs("self")![0]!).toMatchObject({ url: "/fixtures/oads/openapi.yaml", isEntry: true });
+    expect(demoInputs("component-refs")![0]!).toMatchObject({
+      url: "/fixtures/component-refs-3.2.yaml",
+      isEntry: true,
+    });
   });
 });

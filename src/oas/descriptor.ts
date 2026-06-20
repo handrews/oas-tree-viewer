@@ -12,11 +12,22 @@ import type { VersionFamily } from "../types";
 /** Name of a type in the descriptor registry. */
 export type TypeRef = string;
 
+/**
+ * A "reference-like" field whose value is a component name OR a URI-reference (resolved by
+ * the reference resolver). `type` is the expected component; `field` selects the resolution
+ * rules (version-conditional for Security Requirement, config-driven for `mapping`).
+ */
+export interface ComponentRefSpec {
+  type: "Schema" | "SecurityScheme";
+  field: "mapping" | "securityRequirement";
+}
+
 /** How a named field holds its typed child/children. Exactly one key is present. */
 export type FieldRule =
   | { value: TypeRef } // a single object of this type
   | { array: TypeRef } // an array whose elements are this type
-  | { map: TypeRef }; // a map (object) whose values are this type
+  | { map: TypeRef } // a map (object) whose values are this type
+  | { refValues: ComponentRefSpec }; // a map whose values are component-or-URI references
 
 export interface TypeDescriptor {
   /** Display label, e.g. "Operation Object". */
@@ -27,6 +38,8 @@ export interface TypeDescriptor {
   fields?: Record<string, FieldRule>;
   /** Type of patterned/map values (keys not covered by `fields`). */
   mapOf?: TypeRef;
+  /** This object's own keys are component-or-URI references (e.g. Security Requirement). */
+  refKeys?: ComponentRefSpec;
 }
 
 export type Descriptors = Record<TypeRef, TypeDescriptor>;
@@ -174,7 +187,12 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
     Callback: { label: "Callback Object", category: "http", mapOf: "PathItem" },
     Link: { label: "Link Object", category: "http", fields: { server: { value: "Server" } } },
 
-    SecurityRequirement: { label: "Security Requirement Object", category: "security" },
+    SecurityRequirement: {
+      label: "Security Requirement Object",
+      category: "security",
+      // Each key names a Security Scheme component (or, per version, a URI-reference).
+      refKeys: { type: "SecurityScheme", field: "securityRequirement" },
+    },
     SecurityScheme: {
       label: "Security Scheme Object",
       category: "security",
@@ -220,7 +238,12 @@ export function buildDescriptors(version: VersionFamily): Descriptors {
         xml: { value: "Xml" },
       },
     },
-    Discriminator: { label: "Discriminator Object", category: "data" },
+    Discriminator: {
+      label: "Discriminator Object",
+      category: "data",
+      // Each `mapping` value names a Schema component (or a URI-reference).
+      fields: { mapping: { refValues: { type: "Schema", field: "mapping" } } },
+    },
     Xml: { label: "XML Object", category: "data" },
   };
 }

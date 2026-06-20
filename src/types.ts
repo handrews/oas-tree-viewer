@@ -1,5 +1,11 @@
 // Core domain types shared across the model, classifier, and render layers.
 
+/**
+ * How a reference field resolved, which selects its visual treatment (marker shape, line
+ * style, arrowhead). Extensible — later phases add kinds like "operation-id" / "dynamic".
+ */
+export type ResolutionKind = "uri-reference" | "component-name";
+
 /** The JSON value categories a node can hold. */
 export type ValueKind =
   | "object"
@@ -55,6 +61,21 @@ export interface TreeNode {
   isReference?: boolean;
   /** Raw `$ref` string, retained for future reference resolution. */
   refTarget?: string;
+  /**
+   * For a Discriminator `mapping` value or a Security Requirement key: a string that
+   * references a component by name or as a URI-reference. Set by the classifier; the
+   * resolver decides which interpretation wins (see {@link resolvedAs}).
+   */
+  componentRef?: {
+    /** The reference string: the `mapping` value, or the Security Requirement key. */
+    refString: string;
+    /** Expected target component type. */
+    expectedType: "Schema" | "SecurityScheme";
+    /** Which field this is, selecting the version/config resolution rules. */
+    field: "mapping" | "securityRequirement";
+  };
+  /** How this reference field resolved (set by the resolver); drives the marker shape. */
+  resolvedAs?: ResolutionKind;
   /** The scalar value, for leaf nodes only. */
   scalarValue?: string | number | boolean | null;
   children: TreeNode[];

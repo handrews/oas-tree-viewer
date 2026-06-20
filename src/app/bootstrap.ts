@@ -5,6 +5,7 @@
 import type { DocInput } from "../loader";
 import type { Oad, OadDocument } from "../types";
 import type { ResolvedRefs } from "../refs/types";
+import { type ViewerConfig, defaultConfig } from "./config";
 import { loadDocument } from "../loader";
 import { assembleOad } from "../oad";
 import { resolveOad } from "../refs/resolver";
@@ -19,7 +20,10 @@ export type PipelineResult =
  * Load each input document (reporting per-row presence/parse problems), then assemble
  * and resolve the OAD (reporting an OAD-level error such as a version mismatch).
  */
-export async function runPipeline(inputs: DocInput[]): Promise<PipelineResult> {
+export async function runPipeline(
+  inputs: DocInput[],
+  config: ViewerConfig = defaultConfig,
+): Promise<PipelineResult> {
   const docs: OadDocument[] = [];
   const rowErrors: Record<number, string> = {};
 
@@ -34,7 +38,7 @@ export async function runPipeline(inputs: DocInput[]): Promise<PipelineResult> {
 
   try {
     const oad = assembleOad(docs);
-    const refs = resolveOad(oad);
+    const refs = resolveOad(oad, config);
     return { ok: true, oad, refs };
   } catch (e) {
     return { ok: false, oadError: errorMessage(e) };

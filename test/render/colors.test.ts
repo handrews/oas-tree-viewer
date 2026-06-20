@@ -5,11 +5,13 @@ import {
   categoryLabel,
   legendGroups,
   shapeLegend,
+  referenceLegend,
+  resolutionStyles,
   lineLegend,
   errorIconLegend,
   warningLegend,
 } from "../../src/render/colors";
-import type { NodeCategory } from "../../src/types";
+import type { NodeCategory, ResolutionKind } from "../../src/types";
 
 const ALL: NodeCategory[] = [
   "structural",
@@ -47,13 +49,36 @@ describe("colors", () => {
     expect(categoryShape(undefined)).toBe("circle");
   });
 
-  it("legend data tables cover the documented shapes/styles/statuses", () => {
-    expect(shapeLegend.map((s) => s.shape)).toEqual(["circle", "square", "asterisk"]);
-    expect(lineLegend.map((l) => l.style)).toEqual(["solid", "dashed"]);
+  it("node-shape, line, error, and warning legends cover the documented entries", () => {
+    expect(shapeLegend.map((s) => s.shape)).toEqual(["circle", "square"]);
+    expect(lineLegend.map((l) => l.variant)).toEqual(["collapsed", "type-mismatch"]);
     expect(errorIconLegend.map((e) => e.status)).toEqual(["broken", "external"]);
     for (const row of [...shapeLegend, ...lineLegend, ...errorIconLegend]) {
       expect(row.label).toBeTruthy();
     }
     expect(warningLegend.unreachable).toBeTruthy();
+  });
+
+  it("resolutionStyles distinguish URI-reference (asterisk/single/filled) from component-name (diamond/double/open)", () => {
+    expect(resolutionStyles["uri-reference"]).toMatchObject({
+      marker: "asterisk",
+      line: "single",
+      arrowhead: "filled",
+    });
+    expect(resolutionStyles["component-name"]).toMatchObject({
+      marker: "diamond",
+      line: "double",
+      arrowhead: "open",
+    });
+    const kinds: ResolutionKind[] = ["uri-reference", "component-name"];
+    for (const k of kinds) expect(resolutionStyles[k].label).toBeTruthy();
+  });
+
+  it("referenceLegend lists every ResolutionKind in order with its style", () => {
+    expect(referenceLegend.map((r) => r.kind)).toEqual(["uri-reference", "component-name"]);
+    for (const r of referenceLegend) {
+      expect(r).toMatchObject(resolutionStyles[r.kind]);
+      expect(r.label).toBeTruthy();
+    }
   });
 });
