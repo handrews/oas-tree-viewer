@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseRoute, viewPath, type ViewRequest } from "../../src/app/viewUrl";
+import { defaultConfig, type ViewerConfig } from "../../src/app/config";
 
 /** Split a `viewPath` result back into (pathname, search) the way the router would. */
 function parsePath(path: string) {
@@ -14,10 +15,11 @@ describe("viewUrl", () => {
     expect(parseRoute("/anything-else", "?demo=x")).toEqual({ page: "configure" });
   });
 
-  it("parses a demo request", () => {
+  it("parses a demo request (with default config)", () => {
     expect(parseRoute("/view", "?demo=refs")).toEqual({
       page: "view",
       request: { kind: "demo", demoId: "refs" },
+      config: defaultConfig,
     });
   });
 
@@ -32,6 +34,7 @@ describe("viewUrl", () => {
           { url: "https://a/y.yaml", isEntry: false },
         ],
       },
+      config: defaultConfig,
     });
   });
 
@@ -48,23 +51,51 @@ describe("viewUrl", () => {
     expect(parseRoute("/view", "?doc=&doc=a")).toEqual({
       page: "view",
       request: { kind: "urls", docs: [{ url: "a", isEntry: true }] },
+      config: defaultConfig,
     });
   });
 
   it("treats a bare /view as a session (upload) handoff", () => {
-    expect(parseRoute("/view", "")).toEqual({ page: "view", request: { kind: "session" } });
-    expect(parseRoute("/view/", "")).toEqual({ page: "view", request: { kind: "session" } });
+    expect(parseRoute("/view", "")).toEqual({
+      page: "view",
+      request: { kind: "session" },
+      config: defaultConfig,
+    });
+    expect(parseRoute("/view/", "")).toEqual({
+      page: "view",
+      request: { kind: "session" },
+      config: defaultConfig,
+    });
   });
 
-  it("round-trips each request kind through viewPath -> parseRoute", () => {
-    const cases: ViewRequest[] = [
+  it("parses resolution config orthogonally to the request kind", () => {
+    expect(parseRoute("/view", "?demo=refs&disc=uri-first&lookup=local")).toEqual({
+      page: "view",
+      request: { kind: "demo", demoId: "refs" },
+      config: { mappingPrecedence: "uri-first", componentLookup: "local" },
+    });
+    // Config without a demo/doc is still a session, with the parsed config.
+    expect(parseRoute("/view", "?lookup=local")).toEqual({
+      page: "view",
+      request: { kind: "session" },
+      config: { mappingPrecedence: "name-first", componentLookup: "local" },
+    });
+  });
+
+  it("round-trips request + config through viewPath -> parseRoute", () => {
+    const requests: ViewRequest[] = [
       { kind: "demo", demoId: "self" },
       { kind: "urls", docs: [{ url: "https://a/x.yaml", isEntry: true }, { url: "https://a/y.yaml", isEntry: false }] },
       { kind: "session" },
     ];
-    for (const request of cases) {
-      const route = parsePath(viewPath(request));
-      expect(route).toEqual({ page: "view", request });
+    const configs: ViewerConfig[] = [
+      defaultConfig,
+      { mappingPrecedence: "uri-first", componentLookup: "local" },
+    ];
+    for (const request of requests) {
+      for (const config of configs) {
+        expect(parsePath(viewPath(request, config))).toEqual({ page: "view", request, config });
+      }
     }
   });
 
