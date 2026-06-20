@@ -1,0 +1,28 @@
+openapi: 3.2.0
+$self: https://example.com/oad/openapi
+info:
+  title: Multi-Document Order API
+  version: 1.0.0
+  description: A sample API demonstrating valid multi-document structure.
+servers:
+  - url: https://example.com/api
+paths:
+  /orders/{orderId}:
+    parameters:
+    - $ref: './parameters#/components/parameters/OrderId'
+    get:
+      summary: Get an order by ID
+      operationId: getOrderById
+      responses:
+        '200':
+          description: Successful order retrieval
+          content:
+            application/json:
+              $ref: './mediatypes#/components/mediaTypes/JSONOrder'
+    put:
+      summary: Update an order with a known ID
+      operationId: updateOrderById
+      requestBody:
+        content:
+          application/json:
+            $ref: './mediatypes#/components/mediaTypes/JSONOrder'

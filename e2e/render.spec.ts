@@ -82,3 +82,68 @@ test.describe("error handling", () => {
     await expect(page.locator(".oad-error")).toContainText(/mixes OAS 3.1 and 3.2/i);
   });
 });
+
+test.describe("demos, online URLs & bookmarking", () => {
+  test("/ redirects to /configure and shows the form", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/configure$/);
+    await expect(page.locator(".oad-form")).toBeVisible();
+  });
+
+  test("a demo loads, is bookmarkable, and Back returns to configure", async ({ page }) => {
+    await page.goto("/configure");
+    await page.getByRole("button", { name: "Broken & external references (3.1)" }).click();
+
+    await expect(page).toHaveURL(/\/view\?demo=refs/);
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+    const issues = page.locator("#issues");
+    await expect(issues).toBeVisible();
+    await expect(issues).toContainText("Unresolved references");
+    await expect(issues.locator(".copy-report")).toBeVisible();
+
+    // Reloading the bookmarked URL reproduces the same view (SPA fallback serves index.html).
+    await page.reload();
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+
+    // Back returns to the configure page.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/configure/);
+    await expect(page.locator(".oad-form")).toBeVisible();
+  });
+
+  test("the view page has a button to load a different OAD", async ({ page }) => {
+    await page.goto("/view?demo=refs");
+    await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Load a different OAD" }).click();
+    await expect(page).toHaveURL(/\/configure/);
+    await expect(page.locator(".oad-form")).toBeVisible();
+  });
+
+  test("the $self demo resolves cleanly (no issues)", async ({ page }) => {
+    await page.goto("/configure");
+    await page.getByRole("button", { name: "Multi-document $self (3.2)" }).click();
+
+    await expect(page).toHaveURL(/\/view\?demo=self/);
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(4);
+    await expect(page.locator("#issues .issue")).toHaveCount(0);
+  });
+
+  test("an online document URL loads directly and is bookmarkable", async ({ page }) => {
+    await page.goto("/view?doc=" + encodeURIComponent("/fixtures/petstore-3.1.yaml"));
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
+  });
+
+  test("a reloaded upload view shows the empty state", async ({ page }) => {
+    await page.goto("/configure");
+    await page.locator(".doc-row").first().locator("input.file").setInputFiles(fixture("petstore-3.1.yaml"));
+    await page.getByRole("button", { name: "Render OAD" }).click();
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
+
+    // The upload handoff lives only in memory; a full reload drops it -> empty state.
+    await page.reload();
+    await expect(page.locator(".view-empty")).toBeVisible();
+    await page.getByRole("button", { name: "Start over" }).click();
+    await expect(page).toHaveURL(/\/configure/);
+  });
+});
