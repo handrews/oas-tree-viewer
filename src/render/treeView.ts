@@ -7,7 +7,7 @@
 import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
-import { categoryClass, categoryShape } from "./colors";
+import { categoryClass, categoryShape, resolutionStyles } from "./colors";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -281,16 +281,20 @@ export class DocumentView {
         this.toggle(d.node);
       });
 
-    // Colored category marker. The reference pointer row itself ($ref / operationRef) is
-    // drawn as a distinct asterisk in the Structural (reference) color; the object that holds
-    // it keeps its own slot-type marker. Every other node uses its category color, shaped as
-    // a square (object/array/scalar) or a circle. Collapsed nodes read as hollow.
+    // Colored category marker. A reference-pointer row ($ref / operationRef, or a discriminator
+    // `mapping` value / Security Requirement key) is drawn in the Structural (reference) color
+    // with a shape that reflects how it resolved: an asterisk for a URI-reference, a diamond for
+    // a component name. Every other node uses its category color, shaped as a square
+    // (object/array/scalar) or a circle. Collapsed nodes read as hollow.
     const isRefField = (d: RowDatum): boolean => {
       const n = d.node.data;
+      if (n.componentRef) return true;
       if (n.valueKind !== "string") return false;
       if (n.key === "$ref") return Boolean(d.node.parent?.data.isReference);
       return n.key === "operationRef";
     };
+    const refMarker = (d: RowDatum) =>
+      resolutionStyles[d.node.data.resolvedAs ?? "uri-reference"].marker;
     const markerClass = (d: RowDatum): string => {
       const parts = ["marker", categoryClass(d.node.data.category)];
       if (d.node._children) parts.push("collapsed");
@@ -298,12 +302,20 @@ export class DocumentView {
     };
     const markerX = (d: RowDatum): number => d.depth * INDENT + DOT_DX;
 
-    // The reference pointer itself: a six-armed asterisk in the Structural/reference color.
+    // Reference pointer resolved as a URI-reference: a six-armed asterisk (Structural color).
     rowSel
-      .filter(isRefField)
+      .filter((d) => isRefField(d) && refMarker(d) === "asterisk")
       .append("path")
       .attr("class", "marker asterisk cat-structural")
       .attr("d", "M0,-5 L0,5 M-4.33,-2.5 L4.33,2.5 M-4.33,2.5 L4.33,-2.5")
+      .attr("transform", (d) => `translate(${markerX(d)}, 0)`);
+
+    // Reference pointer resolved by component name: a filled diamond (Structural color).
+    rowSel
+      .filter((d) => isRefField(d) && refMarker(d) === "diamond")
+      .append("path")
+      .attr("class", "marker diamond cat-structural")
+      .attr("d", "M0,-5 L5,0 L0,5 L-5,0 Z")
       .attr("transform", (d) => `translate(${markerX(d)}, 0)`);
 
     rowSel

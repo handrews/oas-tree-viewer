@@ -4,7 +4,7 @@
 // pasted to a maintainer who can't see the diagram.
 
 import type { Oad, OadDocument } from "../types";
-import type { ResolvedRefs } from "../refs/types";
+import type { ReferenceEdge, RefKind, ResolvedRefs } from "../refs/types";
 import { displayPointer } from "../model/jsonPointer";
 import { docLabel } from "../app/bootstrap";
 
@@ -14,6 +14,8 @@ export type IssueSeverity = "error" | "warning";
 export interface RefIssue {
   severity: IssueSeverity;
   status: "broken" | "external" | "type-mismatch";
+  /** Which reference field (selects the human label in the text report). */
+  kind?: RefKind;
   sourceDoc: string;
   sourcePointer: string;
   refString: string;
@@ -55,10 +57,11 @@ export function collectIssues(
     refIssues.push({
       severity: STATUS_SEVERITY[e.status],
       status: e.status,
+      kind: e.kind,
       sourceDoc: label(e.sourceDocId),
       sourcePointer: displayPointer(e.sourceObjectId),
       refString: e.refString,
-      detail: refDetail(e.status, e.requiredType, e.targetType),
+      detail: refDetail(e),
     });
   }
 
@@ -77,18 +80,38 @@ export function collectIssues(
   };
 }
 
-function refDetail(
-  status: RefIssue["status"],
-  requiredType: string,
-  targetType: string | undefined,
-): string {
-  switch (status) {
+function refDetail(e: Pick<ReferenceEdge, "status" | "resolution" | "requiredType" | "targetType" | "refString">): string {
+  switch (e.status) {
     case "broken":
+      if (e.resolution === "component-name") {
+        return `no ${typeName(e.requiredType)} component named "${e.refString}"`;
+      }
       return "target not found (the fragment names nothing)";
     case "external":
       return "external document not loaded";
     case "type-mismatch":
-      return `expected ${requiredType}, found ${targetType ?? "?"}`;
+      return `expected ${e.requiredType}, found ${e.targetType ?? "?"}`;
+    default:
+      return "";
+  }
+}
+
+/** Human label for a component type (`SecurityScheme` reads as two words). */
+function typeName(requiredType: string): string {
+  return requiredType === "SecurityScheme" ? "Security Scheme" : requiredType || "target";
+}
+
+/** Human label for a reference field, for the plain-text report. */
+function refLabel(kind: RefKind | undefined): string {
+  switch (kind) {
+    case "operationRef":
+      return "operationRef";
+    case "discriminatorMapping":
+      return "mapping value";
+    case "securityRequirement":
+      return "security requirement";
+    default:
+      return "$ref";
   }
 }
 
@@ -105,7 +128,7 @@ export function formatIssueReport(report: IssueReport): string {
     lines.push("", `Unresolved references (${report.refIssues.length}):`);
     for (const i of report.refIssues) {
       lines.push(`  [${i.status}] ${i.sourceDoc} ${i.sourcePointer}`);
-      lines.push(`      $ref: ${i.refString}`);
+      lines.push(`      ${refLabel(i.kind)}: ${i.refString}`);
       lines.push(`      ${i.detail}`);
     }
   }
