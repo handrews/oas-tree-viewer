@@ -663,6 +663,16 @@ body {
   stroke-dasharray: 4 3;
   opacity: 0.85;
 }
+/* Operation-target advisories tint the arc by severity (orange error / yellow warning); the
+   line stays solid so it reads distinct from the dashed type-mismatch arc. */
+.ref-edge.diag-error {
+  stroke: var(--error);
+  opacity: 0.85;
+}
+.ref-edge.diag-warning {
+  stroke: var(--warn);
+  opacity: 0.85;
+}
 /* Component-name references read as a double line: two thin strokes (.dbl-line) offset above
    and below a transparent gap, so labels underneath stay legible. A zero-width carrier
    (.dbl-head) only supplies the arrowhead at the centerline. */
@@ -697,6 +707,17 @@ body {
 .warn-glyph .warn-count {
   font-size: 0.72em;
   font-weight: 700;
+}
+/* Advisory glyph (▲) for resolved-but-problematic references — orange error / yellow warning,
+   distinct from the ⚠ used for unresolved references. */
+.advisory-glyph {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--error);
+  cursor: default;
+}
+.advisory-glyph.severity-warning {
+  fill: var(--warn);
 }
 .canvas-toolbar button.active {
   background: var(--accent-solid);
@@ -855,6 +876,23 @@ body {
 }
 .legend-warn.status-external {
   color: var(--ref-external);
+}
+
+/* Reference-advisory glyph (▲), sized as large text (>=18.66px bold) so the orange/yellow clears
+   the 3:1 large-text contrast threshold, matching the on-canvas advisory glyph. */
+.legend-advisory {
+  width: 18px;
+  flex: none;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.legend-advisory.diag-error {
+  color: var(--error);
+}
+.legend-advisory.diag-warning {
+  color: var(--warn);
 }
 
 /* Unreachable-document swatch — yellow outline, matching the header highlight. */
