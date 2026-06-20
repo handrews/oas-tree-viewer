@@ -1,0 +1,50 @@
+openapi: 3.2.0
+$self: https://example.com/oad/main
+info:
+  title: Component-name references (entry)
+  version: 1.0.0
+  description: >
+    Implicit connections (discriminator mapping values and Security Requirement keys) that
+    resolve as component names (diamond marker, double line) or as URI-references (asterisk,
+    single line). The referenced "shared" document repeats these in a non-entry document, where
+    the entry-vs-local lookup option changes which document they resolve in.
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      security:
+        - apiKey: []                       # component name -> Security Scheme (diamond)
+        - https://auth.example/oauth: []   # 3.2: no match -> URI-reference (external)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+  /shared:
+    # Makes the shared document reachable (a plain cross-document $ref).
+    $ref: 'shared#/components/pathItems/Shared'
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      name: X-API-Key
+      in: header
+  schemas:
+    Pet:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+      discriminator:
+        propertyName: kind
+        mapping:
+          cat: Cat                          # component name -> Schema (diamond)
+          dog: '#/components/schemas/Dog'   # URI-reference -> Schema (asterisk)
+          dual: pets                        # a `pets` schema AND a `.../pets` doc both exist
+    Cat: { type: object }
+    Dog: { type: object }
+    pets: { type: object }
+    Common: { type: object, title: Common (entry copy) }
+    Special: { type: object, title: Special (entry only) }

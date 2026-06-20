@@ -1,0 +1,41 @@
+openapi: 3.2.0
+$self: https://example.com/oad/shared
+info:
+  title: Component-name references (referenced)
+  version: 1.0.0
+  description: >
+    A referenced (non-entry) document with its own implicit connections. Their component names
+    are looked up in the entry document (default) or in this local document, per the "look up
+    component names in" option — so the same value resolves to a different document, or breaks.
+paths: {}
+components:
+  securitySchemes:
+    # A local copy. "apiKey" also exists in the entry, so entry-vs-local picks which one wins.
+    apiKey:
+      type: apiKey
+      name: X-Shared-Key
+      in: header
+  pathItems:
+    Shared:
+      get:
+        operationId: getShared
+        security:
+          - apiKey: []        # in entry AND here -> entry/local lookup chooses the document
+        responses:
+          '200':
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Item'
+  schemas:
+    Item:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/Common'
+      discriminator:
+        propertyName: kind
+        mapping:
+          common: Common       # in entry AND here -> entry/local lookup chooses the document
+          special: Special     # in the entry only -> entry resolves, local is broken
+    Common: { type: object, title: Common (shared copy) }
