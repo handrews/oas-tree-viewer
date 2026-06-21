@@ -64,6 +64,8 @@ export interface ResolutionStyle {
   marker: MarkerShape;
   line: LineStyle;
   arrowhead: "filled" | "open";
+  /** Dotted stroke for a *tentative* connection (a dynamic `$dynamicRef`); solid otherwise. */
+  dash?: "dotted";
   label: string;
 }
 export const resolutionStyles: Record<ResolutionKind, ResolutionStyle> = {
@@ -87,6 +89,16 @@ export const resolutionStyles: Record<ResolutionKind, ResolutionStyle> = {
     line: "double",
     arrowhead: "open",
     label: "Implicit connection — a Link operationId",
+  },
+  // A `$dynamicRef` that engages dynamic scope: tentative, since its real target depends on the
+  // evaluation path. Same asterisk marker as a URI-reference (it is one syntactically), but drawn
+  // with a dotted line to all possible `$dynamicAnchor`s.
+  "dynamic": {
+    marker: "asterisk",
+    line: "single",
+    arrowhead: "open",
+    dash: "dotted",
+    label: "Tentative — a $dynamicRef to a possible $dynamicAnchor (actual target is path-dependent)",
   },
 };
 

@@ -4,6 +4,7 @@ import type { ResolutionKind } from "../types";
 
 export type RefKind =
   | "$ref"
+  | "$dynamicRef"
   | "operationRef"
   | "operationId"
   | "discriminatorMapping"

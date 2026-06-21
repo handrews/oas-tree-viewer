@@ -14,6 +14,7 @@ import type { ReferenceEdge, RefContext, RefStatus, ResolvedRefs } from "./types
 import { refKey } from "./types";
 import { type ViewerConfig, defaultConfig } from "../app/config";
 import { annotateDiagnostics } from "./diagnostics";
+import { reachableDocIds } from "./reachability";
 import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
 
 interface Resource {
@@ -43,7 +44,9 @@ interface RefSource {
 interface Indexes {
   pointerIndex: Map<string, Map<string, TreeNode>>; // docId -> (pointer -> node)
   resourceByUri: Map<string, Resource>;
-  anchorByUri: Map<string, TreeNode>;
+  anchorByUri: Map<string, TreeNode>; // `${base}#${name}` -> node ($anchor AND $dynamicAnchor)
+  dynamicAnchorByUri: Map<string, TreeNode>; // `${base}#${name}` -> node ($dynamicAnchor only)
+  dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>; // every $dynamicAnchor
 }
 
 /** Per-resolution context for the version- and config-dependent component rules. */
@@ -70,21 +73,33 @@ interface OpIdSource {
   operationId: string;
 }
 
+/** A Schema with a `$dynamicRef` — resolved after the URI edges (so the anchor maps exist). */
+interface DynRefSource {
+  doc: OadDocument;
+  schemaNode: TreeNode;
+  fieldNode: TreeNode;
+  refString: string;
+  base: string;
+}
+
 export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): ResolvedRefs {
   const indexes: Indexes = {
     pointerIndex: new Map(),
     resourceByUri: new Map(),
     anchorByUri: new Map(),
+    dynamicAnchorByUri: new Map(),
+    dynamicAnchorsByName: new Map(),
   };
   const sources: RefSource[] = [];
   const opIdSources: OpIdSource[] = [];
+  const dynRefSources: DynRefSource[] = [];
 
   // Pass 1: index all documents (so cross-document targets are known) and collect sources.
   for (const doc of oad.documents) {
     const pidx = new Map<string, TreeNode>();
     indexes.pointerIndex.set(doc.id, pidx);
     indexDocResource(doc, indexes);
-    walkDoc(doc, pidx, indexes, sources, opIdSources);
+    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources);
   }
 
   const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
@@ -98,6 +113,17 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
   opIdSources.forEach((src, j) => {
     edges.push(resolveOperationId(src, opIndex, `edge-${sources.length + j}`));
   });
+
+  // Pass 2b: resolve `$dynamicRef`s. Their tentative (dynamic) targets are narrowed to documents
+  // reachable from the entry over the static edges resolved so far (operationId/$dynamicRef edges
+  // don't propagate reachability), per the entry-reachable scope.
+  const reachable = reachableDocIds(oad, edges);
+  let edgeNo = edges.length;
+  for (const src of dynRefSources) {
+    for (const edge of resolveDynamicRef(src, indexes, reachable, () => `edge-${edgeNo++}`)) {
+      edges.push(edge);
+    }
+  }
 
   // Pass 3: annotate resolved edges with semantic advisories (operation-target callability,
   // Path Item `$ref` field overlap). Resolved `operationId` edges are `requiredType ===
@@ -148,6 +174,7 @@ function walkDoc(
   indexes: Indexes,
   sources: RefSource[],
   opIdSources: OpIdSource[],
+  dynRefSources: DynRefSource[],
 ): void {
   const visit = (node: TreeNode, currentBase: string): void => {
     pidx.set(node.id, node);
@@ -161,6 +188,27 @@ function walkDoc(
       }
       const anchor = childString(node, "$anchor");
       if (anchor !== undefined) indexes.anchorByUri.set(`${base}#${anchor}`, node);
+      // A `$dynamicAnchor` is also a plain anchor (so `$ref` and a static `$dynamicRef` find it),
+      // and additionally a dynamic-scope anchor (so a dynamic `$dynamicRef` can fan out to every
+      // same-named one).
+      const dynAnchor = childString(node, "$dynamicAnchor");
+      if (dynAnchor !== undefined) {
+        const key = `${base}#${dynAnchor}`;
+        if (!indexes.anchorByUri.has(key)) indexes.anchorByUri.set(key, node);
+        indexes.dynamicAnchorByUri.set(key, node);
+        push(indexes.dynamicAnchorsByName, dynAnchor, { docId: doc.id, node });
+      }
+      // `$dynamicRef`: a schema-only reference whose target depends on the evaluation path.
+      const dynRefField = childByKey(node, "$dynamicRef");
+      if (dynRefField && dynRefField.valueKind === "string") {
+        dynRefSources.push({
+          doc,
+          schemaNode: node,
+          fieldNode: dynRefField,
+          refString: dynRefField.scalarValue as string,
+          base,
+        });
+      }
     }
 
     if (node.isReference && node.refTarget !== undefined) {
@@ -296,6 +344,61 @@ function resolveOperationId(
     edge.targetType = target.node.expectedType;
   }
   return edge;
+}
+
+/**
+ * Resolve a Schema `$dynamicRef`. It first resolves statically, like a `$ref`. If the statically-
+ * located fragment is itself a `$dynamicAnchor` ("bookending"), dynamic scope engages and the real
+ * target depends on the evaluation path — so we tentatively point (resolution `"dynamic"`, drawn
+ * dotted) at every same-named `$dynamicAnchor` in an entry-reachable document. Otherwise it behaves
+ * exactly like a `$ref`: a single static edge (the local `$anchor` — Case A — or broken). A plain
+ * `$ref` landing on a `$dynamicAnchor` (Case B) is handled by the normal URI path, since
+ * `$dynamicAnchor`s are also registered in `anchorByUri`.
+ */
+function resolveDynamicRef(
+  src: DynRefSource,
+  indexes: Indexes,
+  reachable: Set<string>,
+  nextId: () => string,
+): ReferenceEdge[] {
+  const makeEdge = (overrides: Partial<ReferenceEdge>): ReferenceEdge => ({
+    id: nextId(),
+    sourceDocId: src.doc.id,
+    sourceNodeId: src.fieldNode.id,
+    sourceObjectId: src.schemaNode.id,
+    refString: src.refString,
+    kind: "$dynamicRef",
+    context: "schema",
+    resolution: "uri-reference",
+    status: "external",
+    requiredType: "Schema",
+    ...overrides,
+  });
+
+  const { uriPart, fragment } = splitFragment(src.refString);
+  const resourceUri = uriPart === "" ? src.base : resolveUri(uriPart, src.base);
+  const decoded = fragment !== null ? decodeFragment(fragment) : null;
+  const isPlainName = decoded !== null && decoded !== "" && !decoded.startsWith("/");
+
+  if (resourceUri && isPlainName && indexes.dynamicAnchorByUri.has(`${resourceUri}#${decoded}`)) {
+    src.fieldNode.resolvedAs = "dynamic";
+    const targets = (indexes.dynamicAnchorsByName.get(decoded) ?? []).filter((t) =>
+      reachable.has(t.docId),
+    );
+    return targets.map((t) =>
+      makeEdge({
+        resolution: "dynamic",
+        status: "resolved",
+        targetDocId: t.docId,
+        targetNodeId: t.node.id,
+        targetType: t.node.expectedType,
+      }),
+    );
+  }
+
+  // Static: exactly like a `$ref` (Case A local `$anchor`, Case B `$dynamicAnchor`, or broken).
+  src.fieldNode.resolvedAs = "uri-reference";
+  return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
 }
 
 /** Resolve a string as a URI-reference (the `$ref`/`operationRef` path; reused by components). */
