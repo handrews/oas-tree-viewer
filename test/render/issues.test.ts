@@ -88,6 +88,23 @@ describe("issues", () => {
     expect(formatIssueReport(report)).toContain("operationId: noSuchOp");
   });
 
+  it("labels a broken $dynamicRef field in the text report", () => {
+    const refs = refsOf([
+      {
+        status: "broken",
+        resolution: "uri-reference",
+        kind: "$dynamicRef",
+        sourceDocId: "a",
+        sourceObjectId: "/components/schemas/S/properties/x",
+        refString: "#NOPE",
+        requiredType: "Schema",
+      },
+    ]);
+    const report = collectIssues(oad, refs, []);
+    expect(report.refIssues[0]!.kind).toBe("$dynamicRef");
+    expect(formatIssueReport(report)).toContain("$dynamicRef: #NOPE");
+  });
+
   it("collects edge diagnostics as advisories (separate from unresolved refs) and lists them", () => {
     const refs = refsOf([
       {

@@ -112,6 +112,7 @@ export const referenceLegend: ReadonlyArray<{ kind: ResolutionKind } & Resolutio
     label:
       "Implicit connection — component name (discriminator mapping, security requirement) or a Link operationId",
   },
+  { kind: "dynamic", ...resolutionStyles["dynamic"] },
 ];
 
 /** Arc styles that aren't a resolution kind, for the legend's "Connection lines" section:

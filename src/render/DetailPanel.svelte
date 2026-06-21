@@ -80,6 +80,9 @@
                     <strong>{e.targetType ?? "?"}</strong>
                   </div>
                 {/if}
+                {#if e.resolution === "dynamic"}
+                  <div class="ref-note">tentative — the actual target depends on the evaluation path</div>
+                {/if}
                 {#each e.diagnostics ?? [] as d (d.code)}
                   <div class="ref-note advisory severity-{d.severity}">{d.detail}</div>
                 {/each}
