@@ -80,3 +80,17 @@ for (const theme of ["dark", "light"] as const) {
     });
   });
 }
+
+// `heading-order` is an axe best-practice rule (outside the WCAG tags above) and is what Lighthouse
+// flags. Each Explore-page panel (legend, detail, issues) is a section: an h2 title with h3
+// subsections, so the document headings descend without skipping a level. Exercise all three at once.
+test.describe("heading order (no skipped levels — for a perfect Lighthouse score)", () => {
+  test("the Explore page headings descend sequentially with every panel open", async ({ page }) => {
+    await page.goto("/view?demo=refs"); // the refs demo has issues, so the issue drawer opens
+    await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+    await page.locator("svg.tree-canvas g.row").first().click(); // select a node → detail headings
+    await expect(page.locator("#detail-panel .node-detail")).toContainText("Selected node");
+    const results = await new AxeBuilder({ page }).withRules(["heading-order"]).analyze();
+    expect(results.violations, summarize(results)).toEqual([]);
+  });
+});
