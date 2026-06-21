@@ -2,9 +2,10 @@
 
 /**
  * How a reference field resolved, which selects its visual treatment (marker shape, line
- * style, arrowhead). Extensible — later phases add kinds like "operation-id" / "dynamic".
+ * style, arrowhead). Extensible — later phases add kinds like "dynamic". A Link's
+ * `operationId` is an implicit connection that shares the `component-name` visual.
  */
-export type ResolutionKind = "uri-reference" | "component-name";
+export type ResolutionKind = "uri-reference" | "component-name" | "operation-id";
 
 /** The JSON value categories a node can hold. */
 export type ValueKind =

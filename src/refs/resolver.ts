@@ -62,6 +62,14 @@ interface UriResult {
   resolvedUri?: string;
 }
 
+/** A Link Object that targets an Operation by `operationId` (not a URI). */
+interface OpIdSource {
+  doc: OadDocument;
+  linkNode: TreeNode;
+  fieldNode: TreeNode;
+  operationId: string;
+}
+
 export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): ResolvedRefs {
   const indexes: Indexes = {
     pointerIndex: new Map(),
@@ -69,23 +77,31 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     anchorByUri: new Map(),
   };
   const sources: RefSource[] = [];
+  const opIdSources: OpIdSource[] = [];
 
   // Pass 1: index all documents (so cross-document targets are known) and collect sources.
   for (const doc of oad.documents) {
     const pidx = new Map<string, TreeNode>();
     indexes.pointerIndex.set(doc.id, pidx);
     indexDocResource(doc, indexes);
-    walkDoc(doc, pidx, indexes, sources);
+    walkDoc(doc, pidx, indexes, sources, opIdSources);
   }
 
   const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
   const ctx: ResolveCtx = { entryDocId: entry?.id ?? "", config, version: oad.versionFamily };
 
-  // Pass 2: resolve.
+  // Pass 2: resolve URI-references, then Link `operationId`s against a global Operation index
+  // (unique by construction — `assembleOad` rejects duplicates). A match resolves as an
+  // implicit `operation-id` connection; no match is broken.
   const edges = sources.map((src, i) => resolveSource(src, indexes, i, ctx));
+  const opIndex = buildOperationIdIndex(indexes.pointerIndex);
+  opIdSources.forEach((src, j) => {
+    edges.push(resolveOperationId(src, opIndex, `edge-${sources.length + j}`));
+  });
 
   // Pass 3: annotate resolved edges with semantic advisories (operation-target callability,
-  // Path Item `$ref` field overlap). Mutates edge.diagnostics in place.
+  // Path Item `$ref` field overlap). Resolved `operationId` edges are `requiredType ===
+  // "Operation"`, so they pick up the callability advisories for free. Mutates in place.
   annotateDiagnostics(oad, edges, indexes.pointerIndex);
 
   const bySource = new Map<string, ReferenceEdge[]>();
@@ -131,6 +147,7 @@ function walkDoc(
   pidx: Map<string, TreeNode>,
   indexes: Indexes,
   sources: RefSource[],
+  opIdSources: OpIdSource[],
 ): void {
   const visit = (node: TreeNode, currentBase: string): void => {
     pidx.set(node.id, node);
@@ -161,17 +178,28 @@ function walkDoc(
         });
       }
     } else if (node.oasType === "Link Object") {
-      const field = childByKey(node, "operationRef");
-      if (field && field.valueKind === "string") {
+      // A Link uses exactly one of `operationRef` / `operationId` (setting both is rejected at
+      // load time, so it never reaches here). `operationRef` is a URI; `operationId` resolves
+      // against the global Operation index in pass 2.
+      const refField = childByKey(node, "operationRef");
+      const idField = childByKey(node, "operationId");
+      if (refField && refField.valueKind === "string") {
         sources.push({
           doc,
           sourceObject: node,
-          fieldNode: field,
-          refString: field.scalarValue as string,
+          fieldNode: refField,
+          refString: refField.scalarValue as string,
           base,
           context: "link",
           kind: "operationRef",
           requiredType: "Operation",
+        });
+      } else if (idField && idField.valueKind === "string") {
+        opIdSources.push({
+          doc,
+          linkNode: node,
+          fieldNode: idField,
+          operationId: idField.scalarValue as string,
         });
       }
     }
@@ -220,6 +248,53 @@ function resolveSource(src: RefSource, indexes: Indexes, i: number, ctx: Resolve
 
   // Record how this field resolved so the tree marker can reflect it (uri vs component-name).
   src.fieldNode.resolvedAs = edge.resolution;
+  return edge;
+}
+
+/** Index every Operation by its `operationId` (unique across the OAD — `assembleOad` guards). */
+function buildOperationIdIndex(
+  pointerIndex: Map<string, Map<string, TreeNode>>,
+): Map<string, { docId: string; node: TreeNode }> {
+  const index = new Map<string, { docId: string; node: TreeNode }>();
+  for (const [docId, pidx] of pointerIndex) {
+    for (const node of pidx.values()) {
+      if (node.oasType !== "Operation Object") continue;
+      const operationId = childString(node, "operationId");
+      if (operationId !== undefined && !index.has(operationId)) index.set(operationId, { docId, node });
+    }
+  }
+  return index;
+}
+
+/**
+ * Resolve a Link's `operationId` into an implicit `operation-id` edge (drawn like a component
+ * name). Exactly one match → resolved; none → broken. Duplicates can't reach here — they are an
+ * OAD-level load error — so there is no ambiguous outcome.
+ */
+function resolveOperationId(
+  src: OpIdSource,
+  index: Map<string, { docId: string; node: TreeNode }>,
+  id: string,
+): ReferenceEdge {
+  src.fieldNode.resolvedAs = "operation-id";
+  const target = index.get(src.operationId);
+  const edge: ReferenceEdge = {
+    id,
+    sourceDocId: src.doc.id,
+    sourceNodeId: src.fieldNode.id,
+    sourceObjectId: src.linkNode.id,
+    refString: src.operationId,
+    kind: "operationId",
+    context: "link",
+    resolution: "operation-id",
+    status: target ? "resolved" : "broken",
+    requiredType: "Operation",
+  };
+  if (target) {
+    edge.targetDocId = target.docId;
+    edge.targetNodeId = target.node.id;
+    edge.targetType = target.node.expectedType;
+  }
   return edge;
 }
 

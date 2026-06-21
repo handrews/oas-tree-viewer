@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { loadDocument, versionFamilyOf } from "../src/loader";
-import { NotOpenApiError, RetrievalError, UnsupportedVersionError } from "../src/errors";
+import {
+  InvalidDocumentError,
+  NotOpenApiError,
+  RetrievalError,
+  UnsupportedVersionError,
+} from "../src/errors";
 
 const valid = (extra = "") =>
   `openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths: {}\n${extra}`;
@@ -74,6 +79,26 @@ describe("loadDocument (upload)", () => {
       isEntry: false,
     });
     expect(doc.retrievalUri).toBe("file:///oad/schemas/pet.yaml");
+  });
+
+  it("rejects a Link Object that sets both operationRef and operationId", async () => {
+    const text = `openapi: 3.2.0
+info: { title: T, version: '1' }
+paths:
+  /a:
+    get:
+      operationId: getA
+      responses:
+        '200':
+          description: OK
+          links:
+            both:
+              operationRef: '#/paths/~1a/get'
+              operationId: getA
+`;
+    await expect(
+      loadDocument({ source: "upload", filename: "d.yaml", text, isEntry: true }),
+    ).rejects.toBeInstanceOf(InvalidDocumentError);
   });
 });
 
