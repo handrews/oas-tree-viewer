@@ -1,6 +1,9 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { playwright } from "@vitest/browser-playwright";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 export default defineConfig({
   test: {
@@ -19,6 +22,11 @@ export default defineConfig({
         // Real-browser component/integration specs (the d3 island needs real
         // layout: getBBox/fit). Driven by vitest-browser-svelte in Playwright.
         plugins: [svelte()],
+        // Mirror the app build's version define so App (which reads __APP_VERSION__)
+        // resolves it the same way production does.
+        define: {
+          __APP_VERSION__: JSON.stringify(pkg.version),
+        },
         // Resolve svelte to its client build (mount lives there, not in the
         // default SSR entry index-server.js).
         resolve: { conditions: ["browser"] },

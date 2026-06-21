@@ -1,77 +1,11 @@
+@import "./theme.css";
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
-
-:root {
-  /* Theme-independent tokens. Filled controls use an olive that reads (>=4.5:1)
-     with white text in both themes; the emphasis text color (--accent) varies. */
-  --accent-solid: #606c38;
-  --on-accent: #ffffff;
-  --font: "Helvetica Neue", Arial, sans-serif;
-  --mono: "SF Mono", "Courier New", monospace;
-}
-
-/* Dark theme — "Serene Forest Retreat". Also the default before JS sets a theme.
-   Error/warn and category colors are tuned for >=AA text / >=3:1 graphics here. */
-:root,
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #332a1f;
-  --surface: #44372a;
-  --surface2: #473a28;
-  --text: #fefaea;
-  --text-dim: #c1b69e;
-  --border: #5c4c39;
-  --accent: #c7d29e;
-  --link: #c7d29e;
-  --error: #ff9a72;
-  --warn: #f5b14e;
-  /* Unresolved-reference glyphs: broken = true error (vermillion),
-     external = missing-doc warning (warm orange). Tuned for >=3:1 on --bg. */
-  --ref-broken: #ff5436;
-  --ref-external: #ff8a3d;
-  /* Unreachable-document warning: yellow, distinct from the broken/external glyphs. */
-  --warn-unreachable: #ffd23f;
-  --cat-structural: #53b8f5;
-  --cat-metadata: #aab6c4;
-  --cat-http: #f5a623;
-  --cat-data: #7ed957;
-  --cat-security: #f55d7a;
-  --cat-object: #6f93c9;
-  --cat-array: #4fb8c4;
-  --cat-scalar: #9aa6bd;
-}
-
-/* Light theme — "Enchanted Forest Walk". Category colors darkened to read on cream. */
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #fefae0;
-  --surface: #f4edcf;
-  --surface2: #ece4c3;
-  --text: #283618;
-  --text-dim: #566030;
-  --border: #d9cfa6;
-  --accent: #46531f;
-  --link: #764a19;
-  --error: #8f3214;
-  --warn: #9a5b00;
-  /* Darker vermillion / burnt orange so the glyphs clear >=3:1 on the cream --bg. */
-  --ref-broken: #d2331a;
-  --ref-external: #bf5a00;
-  /* Darkened gold-yellow so the unreachable border/badge clears AA on the cream --bg. */
-  --warn-unreachable: #8a6d00;
-  --cat-structural: #1f6fb0;
-  --cat-metadata: #566472;
-  --cat-http: #a85e0a;
-  --cat-data: #3f8f2f;
-  --cat-security: #b53a62;
-  --cat-object: #3a587f;
-  --cat-array: #27737f;
-  --cat-scalar: #4b5670;
 }
 
 body {
@@ -108,9 +42,26 @@ body {
   border-color: var(--accent);
   color: var(--accent);
 }
-#app-header .tagline {
+#app-header .header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
   color: var(--text-dim);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+}
+#app-header .header-meta a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+#app-header .header-meta a:hover,
+#app-header .header-meta a:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+#app-header .header-meta .sep {
+  opacity: 0.55;
 }
 
 #app {

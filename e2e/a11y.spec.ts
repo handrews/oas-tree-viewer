@@ -69,5 +69,14 @@ for (const theme of ["dark", "light"] as const) {
       const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
+
+    // The rendered CHANGELOG page shares the app's palette (see vite/doc-pages.ts) and must
+    // clear the same contrast gate — headings, links, and code on the theme bg.
+    test("changelog page", async ({ page }) => {
+      await page.goto("/changelog.html");
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
   });
 }

@@ -7,7 +7,7 @@ import App from "../../src/App.svelte";
 test("App mounts the shell: header, form, and theme toggle", async () => {
   const screen = render(App);
 
-  await expect.element(screen.getByRole("heading", { name: "OAS Structure Viewer" })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "OpenAPI Description Structure Viewer" })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Render OAD" })).toBeVisible();
   // setupTheme() appended the toggle into the header during onMount.
   await expect.element(screen.getByRole("button", { name: /Switch to .+ theme/ })).toBeVisible();
