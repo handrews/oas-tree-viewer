@@ -69,6 +69,25 @@ describe("issues", () => {
     expect(formatIssueReport(report)).toContain("security requirement: apiKey");
   });
 
+  it("describes a broken operationId reference and labels the field in the text report", () => {
+    const refs = refsOf([
+      {
+        status: "broken",
+        resolution: "operation-id",
+        kind: "operationId",
+        sourceDocId: "a",
+        sourceObjectId: "/paths/~1a/get/responses/200/links/missing",
+        refString: "noSuchOp",
+        requiredType: "Operation",
+      },
+    ]);
+    const report = collectIssues(oad, refs, []);
+    const issue = report.refIssues[0]!;
+    expect(issue.detail).toBe('no Operation declares operationId "noSuchOp"');
+    expect(issue.kind).toBe("operationId");
+    expect(formatIssueReport(report)).toContain("operationId: noSuchOp");
+  });
+
   it("collects edge diagnostics as advisories (separate from unresolved refs) and lists them", () => {
     const refs = refsOf([
       {

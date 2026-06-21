@@ -113,6 +113,9 @@ function refDetail(e: Pick<ReferenceEdge, "status" | "resolution" | "requiredTyp
       if (e.resolution === "component-name") {
         return `no ${typeName(e.requiredType)} component named "${e.refString}"`;
       }
+      if (e.resolution === "operation-id") {
+        return `no Operation declares operationId "${e.refString}"`;
+      }
       return "target not found (the fragment names nothing)";
     case "external":
       return "external document not loaded";
@@ -133,6 +136,8 @@ function refLabel(kind: RefKind | undefined): string {
   switch (kind) {
     case "operationRef":
       return "operationRef";
+    case "operationId":
+      return "operationId";
     case "discriminatorMapping":
       return "mapping value";
     case "securityRequirement":

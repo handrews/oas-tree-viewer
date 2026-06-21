@@ -86,7 +86,13 @@
               {:else}
                 <code>{e.refString}</code>
                 <div class="ref-note">
-                  {e.status === "external" ? "target document not loaded" : "fragment not found"}
+                  {#if e.status === "external"}
+                    target document not loaded
+                  {:else if e.resolution === "operation-id"}
+                    no Operation declares this operationId
+                  {:else}
+                    fragment not found
+                  {/if}
                 </div>
               {/if}
             </div>

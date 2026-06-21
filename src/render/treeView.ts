@@ -291,7 +291,10 @@ export class DocumentView {
       if (n.componentRef) return true;
       if (n.valueKind !== "string") return false;
       if (n.key === "$ref") return Boolean(d.node.parent?.data.isReference);
-      return n.key === "operationRef";
+      if (n.key === "operationRef") return true;
+      // A Link's operationId is a reference pointer; an Operation's own operationId
+      // declaration (same key, different parent) is a plain field, not a pointer.
+      return n.key === "operationId" && d.node.parent?.data.oasType === "Link Object";
     };
     const refMarker = (d: RowDatum) =>
       resolutionStyles[d.node.data.resolvedAs ?? "uri-reference"].marker;
