@@ -42,9 +42,26 @@ body {
   border-color: var(--accent);
   color: var(--accent);
 }
-#app-header .tagline {
+#app-header .header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
   color: var(--text-dim);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+}
+#app-header .header-meta a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+#app-header .header-meta a:hover,
+#app-header .header-meta a:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+#app-header .header-meta .sep {
+  opacity: 0.55;
 }
 
 #app {
