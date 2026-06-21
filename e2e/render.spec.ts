@@ -81,6 +81,53 @@ test.describe("error handling", () => {
 
     await expect(page.locator(".oad-error")).toContainText(/mixes OAS 3.1 and 3.2/i);
   });
+
+  test("a Link with both operationRef and operationId is rejected on its row", async ({ page }) => {
+    await page.goto("/");
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.file")
+      .setInputFiles(fixture("operationid-both-targets.yaml"));
+    await page.getByRole("button", { name: "Render OAD" }).click();
+
+    await expect(page.locator(".row-error")).toContainText(/both operationRef and operationId/i);
+    await expect(page.locator("#viewer")).toBeHidden();
+  });
+
+  test("two Operations sharing an operationId in one document is rejected", async ({ page }) => {
+    await page.goto("/");
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.file")
+      .setInputFiles(fixture("operationid-dup-same-doc.yaml"));
+    await page.getByRole("button", { name: "Render OAD" }).click();
+
+    await expect(page.locator(".oad-error")).toContainText(/Duplicate operationId "listThings"/i);
+    await expect(page.locator("#viewer")).toBeHidden();
+  });
+
+  test("an operationId duplicated across two documents is rejected above the form", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.file")
+      .setInputFiles(fixture("operationid-dup-cross-a.yaml"));
+    await page.getByRole("button", { name: "+ Add document" }).click();
+    await page
+      .locator(".doc-row")
+      .nth(1)
+      .locator("input.file")
+      .setInputFiles(fixture("operationid-dup-cross-b.yaml"));
+    await page.getByRole("button", { name: "Render OAD" }).click();
+
+    await expect(page.locator(".oad-error")).toContainText(/Duplicate operationId "sharedOp"/i);
+    await expect(page.locator("#viewer")).toBeHidden();
+  });
 });
 
 test.describe("demos, online URLs & bookmarking", () => {
@@ -221,5 +268,40 @@ test.describe("operation reference advisories", () => {
     await expect(issues).toContainText("Reference advisories (6)");
     await expect(issues).toContainText("not directly callable");
     await expect(issues).toContainText("merge behavior is undefined");
+  });
+});
+
+test.describe("operationId links", () => {
+  test("resolves operationId Links as implicit connections, reusing operation advisories", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=operationid");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(3);
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+
+    // Each of the 9 operationId fields gets the implicit-connection diamond marker; the 4 $refs
+    // (component Path Items + the shared-document link) get the URI-reference asterisk.
+    await expect(page.locator("svg .marker.diamond")).toHaveCount(9);
+    await expect(page.locator("svg .marker.asterisk")).toHaveCount(4);
+
+    // The 8 resolved operationId Links draw a double-line (open-arrowhead) implicit arc — one
+    // `dbl-head` per edge. Five of them carry operation-target advisories (4 error: webhook /
+    // callback / ambiguous / no-path; 1 warning: fragile), tinting the arc and adding a ▲ glyph.
+    await expect(page.locator("svg path.ref-edge.dbl-head")).toHaveCount(8);
+    await expect(page.locator("svg path.ref-edge.dbl-head.diag-error")).toHaveCount(4);
+    await expect(page.locator("svg path.ref-edge.dbl-head.diag-warning")).toHaveCount(1);
+    await expect(page.locator("svg .advisory-glyph")).toHaveCount(5);
+    // The one broken operationId (`missing`) shows a ⚠ glyph.
+    await expect(page.locator("svg .warnings text.warn-glyph")).toHaveCount(1);
+
+    // The drawer: 1 broken reference + 5 advisories + 1 unreachable document.
+    const issues = page.locator("#issues");
+    await expect(issues.locator(".issue-count")).toHaveText("7");
+    await expect(issues).toContainText("Unresolved references (1)");
+    await expect(issues).toContainText('no Operation declares operationId "noSuchOp"');
+    await expect(issues).toContainText("Reference advisories (5)");
+    await expect(issues).toContainText("not directly callable");
+    await expect(issues).toContainText("Unreachable documents (1)");
   });
 });

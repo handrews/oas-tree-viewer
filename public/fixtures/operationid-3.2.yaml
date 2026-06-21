@@ -1,0 +1,92 @@
+openapi: 3.2.0
+$self: https://example.com/oad/operationid
+info:
+  title: operationId links — showcase
+  version: 1.0.0
+  description: >
+    Link Objects target Operations by operationId — an implicit connection, drawn like a component
+    name (diamond marker, double line). The Links under /a exercise every outcome. `self` and
+    `shared` resolve uniquely (the latter into another reachable document); `missing` matches no
+    Operation (broken). `remote` resolves into a document reached ONLY by operationId, which stays
+    flagged unreachable. The rest resolve but the target is not cleanly invocable: `ambiguousUrl` /
+    `fragile` / `noPath` reach a Components Path Item by 2 / 1 / 0 paths, and `toWebhook` /
+    `toCallback` reach a webhook / callback Operation.
+paths:
+  /a:
+    get:
+      operationId: petsLinks
+      responses:
+        '200':
+          description: OK
+          links:
+            # ── resolution ──────────────────────────────────────────────
+            self:
+              operationId: getPet # unique in this document → resolves
+            shared:
+              operationId: sharedOp # unique, in the reachable shared document → resolves
+            missing:
+              operationId: noSuchOp # no Operation declares it → broken
+            remote:
+              operationId: remoteOp # only in the operationId-only document (stays unreachable)
+            # ── resolves, but the target is not cleanly invocable ───────
+            ambiguousUrl:
+              operationId: comp2Op # Components Path Item reached by 2 paths → ambiguous URL
+            fragile:
+              operationId: comp1Op # reached by exactly 1 path → fragile
+            noPath:
+              operationId: comp0Op # reached by 0 paths → no URL
+            toWebhook:
+              operationId: hookOp # a webhook Operation → not directly callable
+            toCallback:
+              operationId: cbOp # a callback Operation → not directly callable
+      callbacks:
+        onEvent:
+          cbUrl:
+            post:
+              operationId: cbOp
+              responses:
+                '200':
+                  description: OK
+  /pet/{id}:
+    get:
+      operationId: getPet
+      responses:
+        '200':
+          description: OK
+  /two-a:
+    $ref: '#/components/pathItems/Comp2' # path 1 reaching Comp2
+  /two-b:
+    $ref: '#/components/pathItems/Comp2' # path 2 reaching Comp2 → 2 paths
+  /one:
+    $ref: '#/components/pathItems/Comp1' # the single path reaching Comp1
+  /shared-link:
+    # Resolves against the entry $self base to the shared document's $self, making it reachable
+    # by an ordinary $ref (so its operationId target `sharedOp` is in a reachable document).
+    $ref: 'operationid-shared#/components/pathItems/SharedThing'
+webhooks:
+  petEvent:
+    get:
+      operationId: hookOp
+      responses:
+        '200':
+          description: OK
+components:
+  pathItems:
+    Comp2:
+      get:
+        operationId: comp2Op
+        responses:
+          '200':
+            description: OK
+    Comp1:
+      get:
+        operationId: comp1Op
+        responses:
+          '200':
+            description: OK
+    Comp0: # not referenced by any path → reached by 0 paths
+      get:
+        operationId: comp0Op
+        responses:
+          '200':
+            description: OK

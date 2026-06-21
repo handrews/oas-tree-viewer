@@ -1,0 +1,16 @@
+openapi: 3.2.0
+$self: https://example.com/oad/operationid-remote
+info:
+  title: operationId links — operationId-only document
+  version: 1.0.0
+  description: >
+    Reachable ONLY through the entry's `remote` Link operationId. operationId connections do not
+    propagate document reachability, so this document stays flagged unreachable even though its
+    `remoteOp` Operation is the resolved target of a Link.
+paths:
+  /remote:
+    get:
+      operationId: remoteOp
+      responses:
+        '200':
+          description: OK
