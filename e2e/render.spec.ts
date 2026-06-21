@@ -315,16 +315,18 @@ test.describe("$dynamicRef links", () => {
     await page.getByRole("button", { name: "Expand all" }).click();
     await page.getByRole("button", { name: "Show all references" }).click();
 
-    // Every reference field is a URI-reference asterisk (3 $dynamicRef + 2 $ref); none are the
-    // implicit diamond.
-    await expect(page.locator("svg .marker.asterisk")).toHaveCount(5);
+    // Every reference field is a URI-reference asterisk (3 $dynamicRef + 6 $ref: three response
+    // refs, two extension allOf refs, and the Case-B $ref); none are the implicit diamond.
+    await expect(page.locator("svg .marker.asterisk")).toHaveCount(9);
     await expect(page.locator("svg .marker.diamond")).toHaveCount(0);
 
-    // The one dynamic $dynamicRef (#item) fans out, dotted, to the two entry-reachable
-    // $dynamicAnchors (the remote one is excluded). The three static resolves — a $ref, the
-    // Case-B $ref→$dynamicAnchor, and the Case-A $dynamicRef→$anchor — stay solid.
+    // The one dynamic $dynamicRef (#item) fans out, dotted, to its two strict winners — StrictList
+    // and LooseList. Its three other same-named $dynamicAnchors are hidden: the shadowed default,
+    // Unrelated (can't reach the ref), and the remote one (unreachable). The seven static resolves
+    // — three response $refs, two extension allOf $refs, the Case-B $ref→$dynamicAnchor, and the
+    // Case-A $dynamicRef→$anchor — stay solid.
     await expect(page.locator("svg path.ref-edge.dotted")).toHaveCount(2);
-    await expect(page.locator("svg path.ref-edge.status-resolved:not(.dotted)")).toHaveCount(3);
+    await expect(page.locator("svg path.ref-edge.status-resolved:not(.dotted)")).toHaveCount(7);
     // The broken $dynamicRef (#missing) shows a ⚠ glyph, not an arc.
     await expect(page.locator("svg .warnings text.warn-glyph")).toHaveCount(1);
 

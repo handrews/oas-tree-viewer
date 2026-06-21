@@ -4,16 +4,18 @@ info:
   title: $dynamicRef — shared document
   version: 1.0.0
   description: >
-    Reachable from the entry via the UseShared $ref. Its Extension schema is a second possible
-    target for the dynamic #item $dynamicRef. The LeafOverride $dynamicAnchor "leaf" must NOT
-    capture FixedList.item, whose local fragment is a plain $anchor (Case A stays static).
+    Reachable from the entry via the /loose response $ref. LooseList overrides "item" and extends
+    GenericList, so it can be the outermost anchor on an entry-rooted path reaching the
+    $dynamicRef — a second (cross-document) strict winner. LeafOverride's $dynamicAnchor "leaf"
+    must NOT capture FixedList.item, whose local fragment is a plain $anchor (Case A stays static).
 paths: {}
 components:
   schemas:
-    Extension:
-      $id: https://example.com/schemas/extension
+    LooseList:
+      $id: https://example.com/schemas/looselist
       $dynamicAnchor: item
-      type: object
+      allOf:
+        - $ref: 'https://example.com/schemas/genericlist'
     LeafOverride:
       $id: https://example.com/schemas/leafoverride
       $dynamicAnchor: leaf

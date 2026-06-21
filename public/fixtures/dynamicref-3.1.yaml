@@ -1,25 +1,49 @@
 openapi: 3.1.0
 $self: https://example.com/oad/dynamicref
 info:
-  title: $dynamicRef / $dynamicAnchor — showcase
+  title: $dynamicRef / $dynamicAnchor — strict winners
   version: 1.0.0
   description: >
-    JSON-Schema 2020-12 dynamic references. A $dynamicRef first resolves like a $ref; if the
-    local fragment is itself a $dynamicAnchor, dynamic scope engages and the real target depends
-    on the evaluation path — so the viewer points tentatively (dotted) at every $dynamicAnchor of
-    that name in an entry-reachable document. GenericList.item does exactly that (#item). The two
-    special cases: FixedList.item (#leaf) resolves statically because its local fragment is a plain
-    $anchor (solid, single target) even though a $dynamicAnchor "leaf" exists in the shared
-    document; and DirectRef.item is a plain $ref landing on a $dynamicAnchor, treated just like
-    $anchor (solid). Broken.item (#missing) matches nothing.
-paths: {}
+    JSON-Schema 2020-12 dynamic references. A $dynamicRef whose local fragment is a $dynamicAnchor
+    engages dynamic scope: its real target is the OUTERMOST same-named $dynamicAnchor in the chain
+    of schema resources entered to reach it. The viewer can't know the instance, but it can show
+    every $dynamicAnchor that could be that outermost one on a path rooted in the entry document —
+    the "strict winners" — drawn dotted (tentative).
+
+    The entry validates against StrictList and LooseList (each overrides "item" and extends
+    GenericList via an allOf $ref). So GenericList's $dynamicRef "#item" resolves tentatively to
+    those two. Three same-named $dynamicAnchors are deliberately NOT shown: GenericList's own
+    default (always shadowed by an overriding extension), Unrelated's (declares "item" but never
+    reaches the $dynamicRef), and the remote document's (unreachable). Static cases: FixedList.item
+    (#leaf) resolves statically because its local fragment is a plain $anchor; DirectRef.item is a
+    plain $ref landing on a $dynamicAnchor, treated like $anchor; Broken.item (#missing) matches
+    nothing.
+paths:
+  /strict:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StrictList' }
+  /loose:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: 'dynamicref-shared#/components/schemas/LooseList' }
+  /unrelated:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Unrelated' }
 components:
   schemas:
-    # An ordinary $ref, present so the shared document is reachable from the entry.
-    UseShared:
-      $ref: 'dynamicref-shared#/components/schemas/Extension'
-    # Dynamic: its local resource declares $dynamicAnchor "item", so #item engages dynamic scope
-    # and points tentatively at every reachable $dynamicAnchor "item".
+    # The base: declares the default $dynamicAnchor "item" and the $dynamicRef that engages dynamic
+    # scope. It is only ever reached via an overriding extension, so its own default is shadowed.
     GenericList:
       $id: https://example.com/schemas/genericlist
       type: object
@@ -28,7 +52,20 @@ components:
       $defs:
         defaultItem:
           $dynamicAnchor: item
-          description: the default item, overridable in the dynamic scope
+          description: the default item — shadowed whenever an extension overrides it
+    # An extension used by /strict: overrides "item" and reaches the $dynamicRef → a winner.
+    StrictList:
+      $id: https://example.com/schemas/strictlist
+      $dynamicAnchor: item
+      allOf:
+        - $ref: 'https://example.com/schemas/genericlist'
+    # Declares "item" and is used by /unrelated, but never references GenericList, so it can never
+    # be in scope at the $dynamicRef → excluded.
+    Unrelated:
+      $id: https://example.com/schemas/unrelated
+      type: object
+      $dynamicAnchor: item
+      description: declares item but cannot reach GenericList's $dynamicRef
     # Case B: a plain $ref that lands on a $dynamicAnchor — resolved statically, like $anchor.
     DirectRef:
       type: object
