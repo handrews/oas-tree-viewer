@@ -19,9 +19,9 @@
 </script>
 
 <details class="legend" open>
-  <summary>Legend</summary>
+  <summary><h2>Legend</h2></summary>
   <div class="legend-body">
-    <h4>Object groups</h4>
+    <h3>Object groups</h3>
     <ul class="legend-list">
       {#each legendGroups as cat (cat)}
         <li>
@@ -30,7 +30,7 @@
       {/each}
     </ul>
 
-    <h4>Node shapes</h4>
+    <h3>Node shapes</h3>
     <ul class="legend-list">
       {#each shapeLegend as s (s.shape)}
         <li>
@@ -40,7 +40,7 @@
       {/each}
     </ul>
 
-    <h4>References</h4>
+    <h3>References</h3>
     <ul class="legend-list">
       {#each referenceLegend as r (r.kind)}
         <li>
@@ -54,7 +54,7 @@
       {/each}
     </ul>
 
-    <h4>Connection lines</h4>
+    <h3>Connection lines</h3>
     <ul class="legend-list">
       {#each lineLegend as l (l.variant)}
         <li>
@@ -64,21 +64,21 @@
       {/each}
     </ul>
 
-    <h4>Error icons</h4>
+    <h3>Error icons</h3>
     <ul class="legend-list">
       {#each errorIconLegend as e (e.status)}
         <li><span class="legend-warn status-{e.status}" aria-hidden="true">⚠</span>{e.label}</li>
       {/each}
     </ul>
 
-    <h4>Reference advisories</h4>
+    <h3>Reference advisories</h3>
     <ul class="legend-list">
       {#each diagnosticLegend as a (a.severity)}
         <li><span class="legend-advisory {a.colorClass}" aria-hidden="true">{a.glyph}</span>{a.label}</li>
       {/each}
     </ul>
 
-    <h4>Documents</h4>
+    <h3>Documents</h3>
     <ul class="legend-list">
       <li><span class="legend-unreachable"></span>{warningLegend.unreachable}</li>
     </ul>

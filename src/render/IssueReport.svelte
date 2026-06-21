@@ -24,7 +24,7 @@
 {#if report}
   <details id="issues" class="issue-drawer" open={report.total > 0}>
     <summary>
-      <span class="issue-summary-label">Issues</span>
+      <h2 class="issue-summary-label">Issues</h2>
       <span class="issue-count" class:none={report.total === 0}>{report.total}</span>
     </summary>
 
@@ -42,7 +42,7 @@
         </div>
 
         {#if report.refIssues.length}
-          <h4>Unresolved references ({report.refIssues.length})</h4>
+          <h3>Unresolved references ({report.refIssues.length})</h3>
           <ul class="issue-list">
             {#each report.refIssues as i (i.sourceDoc + i.sourcePointer + i.refString)}
               <li class="issue status-{i.status}">
@@ -56,7 +56,7 @@
         {/if}
 
         {#if report.advisories.length}
-          <h4>Reference advisories ({report.advisories.length})</h4>
+          <h3>Reference advisories ({report.advisories.length})</h3>
           <ul class="issue-list">
             {#each report.advisories as a (a.sourceDoc + a.sourcePointer + a.code + a.refString)}
               <li class="issue severity-{a.severity}">
@@ -70,7 +70,7 @@
         {/if}
 
         {#if report.docIssues.length}
-          <h4>Unreachable documents ({report.docIssues.length})</h4>
+          <h3>Unreachable documents ({report.docIssues.length})</h3>
           <ul class="issue-list">
             {#each report.docIssues as i (i.doc)}
               <li class="issue status-unreachable">

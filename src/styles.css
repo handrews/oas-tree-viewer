@@ -693,7 +693,7 @@ body {
   border-radius: 10px;
   padding: 0.9rem 1rem;
 }
-#detail-panel h3 {
+.node-detail h2 {
   font-size: 0.95rem;
   margin-bottom: 0.6rem;
   color: var(--link);
@@ -723,17 +723,24 @@ body {
 .legend[open] > summary::before {
   content: "▾";
 }
+/* The summary doubles as the section heading; keep the <h2> looking like plain summary text. */
+.legend > summary h2 {
+  display: inline;
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
 .legend-body {
   margin-top: 0.6rem;
 }
-.legend-body h4 {
+.legend-body h3 {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-dim);
   margin: 0.8rem 0 0.35rem;
 }
-.legend-body h4:first-child {
+.legend-body h3:first-child {
   margin-top: 0;
 }
 .legend-list {
@@ -909,7 +916,7 @@ body {
   padding-top: 0.7rem;
   border-top: 1px solid var(--border);
 }
-.ref-section h4 {
+.ref-section h3 {
   font-size: 0.8rem;
   color: var(--text-dim);
   margin-bottom: 0.4rem;
@@ -1009,6 +1016,12 @@ body {
 .issue-drawer[open] > summary::before {
   content: "▾";
 }
+/* The summary doubles as the section heading; keep the <h2> looking like plain summary text. */
+.issue-drawer > summary h2 {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
 .issue-count {
   min-width: 1.4em;
   padding: 0 0.4em;
@@ -1047,7 +1060,7 @@ body {
   border-color: var(--link);
   color: var(--link);
 }
-.issue-body h4 {
+.issue-body h3 {
   font-size: 0.8rem;
   margin: 0.9rem 0 0.4rem;
   color: var(--text);

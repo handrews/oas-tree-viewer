@@ -27,7 +27,7 @@
   {@const doc = selected.doc}
   {@const node = selected.node}
   <section class="node-detail">
-    <h3>Selected node</h3>
+    <h2>Selected node</h2>
     <dl class="detail-grid">
       <dt>Document</dt>
       <dd>
@@ -64,7 +64,7 @@
       {@const inc = incomingRefs(c.refs, doc.id, node.id)}
       {#if out.length}
         <div class="ref-section">
-          <h4>Resolves to →</h4>
+          <h3>Resolves to →</h3>
           {#each out as e (e.id)}
             <div class="ref-item">
               <span class="ref-badge {e.status}">{e.status}</span>
@@ -104,7 +104,7 @@
       {/if}
       {#if inc.length}
         <div class="ref-section">
-          <h4>Referenced by ←</h4>
+          <h3>Referenced by ←</h3>
           {#each inc as e (e.id)}
             <div class="ref-item">
               <span class="ref-badge {e.status}">{e.status}</span>
