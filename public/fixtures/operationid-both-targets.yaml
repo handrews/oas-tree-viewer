@@ -1,0 +1,15 @@
+openapi: 3.2.0
+info:
+  title: Invalid — a Link sets both operationRef and operationId
+  version: 1.0.0
+paths:
+  /a:
+    get:
+      operationId: getA
+      responses:
+        '200':
+          description: OK
+          links:
+            both:
+              operationRef: '#/paths/~1a/get'
+              operationId: getA

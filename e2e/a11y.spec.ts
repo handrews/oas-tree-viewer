@@ -47,5 +47,16 @@ for (const theme of ["dark", "light"] as const) {
       const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
+
+    test("operationId links view", async ({ page }) => {
+      // Exercises the implicit-connection legend row (relabeled for operationId), the double-line
+      // operationId arcs, a broken-operationId glyph, and the unreachable-document badge.
+      await page.goto("/view?demo=operationid");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
   });
 }

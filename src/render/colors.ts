@@ -79,12 +79,28 @@ export const resolutionStyles: Record<ResolutionKind, ResolutionStyle> = {
     arrowhead: "open",
     label: "Implicit connection — component name (discriminator mapping, security requirement)",
   },
+  // A Link's `operationId` is an implicit connection drawn exactly like a component name; it
+  // shares that visual but is reported under its own kind. The legend folds it into the single
+  // implicit-connection row below (see `referenceLegend`).
+  "operation-id": {
+    marker: "diamond",
+    line: "double",
+    arrowhead: "open",
+    label: "Implicit connection — a Link operationId",
+  },
 };
 
-/** `resolutionStyles` as an ordered list, for the legend's "References" section. */
-export const referenceLegend: ReadonlyArray<{ kind: ResolutionKind } & ResolutionStyle> = (
-  Object.keys(resolutionStyles) as ResolutionKind[]
-).map((kind) => ({ kind, ...resolutionStyles[kind] }));
+/** The legend's "References" section: one row per *distinct visual*. `component-name` and
+ *  `operation-id` share the implicit-connection visual, so they collapse into one labeled row. */
+export const referenceLegend: ReadonlyArray<{ kind: ResolutionKind } & ResolutionStyle> = [
+  { kind: "uri-reference", ...resolutionStyles["uri-reference"] },
+  {
+    kind: "component-name",
+    ...resolutionStyles["component-name"],
+    label:
+      "Implicit connection — component name (discriminator mapping, security requirement) or a Link operationId",
+  },
+];
 
 /** Arc styles that aren't a resolution kind, for the legend's "Connection lines" section:
  *  the collapsed/off-screen-endpoint state, and the type-mismatch arc (drawn dashed in the

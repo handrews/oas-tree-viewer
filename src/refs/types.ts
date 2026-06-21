@@ -5,6 +5,7 @@ import type { ResolutionKind } from "../types";
 export type RefKind =
   | "$ref"
   | "operationRef"
+  | "operationId"
   | "discriminatorMapping"
   | "securityRequirement";
 

@@ -68,6 +68,21 @@ export const demos: Demo[] = [
       "$ref also collides with its target on the “summary” field (undefined merge).",
     inputs: [urlDoc("operation-refs-3.2.yaml", true)],
   },
+  {
+    id: "operationid",
+    label: "operationId links (3.2)",
+    description:
+      "Link Objects resolving an Operation by operationId (an implicit connection, drawn like a " +
+      "component name): a unique match, a match in another reachable document, a missing one " +
+      "(broken), and a target reachable only by operationId (its document stays unreachable). The " +
+      "remaining Links resolve but aren’t cleanly invocable — a Components Path Item reached by " +
+      "2 / 1 / 0 paths, a webhook, and a callback — reusing the operation-target advisories.",
+    inputs: [
+      urlDoc("operationid-3.2.yaml", true),
+      urlDoc("operationid-shared-3.2.yaml"),
+      urlDoc("operationid-remote-3.2.yaml"),
+    ],
+  },
 ];
 
 const byId = new Map(demos.map((d) => [d.id, d]));

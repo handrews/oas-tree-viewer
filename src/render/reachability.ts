@@ -16,10 +16,12 @@ export function reachableDocIds(oad: Oad, refs: ResolvedRefs): Set<string> {
   const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
   if (!entry) return reachable;
 
-  // Adjacency: source doc -> located target docs.
+  // Adjacency: source doc -> located target docs. A Link's `operationId` does NOT propagate
+  // reachability — a document reached only by `operationId` is "otherwise unreachable" and is
+  // intentionally still flagged, so its edges are excluded here.
   const adj = new Map<string, Set<string>>();
   for (const e of refs.edges) {
-    if (!e.targetDocId) continue;
+    if (!e.targetDocId || e.kind === "operationId") continue;
     (adj.get(e.sourceDocId) ?? adj.set(e.sourceDocId, new Set()).get(e.sourceDocId)!).add(
       e.targetDocId,
     );

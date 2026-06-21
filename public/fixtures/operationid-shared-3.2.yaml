@@ -1,0 +1,24 @@
+openapi: 3.2.0
+$self: https://example.com/oad/operationid-shared
+info:
+  title: operationId links — shared document
+  version: 1.0.0
+  description: >
+    Reachable from the entry document via the /shared-link $ref to SharedThing. Its /shared-thing
+    Operation declares operationId `sharedOp`, which the entry's `shared` Link resolves — an
+    operationId resolving cleanly into another reachable document.
+paths:
+  /shared-thing:
+    get:
+      operationId: sharedOp
+      responses:
+        '200':
+          description: OK
+components:
+  pathItems:
+    SharedThing:
+      get:
+        operationId: sharedThingOp
+        responses:
+          '200':
+            description: OK

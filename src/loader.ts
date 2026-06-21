@@ -2,8 +2,9 @@
 // text), parse it, validate that it is a supported OpenAPI document, build and
 // classify its tree. Produces an OadDocument or throws a typed error.
 
-import type { OadDocument, VersionFamily } from "./types";
+import type { OadDocument, TreeNode, VersionFamily } from "./types";
 import {
+  InvalidDocumentError,
   NotOpenApiError,
   RetrievalError,
   UnsupportedVersionError,
@@ -12,6 +13,7 @@ import {
 import { parseDocument } from "./parse/detectFormat";
 import { buildTree } from "./model/treeBuilder";
 import { classifyDocument } from "./oas/classify";
+import { displayPointer } from "./model/jsonPointer";
 
 /** A locally-uploaded document; the file has already been read to text. */
 export interface UploadInput {
@@ -69,6 +71,7 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
 
   const root = buildTree(value);
   classifyDocument(root, versionFamilyOf(oasVersion));
+  assertValidLinks(root, oasVersion);
 
   return {
     id: `doc-${nextDocId++}`,
@@ -83,6 +86,28 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
     oasVersion,
     root,
   };
+}
+
+/**
+ * Reject structurally-invalid Link Objects before the tree is built into an OAD. A Link must
+ * use exactly one of `operationRef` / `operationId`; setting both is invalid OpenAPI, so the
+ * document is rejected (surfaced like an invalid-YAML error) rather than rendered.
+ */
+function assertValidLinks(root: TreeNode, oasVersion: string): void {
+  const visit = (node: TreeNode): void => {
+    if (
+      node.oasType === "Link Object" &&
+      node.children.some((c) => c.key === "operationRef") &&
+      node.children.some((c) => c.key === "operationId")
+    ) {
+      throw new InvalidDocumentError(
+        `Not a valid OpenAPI ${oasVersion} document: the Link Object at ${displayPointer(node.id)} ` +
+          `sets both operationRef and operationId, but a Link must use exactly one.`,
+      );
+    }
+    for (const child of node.children) visit(child);
+  };
+  visit(root);
 }
 
 /** Validate that a parsed value is a supported OpenAPI Object; extract version + $self. */

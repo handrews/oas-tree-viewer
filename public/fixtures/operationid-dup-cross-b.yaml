@@ -1,0 +1,12 @@
+openapi: 3.2.0
+$self: https://example.com/oad/operationid-dup-cross-b
+info:
+  title: Cross-document duplicate operationId — second document
+  version: 1.0.0
+paths:
+  /b:
+    get:
+      operationId: sharedOp # also unique within THIS document, but duplicates the entry's
+      responses:
+        '200':
+          description: OK

@@ -59,26 +59,32 @@ describe("colors", () => {
     expect(warningLegend.unreachable).toBeTruthy();
   });
 
-  it("resolutionStyles distinguish URI-reference (asterisk/single/filled) from component-name (diamond/double/open)", () => {
+  it("resolutionStyles distinguish URI-reference (asterisk/single/filled) from the implicit visual (diamond/double/open)", () => {
     expect(resolutionStyles["uri-reference"]).toMatchObject({
       marker: "asterisk",
       line: "single",
       arrowhead: "filled",
     });
-    expect(resolutionStyles["component-name"]).toMatchObject({
-      marker: "diamond",
-      line: "double",
-      arrowhead: "open",
-    });
-    const kinds: ResolutionKind[] = ["uri-reference", "component-name"];
+    // component-name and operation-id are both implicit connections — same diamond/double/open
+    // visual — distinguished only by which reference kind produced them.
+    const implicit = { marker: "diamond", line: "double", arrowhead: "open" } as const;
+    expect(resolutionStyles["component-name"]).toMatchObject(implicit);
+    expect(resolutionStyles["operation-id"]).toMatchObject(implicit);
+    const kinds: ResolutionKind[] = ["uri-reference", "component-name", "operation-id"];
     for (const k of kinds) expect(resolutionStyles[k].label).toBeTruthy();
   });
 
-  it("referenceLegend lists every ResolutionKind in order with its style", () => {
+  it("referenceLegend has one row per distinct visual; operation-id folds into the implicit row", () => {
+    // operation-id shares the component-name visual, so the legend collapses it into the
+    // implicit-connection row rather than showing a duplicate-looking entry.
     expect(referenceLegend.map((r) => r.kind)).toEqual(["uri-reference", "component-name"]);
     for (const r of referenceLegend) {
-      expect(r).toMatchObject(resolutionStyles[r.kind]);
+      const { marker, line, arrowhead } = resolutionStyles[r.kind];
+      expect(r).toMatchObject({ marker, line, arrowhead });
       expect(r.label).toBeTruthy();
     }
+    // The folded row's label names operationId so the legend documents both meanings.
+    const implicitRow = referenceLegend.find((r) => r.kind === "component-name")!;
+    expect(implicitRow.label).toMatch(/operationId/i);
   });
 });
