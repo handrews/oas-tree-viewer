@@ -58,5 +58,16 @@ for (const theme of ["dark", "light"] as const) {
       const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
+
+    test("$dynamicRef links view", async ({ page }) => {
+      // Exercises the new dotted "tentative" legend row + the dotted $dynamicRef arcs against the
+      // contrast gate, plus a broken glyph and the unreachable-document badge.
+      await page.goto("/view?demo=dynamicref");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
   });
 }

@@ -1,0 +1,53 @@
+openapi: 3.1.0
+$self: https://example.com/oad/dynamicref
+info:
+  title: $dynamicRef / $dynamicAnchor — showcase
+  version: 1.0.0
+  description: >
+    JSON-Schema 2020-12 dynamic references. A $dynamicRef first resolves like a $ref; if the
+    local fragment is itself a $dynamicAnchor, dynamic scope engages and the real target depends
+    on the evaluation path — so the viewer points tentatively (dotted) at every $dynamicAnchor of
+    that name in an entry-reachable document. GenericList.item does exactly that (#item). The two
+    special cases: FixedList.item (#leaf) resolves statically because its local fragment is a plain
+    $anchor (solid, single target) even though a $dynamicAnchor "leaf" exists in the shared
+    document; and DirectRef.item is a plain $ref landing on a $dynamicAnchor, treated just like
+    $anchor (solid). Broken.item (#missing) matches nothing.
+paths: {}
+components:
+  schemas:
+    # An ordinary $ref, present so the shared document is reachable from the entry.
+    UseShared:
+      $ref: 'dynamicref-shared#/components/schemas/Extension'
+    # Dynamic: its local resource declares $dynamicAnchor "item", so #item engages dynamic scope
+    # and points tentatively at every reachable $dynamicAnchor "item".
+    GenericList:
+      $id: https://example.com/schemas/genericlist
+      type: object
+      properties:
+        item: { $dynamicRef: '#item' }
+      $defs:
+        defaultItem:
+          $dynamicAnchor: item
+          description: the default item, overridable in the dynamic scope
+    # Case B: a plain $ref that lands on a $dynamicAnchor — resolved statically, like $anchor.
+    DirectRef:
+      type: object
+      properties:
+        item: { $ref: 'https://example.com/schemas/genericlist#item' }
+    # Case A: a $dynamicRef whose local fragment is a plain $anchor — behaves exactly like $ref,
+    # a single static target, despite the $dynamicAnchor "leaf" in the shared document.
+    FixedList:
+      $id: https://example.com/schemas/fixedlist
+      type: object
+      properties:
+        item: { $dynamicRef: '#leaf' }
+      $defs:
+        localLeaf:
+          $anchor: leaf
+          type: string
+    # No anchor of this name exists locally → broken.
+    Broken:
+      $id: https://example.com/schemas/broken
+      type: object
+      properties:
+        item: { $dynamicRef: '#missing' }

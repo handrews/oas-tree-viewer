@@ -34,13 +34,14 @@ describe("demos", () => {
     expect(demoInputs("nope")).toBeUndefined();
   });
 
-  it("includes the refs, $self, component-name, operation reference, and operationId demos", () => {
+  it("includes the refs, $self, component-name, operation, operationId, and $dynamicRef demos", () => {
     expect(demos.map((d) => d.id)).toEqual([
       "refs",
       "self",
       "component-refs",
       "operation-refs",
       "operationid",
+      "dynamicref",
     ]);
     expect(demoInputs("self")![0]!).toMatchObject({ url: "/fixtures/oads/openapi.yaml", isEntry: true });
     expect(demoInputs("component-refs")![0]!).toMatchObject({
@@ -56,5 +57,9 @@ describe("demos", () => {
       { source: "url", url: "/fixtures/operationid-shared-3.2.yaml", isEntry: false },
       { source: "url", url: "/fixtures/operationid-remote-3.2.yaml", isEntry: false },
     ]);
+    expect(demoInputs("dynamicref")![0]!).toMatchObject({
+      url: "/fixtures/dynamicref-3.1.yaml",
+      isEntry: true,
+    });
   });
 });
