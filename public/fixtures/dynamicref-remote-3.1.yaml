@@ -1,0 +1,16 @@
+openapi: 3.1.0
+$self: https://example.com/oad/dynamicref-remote
+info:
+  title: $dynamicRef — unreachable document
+  version: 1.0.0
+  description: >
+    Not referenced from the entry, so it is unreachable. Its $dynamicAnchor "item" is therefore
+    excluded from the dynamic #item fan-out — tentative targets are narrowed to entry-reachable
+    documents.
+paths: {}
+components:
+  schemas:
+    RemoteExtension:
+      $id: https://example.com/schemas/remoteextension
+      $dynamicAnchor: item
+      type: object

@@ -83,6 +83,21 @@ export const demos: Demo[] = [
       urlDoc("operationid-remote-3.2.yaml"),
     ],
   },
+  {
+    id: "dynamicref",
+    label: "$dynamicRef / $dynamicAnchor (3.1)",
+    description:
+      "JSON-Schema dynamic references: a $dynamicRef whose target depends on the evaluation path " +
+      "points tentatively (dotted) at every $dynamicAnchor of its name in an entry-reachable " +
+      "document. Plus the two static cases — a $dynamicRef whose local fragment is a plain $anchor " +
+      "(resolves like $ref), and a $ref landing on a $dynamicAnchor (treated like $anchor) — a " +
+      "broken $dynamicRef, and a $dynamicAnchor in an unreachable document that is excluded.",
+    inputs: [
+      urlDoc("dynamicref-3.1.yaml", true),
+      urlDoc("dynamicref-shared-3.1.yaml"),
+      urlDoc("dynamicref-remote-3.1.yaml"),
+    ],
+  },
 ];
 
 const byId = new Map(demos.map((d) => [d.id, d]));

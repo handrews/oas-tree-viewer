@@ -305,3 +305,34 @@ test.describe("operationId links", () => {
     await expect(issues).toContainText("Unreachable documents (1)");
   });
 });
+
+test.describe("$dynamicRef links", () => {
+  test("draws a dynamic $dynamicRef as dotted tentative arcs; static cases stay solid", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=dynamicref");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(3);
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+
+    // Every reference field is a URI-reference asterisk (3 $dynamicRef + 2 $ref); none are the
+    // implicit diamond.
+    await expect(page.locator("svg .marker.asterisk")).toHaveCount(5);
+    await expect(page.locator("svg .marker.diamond")).toHaveCount(0);
+
+    // The one dynamic $dynamicRef (#item) fans out, dotted, to the two entry-reachable
+    // $dynamicAnchors (the remote one is excluded). The three static resolves — a $ref, the
+    // Case-B $ref→$dynamicAnchor, and the Case-A $dynamicRef→$anchor — stay solid.
+    await expect(page.locator("svg path.ref-edge.dotted")).toHaveCount(2);
+    await expect(page.locator("svg path.ref-edge.status-resolved:not(.dotted)")).toHaveCount(3);
+    // The broken $dynamicRef (#missing) shows a ⚠ glyph, not an arc.
+    await expect(page.locator("svg .warnings text.warn-glyph")).toHaveCount(1);
+
+    // The drawer: 1 broken reference + 1 unreachable document (the dynamic fan-out resolves).
+    const issues = page.locator("#issues");
+    await expect(issues.locator(".issue-count")).toHaveText("2");
+    await expect(issues).toContainText("Unresolved references (1)");
+    await expect(issues).toContainText("#missing");
+    await expect(issues).toContainText("Unreachable documents (1)");
+  });
+});

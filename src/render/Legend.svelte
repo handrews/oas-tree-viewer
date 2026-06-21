@@ -46,7 +46,7 @@
         <li>
           <span class="legend-shape shape-{r.marker}">{markerGlyph(r.marker)}</span>
           <span class="ref-sample">
-            <span class="legend-line line-{r.line}"></span>
+            <span class="legend-line line-{r.line}" class:line-dotted={r.dash === "dotted"}></span>
             <span class="ref-arrow-sample" aria-hidden="true">{r.arrowhead === "open" ? "▷" : "▶"}</span>
           </span>
           {r.label}

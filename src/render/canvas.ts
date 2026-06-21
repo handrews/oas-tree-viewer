@@ -273,6 +273,8 @@ export class Canvas {
       return (
         `ref-edge status-${d.edge.status}` +
         (diag ? ` diag-${diag}` : "") +
+        // A tentative connection (a dynamic $dynamicRef) is drawn dotted.
+        (resolutionStyles[d.edge.resolution].dash === "dotted" ? " dotted" : "") +
         (d.s.collapsed || d.t.collapsed ? " collapsed" : "") +
         (d.focused ? " focused" : "")
       );

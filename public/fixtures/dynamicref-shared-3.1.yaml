@@ -1,0 +1,20 @@
+openapi: 3.1.0
+$self: https://example.com/oad/dynamicref-shared
+info:
+  title: $dynamicRef — shared document
+  version: 1.0.0
+  description: >
+    Reachable from the entry via the UseShared $ref. Its Extension schema is a second possible
+    target for the dynamic #item $dynamicRef. The LeafOverride $dynamicAnchor "leaf" must NOT
+    capture FixedList.item, whose local fragment is a plain $anchor (Case A stays static).
+paths: {}
+components:
+  schemas:
+    Extension:
+      $id: https://example.com/schemas/extension
+      $dynamicAnchor: item
+      type: object
+    LeafOverride:
+      $id: https://example.com/schemas/leafoverride
+      $dynamicAnchor: leaf
+      type: number

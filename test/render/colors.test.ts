@@ -70,14 +70,25 @@ describe("colors", () => {
     const implicit = { marker: "diamond", line: "double", arrowhead: "open" } as const;
     expect(resolutionStyles["component-name"]).toMatchObject(implicit);
     expect(resolutionStyles["operation-id"]).toMatchObject(implicit);
-    const kinds: ResolutionKind[] = ["uri-reference", "component-name", "operation-id"];
+    // A dynamic $dynamicRef reuses the URI-reference asterisk but is dotted (tentative).
+    expect(resolutionStyles["dynamic"]).toMatchObject({
+      marker: "asterisk",
+      line: "single",
+      arrowhead: "open",
+      dash: "dotted",
+    });
+    const kinds: ResolutionKind[] = ["uri-reference", "component-name", "operation-id", "dynamic"];
     for (const k of kinds) expect(resolutionStyles[k].label).toBeTruthy();
   });
 
-  it("referenceLegend has one row per distinct visual; operation-id folds into the implicit row", () => {
+  it("referenceLegend folds operation-id into the implicit row and adds the dynamic row", () => {
     // operation-id shares the component-name visual, so the legend collapses it into the
-    // implicit-connection row rather than showing a duplicate-looking entry.
-    expect(referenceLegend.map((r) => r.kind)).toEqual(["uri-reference", "component-name"]);
+    // implicit-connection row; the dynamic (dotted) $dynamicRef gets its own row.
+    expect(referenceLegend.map((r) => r.kind)).toEqual([
+      "uri-reference",
+      "component-name",
+      "dynamic",
+    ]);
     for (const r of referenceLegend) {
       const { marker, line, arrowhead } = resolutionStyles[r.kind];
       expect(r).toMatchObject({ marker, line, arrowhead });
@@ -86,5 +97,7 @@ describe("colors", () => {
     // The folded row's label names operationId so the legend documents both meanings.
     const implicitRow = referenceLegend.find((r) => r.kind === "component-name")!;
     expect(implicitRow.label).toMatch(/operationId/i);
+    // The dynamic row carries the dotted flag so the legend renders a dotted sample.
+    expect(referenceLegend.find((r) => r.kind === "dynamic")!.dash).toBe("dotted");
   });
 });

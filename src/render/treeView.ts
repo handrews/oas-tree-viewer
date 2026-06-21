@@ -292,6 +292,7 @@ export class DocumentView {
       if (n.valueKind !== "string") return false;
       if (n.key === "$ref") return Boolean(d.node.parent?.data.isReference);
       if (n.key === "operationRef") return true;
+      if (n.key === "$dynamicRef") return true; // a Schema's $dynamicRef pointer
       // A Link's operationId is a reference pointer; an Operation's own operationId
       // declaration (same key, different parent) is a plain field, not a pointer.
       return n.key === "operationId" && d.node.parent?.data.oasType === "Link Object";
