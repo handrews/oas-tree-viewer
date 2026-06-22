@@ -18,8 +18,11 @@ _Produced by Henry Andrews using Claude Code._
 - Loads an OAD made of **one or more documents**: the **first document is the entry
   document** (use **Make entry** to promote another), any others are additional (referenced)
   documents.
-- Parses **JSON or YAML** and validates that each document is a complete **OAS 3.1 or 3.2**
-  document.
+- Parses **JSON or YAML** and validates each document against the official **OAS 3.1 or 3.2**
+  JSON Schema — **offline**, since the schemas are bundled rather than fetched at runtime. Schema
+  Objects are validated against their declared dialect (the OAS dialect or standard JSON Schema
+  2020-12); a document using any other dialect still renders, with a non-blocking warning that its
+  Schema Objects were not validated.
 - Builds a tree of JSON-Pointer-addressed nodes and **classifies** each node by its OAS
   type (OpenAPI, Info, Paths, Path Item, Operation, Components, Schema, …), flagging
   Reference (`$ref`) objects. OAS 3.2 additions are recognized (`$self`, `query`,
@@ -75,6 +78,8 @@ problems:
 
 - **Parse error** — the document is not valid JSON/YAML (shown on its row).
 - **Not an OpenAPI document** — parses, but has no valid root `openapi` field (shown on its row).
+- **Schema-invalid document** — fails validation against the official OpenAPI JSON Schema, with the
+  offending JSON Pointer locations listed (shown on its row).
 - **Version mismatch** — the OAD mixes OAS 3.1 and 3.2 (shown above the form).
 - **Invalid Link** — a Link Object sets both `operationRef` and `operationId` (shown on its row).
 - **Duplicate `operationId`** — two Operations share an `operationId` anywhere in the OAD
@@ -110,7 +115,6 @@ npm run typecheck
 
 ## Not yet implemented
 
-* Schema validation of OpenAPI documents
 * Standalone JSON Schema documents
 * Fragmentary OpenAPI documents (neither an OpenAPI Object nor Schema Object at the root)
 * OAS 3.0 support (OAS 2.0 support is not planned)
