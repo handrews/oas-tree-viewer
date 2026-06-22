@@ -1,6 +1,7 @@
 # Contributing
 
-The only process documented here, for now, is **preparing a release**.
+This guide covers the project's **architecture**, how its **tests** are organized, and how to
+**prepare a release**.
 
 ## Tests
 
@@ -11,16 +12,21 @@ npm run coverage # run with v8 coverage; writes coverage/ (HTML + lcov) and fail
 ```
 
 Specs live in [`test/`](test) mirroring `src/`, built on a `test/helpers.ts` that runs the
-real pipeline (`loadDocument → assembleOad → resolveOad`). They cover the core logic — the
-reference resolver, OAS classifier + 3.1/3.2 descriptor, model, parser, loader, assembler —
-plus jsdom tests for the input form and detail panel. The d3/SVG canvas and tree view are
-out of scope for unit coverage (they need real browser layout) and are excluded from the
-coverage denominator; they stay verified via the browser/preview workflow. Coverage is
-gated by thresholds in `vitest.config.ts`.
+real pipeline (`loadDocument → assembleOad → resolveOad`). Vitest runs two projects: a
+**node** project for the core logic — the reference resolver (including the `$dynamicRef`
+dynamic-scope analysis), OAS classifier + 3.1/3.2 descriptor, model, parser, loader,
+assembler — and a **browser** project (`vitest-browser-svelte`) for the Svelte components
+(the input form, detail panel, and other islands). The d3/SVG canvas and tree view are out
+of scope for unit coverage (they need real browser layout) and are excluded from the
+coverage denominator; they stay verified via the browser/preview workflow and the Playwright
+end-to-end suite (`npm run e2e`, which also runs axe accessibility checks). Coverage is gated
+by thresholds in `vitest.config.ts`.
 
 ## Architecture
 
-A clean **model layer** decoupled from rendering:
+A clean **model layer** (plain TypeScript) decoupled from rendering. The UI is **Svelte 5**,
+with **History-API routing** splitting a Configure page from an Explore page; the d3/SVG
+canvas is an imperative island wrapped by a Svelte component.
 
 | Layer | Files |
 | --- | --- |
@@ -29,9 +35,11 @@ A clean **model layer** decoupled from rendering:
 | Model | `src/model/jsonPointer.ts`, `src/model/treeBuilder.ts` |
 | OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts` |
 | Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
-| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts` |
-| Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/detailPanel.ts`, `src/render/colors.ts` |
-| UI | `src/ui/oadForm.ts`, `src/main.ts` |
+| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts`, `src/refs/diagnostics.ts`, `src/refs/dynamicScope.ts`, `src/refs/reachability.ts` |
+| Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/colors.ts`, `src/render/issues.ts`, `src/render/reachability.ts`, `src/render/detail.ts`; Svelte islands `TreeCanvas.svelte`, `DetailPanel.svelte`, `Legend.svelte`, `IssueReport.svelte` |
+| App / routing | `src/app/router.svelte.ts`, `src/app/session.svelte.ts`, `src/app/viewUrl.ts`, `src/app/config.ts`, `src/app/demos.ts`, `src/app/bootstrap.ts` |
+| UI / shell | `src/main.ts`, `src/App.svelte`, `src/pages/ConfigurePage.svelte`, `src/pages/ViewPage.svelte`, `src/ui/OadForm.svelte`, `src/ui/ThemeToggle.svelte`, `src/ui/oadForm.ts`, `src/ui/fileDrop.ts`, `src/ui/theme.ts` |
+| Styles / pages | `src/styles.css`, `src/theme.css`, `src/docs.css`, `vite/doc-pages.ts` (renders `CHANGELOG.md` to a themed page) |
 
 Each node keeps a stable **JSON Pointer** id and an `expectedType` (its grammar slot type),
 and each document keeps its **base URI** (`$self` / retrieval URI) — the foundation the
