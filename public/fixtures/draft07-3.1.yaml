@@ -1,0 +1,62 @@
+openapi: 3.1.0
+info:
+  title: draft-06/07 references & identification
+  version: 1.0.0
+  description: >
+    The document default dialect is draft-07 (jsonSchemaDialect), so every Schema Object below uses
+    the numbered-draft model: anchors come from $id FRAGMENTS rather than $anchor, keywords beside
+    $ref are ignored, and a JSON-Pointer $id fragment must be the schema's own location. "Catalog" is
+    a draft-07 resource; "Modern" re-declares 2020-12, where $anchor still works — confirming other
+    dialects are unaffected.
+jsonSchemaDialect: 'http://json-schema.org/draft-07/schema#'
+paths:
+  /catalog:
+    get:
+      operationId: getCatalog
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Catalog' }
+components:
+  schemas:
+    Catalog:
+      $id: https://example.com/draft/catalog
+      type: object
+      properties:
+        # Resolves to the plain-name $id anchor "#thing" (a draft-07 named anchor).
+        viaAnchor: { $ref: 'https://example.com/draft/catalog#thing' }
+        # Resolves by JSON Pointer to the correctly self-pointed schema below.
+        viaPointer: { $ref: 'https://example.com/draft/catalog#/properties/selfPointed' }
+        # BROKEN: $anchor does not exist in draft-07, so "ghost" names nothing.
+        viaGhost: { $ref: 'https://example.com/draft/catalog#ghost' }
+        # Resolves into the 2020-12 "Modern" resource, whose $anchor IS a real anchor.
+        viaModernAnchor: { $ref: 'https://example.com/modern#leaf' }
+        # WARNING: under draft-07 the sibling keywords (type, description) are ignored.
+        withSiblings:
+          $ref: '#/properties/thing'
+          type: string
+          description: ignored under draft-07
+        # A plain-name $id fragment ⇒ a named anchor "thing".
+        thing:
+          $id: '#thing'
+          type: string
+        # A JSON-Pointer $id fragment that IS this schema's own location ⇒ no warning.
+        selfPointed:
+          $id: '#/properties/selfPointed'
+          type: integer
+        # WARNING: a JSON-Pointer $id fragment that is NOT this schema's location ⇒ ignored.
+        misPointed:
+          $id: '#/properties/nope'
+          type: boolean
+        # In draft-07 this $anchor is just an ignored unknown keyword, not an anchor.
+        notAnchor:
+          $anchor: ghost
+          type: string
+    Modern:
+      $id: https://example.com/modern
+      $schema: https://json-schema.org/draft/2020-12/schema
+      type: object
+      properties:
+        leaf: { $anchor: leaf, type: string }

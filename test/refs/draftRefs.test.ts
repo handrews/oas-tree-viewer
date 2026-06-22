@@ -106,7 +106,7 @@ describe("draft-06/07 reference & identification semantics", () => {
 
   it("warns about ignored `$ref` siblings but still draws the arc", () => {
     expect(byRef("#/properties/thing").status).toBe("resolved");
-    const advisories = at(doc.root, `${P}/properties/withSiblings/$ref`).resolutionAdvisories ?? [];
+    const advisories = at(doc.root, `${P}/properties/withSiblings`).resolutionAdvisories ?? [];
     expect(advisories.map((a) => a.code)).toEqual(["ignored-ref-siblings"]);
     expect(advisories[0]!.detail).toMatch(/ignored: type, description/);
   });

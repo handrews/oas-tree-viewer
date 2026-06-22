@@ -347,11 +347,37 @@ test.describe("dialect resolution warnings", () => {
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
     await page.getByRole("button", { name: "Expand all" }).click();
 
-    // Exactly one dialect warning glyph — the draft-07 $schema row (the 2020-12 one is supported).
+    // Exactly one dialect warning glyph — the draft-2019-09 $schema row (2020-12 and draft-07 resolve).
     await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(1);
 
     // Selecting that $schema row shows the resolution note; the document still validated (it rendered).
-    await page.locator("svg.tree-canvas g.row", { hasText: "draft-07/schema" }).first().click();
+    await page.locator("svg.tree-canvas g.row", { hasText: "2019-09/schema" }).first().click();
     await expect(page.locator("#detail-panel .node-detail")).toContainText("isn't fully supported");
+  });
+});
+
+test.describe("draft-06/07 resolution advisories", () => {
+  test("resolves $id-fragment anchors and flags ignored siblings / a wrong $id fragment", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=draft07");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
+    await page.getByRole("button", { name: "Expand all" }).click();
+
+    // Two advisory glyphs: the ignored-sibling $ref row and the mis-pointed $id row. (The 2020-12
+    // and draft-07 $schema rows are supported, so they carry no dialect ⚠.)
+    await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(2);
+
+    // The issues drawer aggregates both advisories, plus the one $ref that leans on a draft-07
+    // `$anchor` (which doesn't exist) and so breaks.
+    const issues = page.locator("#issues");
+    await expect(issues).toContainText("Reference-resolution advisories (2)");
+    await expect(issues).toContainText("Unresolved references (1)");
+
+    // Selecting the ignored-sibling $ref row shows its detail note.
+    await page.locator("svg.tree-canvas g.row", { hasText: "#/properties/thing" }).first().click();
+    await expect(page.locator("#detail-panel .node-detail")).toContainText(
+      "keywords beside $ref are ignored",
+    );
   });
 });

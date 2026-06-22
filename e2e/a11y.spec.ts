@@ -70,6 +70,17 @@ for (const theme of ["dark", "light"] as const) {
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
 
+    test("draft-06/07 references view", async ({ page }) => {
+      // Exercises the broadened dialect ⚠ glyph (draft-06/07 advisories) and the new issue-drawer
+      // category against the contrast gate.
+      await page.goto("/view?demo=draft07");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
     // The rendered CHANGELOG page shares the app's palette (see vite/doc-pages.ts) and must
     // clear the same contrast gate — headings, links, and code on the theme bg.
     test("changelog page", async ({ page }) => {

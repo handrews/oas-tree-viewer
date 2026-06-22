@@ -312,12 +312,13 @@ function walkDoc(
       }
 
       // draft-06/07 ignore every keyword beside `$ref`; warn when a `$ref` schema carries siblings.
+      // The advisory describes the whole schema, so it rides on the Schema Object node itself.
       if (model === "numbered-draft" && node.isReference) {
         const ignored = node.children
           .map((c) => c.key)
           .filter((k): k is string => k !== null && k !== "$ref");
         if (ignored.length) {
-          addAdvisory(node, "$ref", {
+          (node.resolutionAdvisories ??= []).push({
             code: "ignored-ref-siblings",
             detail: `In draft-06/07, keywords beside $ref are ignored: ${ignored.join(", ")}.`,
           });
