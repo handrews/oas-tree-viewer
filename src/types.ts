@@ -8,6 +8,18 @@
  */
 export type ResolutionKind = "uri-reference" | "component-name" | "operation-id" | "dynamic";
 
+/**
+ * A node-level advisory about how a draft-06/07 construct affects reference resolution, set by the
+ * resolver. `ignored-ref-siblings` — a Schema Object whose `$ref` has sibling keywords that the
+ * numbered drafts ignore; `invalid-id-fragment` — an `$id` whose JSON-Pointer fragment is not this
+ * schema's own pointer, so it names nothing and is dropped.
+ */
+export type ResolutionAdvisoryCode = "ignored-ref-siblings" | "invalid-id-fragment";
+export interface ResolutionAdvisory {
+  code: ResolutionAdvisoryCode;
+  detail: string;
+}
+
 /** The JSON value categories a node can hold. */
 export type ValueKind =
   | "object"
@@ -84,6 +96,12 @@ export interface TreeNode {
    * note in the detail panel; the document still validated, but reference arcs use 2020-12 rules.
    */
   dialectResolutionWarning?: string;
+  /**
+   * Draft-06/07 reference-resolution advisories on this node (set by the resolver): a `$ref` whose
+   * sibling keywords are ignored, or an `$id` with a wrong JSON-Pointer self-fragment. Surfaced as a
+   * warning marker, a detail-panel note, and an issue-report entry.
+   */
+  resolutionAdvisories?: ResolutionAdvisory[];
   /** The scalar value, for leaf nodes only. */
   scalarValue?: string | number | boolean | null;
   children: TreeNode[];

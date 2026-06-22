@@ -9,7 +9,7 @@
 //    Scheme) — each a string that resolves either as a **component name** (a direct lookup
 //    in a Components Object) or as a **URI-reference**, chosen per OAS version + config.
 
-import type { Oad, OadDocument, TreeNode, VersionFamily } from "../types";
+import type { Oad, OadDocument, ResolutionAdvisory, TreeNode, VersionFamily } from "../types";
 import type { ReferenceEdge, RefContext, RefStatus, ResolvedRefs } from "./types";
 import { refKey } from "./types";
 import { type ViewerConfig, defaultConfig } from "../app/config";
@@ -17,6 +17,7 @@ import { annotateDiagnostics } from "./diagnostics";
 import { analyzeDynamicScope } from "./dynamicScope";
 import type { AnchorRef, DynamicScopeAnalysis } from "./dynamicScope";
 import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
+import { type ReferenceModel, referenceModel } from "../oas/dialects";
 
 interface Resource {
   rootNode: TreeNode;
@@ -115,7 +116,7 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     indexes.pointerIndex.set(doc.id, pidx);
     indexes.resourceOf.set(doc.id, new Map());
     indexDocResource(doc, indexes);
-    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources, descentEdges);
+    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources, descentEdges, oad.versionFamily);
   }
 
   const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
@@ -211,50 +212,117 @@ function walkDoc(
   opIdSources: OpIdSource[],
   dynRefSources: DynRefSource[],
   descentEdges: Array<DescentEdge>,
+  version: VersionFamily,
 ): void {
   const ridx = indexes.resourceOf.get(doc.id)!;
+  // The document's default referencing model (its `jsonSchemaDialect`, else the OAS dialect), which
+  // each Schema Object inherits until one re-declares the dialect via `$schema`.
+  const docModel = referenceModel(childString(doc.root, "jsonSchemaDialect"), version);
   // `inDefs` tracks whether the path from the enclosing resource's root to here passes through a
   // definitions store (`$defs`/`definitions`/`components`) — i.e. content that is merely *defined*
   // (reached only by a reference), not *applied*. A nested `$id` resource reached without crossing
   // one is descent-reachable; one inside a defs store is not.
-  const visit = (node: TreeNode, currentBase: string, inDefs: boolean): void => {
+  const visit = (
+    node: TreeNode,
+    currentBase: string,
+    inDefs: boolean,
+    currentModel: ReferenceModel,
+    resourceRootId: string,
+  ): void => {
     pidx.set(node.id, node);
     let base = currentBase;
     let childrenInDefs = inDefs;
+    let model = currentModel;
+    let rootId = resourceRootId;
 
     if (node.oasType === "Schema Object") {
+      // A `$schema` re-declares the dialect — and so the referencing model — for this subtree.
+      const schema = childString(node, "$schema");
+      if (schema !== undefined) model = referenceModel(schema, version);
+
       const id = childString(node, "$id");
-      if (id !== undefined) {
+      if (id !== undefined && model === "numbered-draft") {
+        // draft-06/07: the non-fragment part sets the base; the fragment, if any, is either a
+        // plain-name anchor (like a 2020-12 `$anchor`) or a JSON-Pointer that must be this schema's
+        // own location. `$anchor`/`$dynamicAnchor`/`$dynamicRef` don't exist in this model.
+        const { uriPart, fragment } = splitFragment(id);
+        const newBase = (uriPart === "" ? currentBase : resolveUri(uriPart, currentBase)) ?? currentBase;
+        if (newBase !== currentBase) {
+          if (!inDefs) descentEdges.push({ from: currentBase, to: newBase, docId: doc.id, nodeId: node.id });
+          childrenInDefs = false;
+          indexes.resourceByUri.set(newBase, { rootNode: node, doc });
+          base = newBase;
+          rootId = node.id; // this node is the root of the new resource
+        }
+        if (fragment !== null) {
+          const decoded = decodeFragment(fragment);
+          if (decoded !== "" && !decoded.startsWith("/")) {
+            indexes.anchorByUri.set(`${base}#${decoded}`, node); // plain-name fragment ⇒ anchor
+          } else {
+            // JSON-Pointer fragment (the empty fragment included): must point to this schema itself.
+            const expected = node.id.slice(rootId.length);
+            if (decoded !== expected) {
+              addAdvisory(node, "$id", {
+                code: "invalid-id-fragment",
+                detail:
+                  `The $id JSON-Pointer fragment "#${decoded}" is not this schema's own location ` +
+                  `("#${expected}"), so it names nothing and is ignored.`,
+              });
+            }
+          }
+        }
+      } else if (id !== undefined) {
+        // 2020-12 / OAS / unsupported-fallback: a nested `$id` opens a new resource (unchanged).
         base = resolveUri(id, currentBase) ?? currentBase;
         // Evaluation can descend into this nested resource only when it is applied, not defined.
         if (!inDefs && base !== currentBase) {
           descentEdges.push({ from: currentBase, to: base, docId: doc.id, nodeId: node.id });
         }
         childrenInDefs = false; // a new resource subtree starts outside any enclosing defs store
+        if (base !== currentBase) rootId = node.id;
         indexes.resourceByUri.set(base, { rootNode: node, doc });
       }
-      const anchor = childString(node, "$anchor");
-      if (anchor !== undefined) indexes.anchorByUri.set(`${base}#${anchor}`, node);
-      // A `$dynamicAnchor` is also a plain anchor (so `$ref` and a static `$dynamicRef` find it),
-      // and additionally a dynamic-scope anchor (so a dynamic `$dynamicRef` can fan out to every
-      // same-named one).
-      const dynAnchor = childString(node, "$dynamicAnchor");
-      if (dynAnchor !== undefined) {
-        const key = `${base}#${dynAnchor}`;
-        if (!indexes.anchorByUri.has(key)) indexes.anchorByUri.set(key, node);
-        indexes.dynamicAnchorByUri.set(key, node);
-        push(indexes.dynamicAnchorsByName, dynAnchor, { docId: doc.id, node });
+
+      if (model !== "numbered-draft") {
+        // `$anchor` (2019-09+) and `$dynamicAnchor`/`$dynamicRef` (2020-12) are date-formatted-draft
+        // keywords; the numbered drafts handled above have no counterpart (anchors come from `$id`).
+        const anchor = childString(node, "$anchor");
+        if (anchor !== undefined) indexes.anchorByUri.set(`${base}#${anchor}`, node);
+        // A `$dynamicAnchor` is also a plain anchor (so `$ref` and a static `$dynamicRef` find it),
+        // and additionally a dynamic-scope anchor (so a dynamic `$dynamicRef` can fan out to every
+        // same-named one).
+        const dynAnchor = childString(node, "$dynamicAnchor");
+        if (dynAnchor !== undefined) {
+          const key = `${base}#${dynAnchor}`;
+          if (!indexes.anchorByUri.has(key)) indexes.anchorByUri.set(key, node);
+          indexes.dynamicAnchorByUri.set(key, node);
+          push(indexes.dynamicAnchorsByName, dynAnchor, { docId: doc.id, node });
+        }
+        // `$dynamicRef`: a schema-only reference whose target depends on the evaluation path.
+        const dynRefField = childByKey(node, "$dynamicRef");
+        if (dynRefField && dynRefField.valueKind === "string") {
+          dynRefSources.push({
+            doc,
+            schemaNode: node,
+            fieldNode: dynRefField,
+            refString: dynRefField.scalarValue as string,
+            base,
+          });
+        }
       }
-      // `$dynamicRef`: a schema-only reference whose target depends on the evaluation path.
-      const dynRefField = childByKey(node, "$dynamicRef");
-      if (dynRefField && dynRefField.valueKind === "string") {
-        dynRefSources.push({
-          doc,
-          schemaNode: node,
-          fieldNode: dynRefField,
-          refString: dynRefField.scalarValue as string,
-          base,
-        });
+
+      // draft-06/07 ignore every keyword beside `$ref`; warn when a `$ref` schema carries siblings.
+      // The advisory describes the whole schema, so it rides on the Schema Object node itself.
+      if (model === "numbered-draft" && node.isReference) {
+        const ignored = node.children
+          .map((c) => c.key)
+          .filter((k): k is string => k !== null && k !== "$ref");
+        if (ignored.length) {
+          (node.resolutionAdvisories ??= []).push({
+            code: "ignored-ref-siblings",
+            detail: `In draft-06/07, keywords beside $ref are ignored: ${ignored.join(", ")}.`,
+          });
+        }
       }
     }
 
@@ -319,11 +387,11 @@ function walkDoc(
     }
 
     for (const child of node.children) {
-      visit(child, base, childrenInDefs || isDefsBoundary(child));
+      visit(child, base, childrenInDefs || isDefsBoundary(child), model, rootId);
     }
   };
 
-  visit(doc.root, docBase(doc), false);
+  visit(doc.root, docBase(doc), false, docModel, doc.root.id);
 }
 
 /** Keys whose subtree holds schemas that are *defined* (reached only by a reference), not applied. */
@@ -685,6 +753,12 @@ function childByKey(node: TreeNode, key: string): TreeNode | undefined {
 function childString(node: TreeNode, key: string): string | undefined {
   const child = childByKey(node, key);
   return child && child.valueKind === "string" ? (child.scalarValue as string) : undefined;
+}
+
+/** Attach a resolution advisory to a Schema Object's `$ref`/`$id` field row (or the schema itself). */
+function addAdvisory(schemaNode: TreeNode, childKey: string, advisory: ResolutionAdvisory): void {
+  const target = childByKey(schemaNode, childKey) ?? schemaNode;
+  (target.resolutionAdvisories ??= []).push(advisory);
 }
 
 function push<T>(map: Map<string, T[]>, key: string, value: T): void {

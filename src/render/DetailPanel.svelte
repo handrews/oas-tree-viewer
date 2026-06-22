@@ -62,6 +62,10 @@
       <div class="ref-note advisory severity-warning">{node.dialectResolutionWarning}</div>
     {/if}
 
+    {#each node.resolutionAdvisories ?? [] as advisory (advisory.code)}
+      <div class="ref-note advisory severity-warning">{advisory.detail}</div>
+    {/each}
+
     {#if ctx}
       {@const c = ctx}
       {@const out = outgoingRefs(c.refs, doc.id, node.id)}

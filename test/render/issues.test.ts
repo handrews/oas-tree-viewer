@@ -1,10 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { collectIssues, formatIssueReport } from "../../src/render/issues";
-import type { Oad, OadDocument } from "../../src/types";
+import type { Oad, OadDocument, TreeNode } from "../../src/types";
 import type { ReferenceEdge, ResolvedRefs } from "../../src/refs/types";
 
 function doc(id: string, filename: string, isEntry = false): OadDocument {
   return { id, filename, isEntry, source: "upload" } as OadDocument;
+}
+function node(id: string, partial: Partial<TreeNode> = {}): TreeNode {
+  return { id, key: null, keyKind: "property", valueKind: "object", children: [], ...partial };
 }
 function refsOf(edges: Array<Partial<ReferenceEdge>>): ResolvedRefs {
   return { edges: edges as ReferenceEdge[], bySource: new Map(), byTarget: new Map() };
@@ -164,6 +167,48 @@ describe("issues", () => {
       { severity: "warning", kind: "unvalidated-schema", doc: "openapi.yaml", detail: warning },
     ]);
     expect(formatIssueReport(report)).toContain("Unvalidated Schema Objects (1):");
+  });
+
+  it("collects draft-06/07 node advisories from the document trees and lists them", () => {
+    const root = node("", {
+      children: [
+        node("/components/schemas/X/$ref", {
+          key: "$ref",
+          resolutionAdvisories: [
+            { code: "ignored-ref-siblings", detail: "In draft-06/07, keywords beside $ref are ignored: type." },
+          ],
+        }),
+        node("/components/schemas/Y/$id", {
+          key: "$id",
+          resolutionAdvisories: [
+            { code: "invalid-id-fragment", detail: 'The $id JSON-Pointer fragment "#/nope" names nothing.' },
+          ],
+        }),
+      ],
+    });
+    const withAdvisories = {
+      id: "a",
+      filename: "openapi.yaml",
+      isEntry: true,
+      source: "upload",
+      root,
+    } as OadDocument;
+
+    const report = collectIssues({ documents: [withAdvisories], versionFamily: "3.1" }, refsOf([]), []);
+    expect(report.nodeAdvisories.map((a) => a.code)).toEqual([
+      "ignored-ref-siblings",
+      "invalid-id-fragment",
+    ]);
+    expect(report.nodeAdvisories[0]).toMatchObject({
+      severity: "warning",
+      doc: "openapi.yaml",
+      pointer: "#/components/schemas/X/$ref",
+    });
+    expect(report.total).toBe(2);
+
+    const text = formatIssueReport(report);
+    expect(text).toContain("Reference-resolution advisories (2):");
+    expect(text).toContain("keywords beside $ref are ignored");
   });
 
   it("formats a self-describing plain-text report (root pointer renders as #)", () => {

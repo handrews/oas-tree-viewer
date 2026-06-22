@@ -373,9 +373,11 @@ export class Canvas {
     }
     for (const [key, g] of groups) data.push({ key, kind: "ref", ...g });
 
-    // Dialect-resolution warnings — a property of the tree nodes, independent of references.
+    // Node-level resolution caveats — a property of the tree nodes, independent of references: an
+    // unsupported `$schema`/`jsonSchemaDialect`, or a draft-06/07 advisory (ignored `$ref` siblings,
+    // a wrong `$id` fragment).
     for (const view of this.views) {
-      for (const node of dialectWarnNodes(view.doc.root)) {
+      for (const node of resolutionWarnNodes(view.doc.root)) {
         const p = view.labelEndViewport(node.id);
         if (!p) continue;
         data.push({
@@ -383,7 +385,7 @@ export class Canvas {
           kind: "dialect",
           x: p.x,
           y: p.y,
-          title: node.dialectResolutionWarning!,
+          title: resolutionWarnTitle(node),
         });
       }
     }
@@ -503,15 +505,23 @@ type WarnDatum =
   | { key: string; kind: "ref"; x: number; y: number; broken: boolean; count: number }
   | { key: string; kind: "dialect"; x: number; y: number; title: string };
 
-/** Nodes carrying a dialect-resolution warning, anywhere in a document's tree. */
-function dialectWarnNodes(root: TreeNode): TreeNode[] {
+/** Nodes carrying a node-level resolution caveat (dialect warning or draft-06/07 advisory). */
+function resolutionWarnNodes(root: TreeNode): TreeNode[] {
   const out: TreeNode[] = [];
   const visit = (node: TreeNode): void => {
-    if (node.dialectResolutionWarning) out.push(node);
+    if (node.dialectResolutionWarning || node.resolutionAdvisories?.length) out.push(node);
     for (const child of node.children) visit(child);
   };
   visit(root);
   return out;
+}
+
+/** The glyph tooltip for such a node: its dialect warning and/or every draft-06/07 advisory. */
+function resolutionWarnTitle(node: TreeNode): string {
+  const parts: string[] = [];
+  if (node.dialectResolutionWarning) parts.push(node.dialectResolutionWarning);
+  for (const a of node.resolutionAdvisories ?? []) parts.push(a.detail);
+  return parts.join("\n");
 }
 
 /**

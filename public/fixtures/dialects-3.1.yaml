@@ -4,10 +4,10 @@ info:
   version: 1.0.0
   description: >
     Each Schema Object is validated against the dialect it declares — the OAS dialect (default),
-    standard JSON Schema 2020-12, or an older draft. The viewer only RESOLVES references using
-    OAS-dialect / 2020-12 rules, so a Schema Object on another dialect (the draft-07 "Legacy" below)
-    keeps a ⚠ on its $schema row, with a note in the detail panel; it still validates, against
-    draft-07.
+    standard JSON Schema 2020-12, or another draft. The viewer RESOLVES references for the OAS
+    dialect, 2020-12, and draft-06/07; a Schema Object on a dialect it can't resolve (the
+    draft-2019-09 "Legacy" below) keeps a ⚠ on its $schema row, with a note in the detail panel. It
+    still validates, against draft-2019-09.
 paths:
   /pets:
     get:
@@ -39,11 +39,11 @@ components:
       type: object
       properties:
         value: { type: string }
-    # A legacy draft-07 Schema Object — validated against draft-07, but its reference-resolution
-    # rules aren't fully supported, so its $schema row is flagged.
+    # A draft-2019-09 Schema Object — validated against 2019-09, but its reference-resolution rules
+    # (`$recursiveRef`/`$recursiveAnchor`) aren't supported, so its $schema row is flagged.
     Legacy:
       $id: https://example.com/schemas/legacy
-      $schema: http://json-schema.org/draft-07/schema#
+      $schema: https://json-schema.org/draft/2019-09/schema
       type: object
       properties:
         when: { type: string, format: date-time }

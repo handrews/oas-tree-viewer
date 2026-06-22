@@ -3,7 +3,7 @@
 // documents, JSON Pointers, and reasons without any reliance on color or icons, so it can be
 // pasted to a maintainer who can't see the diagram.
 
-import type { Oad, OadDocument } from "../types";
+import type { Oad, OadDocument, ResolutionAdvisoryCode, TreeNode } from "../types";
 import type { DiagnosticCode, ReferenceEdge, RefKind, ResolvedRefs } from "../refs/types";
 import { displayPointer } from "../model/jsonPointer";
 import { docLabel } from "../app/bootstrap";
@@ -41,11 +41,21 @@ export interface DocIssue {
   detail: string;
 }
 
+/** A node-level reference-resolution advisory (draft-06/07 `$ref` siblings or a bad `$id` fragment). */
+export interface NodeAdvisory {
+  severity: "warning";
+  code: ResolutionAdvisoryCode;
+  doc: string;
+  pointer: string;
+  detail: string;
+}
+
 export interface IssueReport {
   entry: string;
   refIssues: RefIssue[];
   advisories: RefAdvisory[];
   docIssues: DocIssue[];
+  nodeAdvisories: NodeAdvisory[];
   total: number;
 }
 
@@ -111,13 +121,29 @@ export function collectIssues(
     }
   }
 
+  // Node-level draft-06/07 advisories (ignored `$ref` siblings, wrong `$id` fragment), set by the
+  // resolver while walking each document's tree.
+  const nodeAdvisories: NodeAdvisory[] = [];
+  for (const d of oad.documents) {
+    if (d.root) collectNodeAdvisories(d.root, docLabel(d, d.id), nodeAdvisories);
+  }
+
   return {
     entry: entryDoc ? docLabel(entryDoc, entryDoc.id) : "(none)",
     refIssues,
     advisories,
     docIssues,
-    total: refIssues.length + advisories.length + docIssues.length,
+    nodeAdvisories,
+    total: refIssues.length + advisories.length + docIssues.length + nodeAdvisories.length,
   };
+}
+
+/** Walk a document tree, lifting every node's `resolutionAdvisories` into located report entries. */
+function collectNodeAdvisories(node: TreeNode, doc: string, out: NodeAdvisory[]): void {
+  for (const a of node.resolutionAdvisories ?? []) {
+    out.push({ severity: "warning", code: a.code, doc, pointer: displayPointer(node.id), detail: a.detail });
+  }
+  for (const child of node.children) collectNodeAdvisories(child, doc, out);
 }
 
 function refDetail(e: Pick<ReferenceEdge, "status" | "resolution" | "requiredType" | "targetType" | "refString">): string {
@@ -185,6 +211,14 @@ export function formatIssueReport(report: IssueReport): string {
     for (const a of report.advisories) {
       lines.push(`  [${a.severity}] ${a.sourceDoc} ${a.sourcePointer}`);
       lines.push(`      ${refLabel(a.kind)}: ${a.refString}`);
+      lines.push(`      ${a.detail}`);
+    }
+  }
+
+  if (report.nodeAdvisories.length) {
+    lines.push("", `Reference-resolution advisories (${report.nodeAdvisories.length}):`);
+    for (const a of report.nodeAdvisories) {
+      lines.push(`  [${a.severity}] ${a.doc} ${a.pointer}`);
       lines.push(`      ${a.detail}`);
     }
   }

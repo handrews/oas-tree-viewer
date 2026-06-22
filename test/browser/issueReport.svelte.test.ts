@@ -29,7 +29,16 @@ const report: IssueReportData = {
   docIssues: [
     { severity: "warning", kind: "unreachable", doc: "extra.yaml", detail: "not reachable from the entry document" },
   ],
-  total: 3,
+  nodeAdvisories: [
+    {
+      severity: "warning",
+      code: "ignored-ref-siblings",
+      doc: "openapi.yaml",
+      pointer: "#/components/schemas/X/$ref",
+      detail: "In draft-06/07, keywords beside $ref are ignored: type.",
+    },
+  ],
+  total: 4,
 };
 
 test("renders nothing when there is no report", () => {
@@ -41,9 +50,11 @@ test("lists reference and document issues", async () => {
   const screen = render(IssueReport, { report });
   await expect.element(screen.getByText("Unresolved references (1)")).toBeVisible();
   await expect.element(screen.getByText("Reference advisories (1)")).toBeVisible();
+  await expect.element(screen.getByText("Reference-resolution advisories (1)")).toBeVisible();
   await expect.element(screen.getByText("Unreachable documents (1)")).toBeVisible();
   await expect.element(screen.getByText("#/missing")).toBeVisible();
   await expect.element(screen.getByText("#/webhooks/hook/get")).toBeVisible();
+  await expect.element(screen.getByText("#/components/schemas/X/$ref")).toBeVisible();
   await expect.element(screen.getByText("extra.yaml")).toBeVisible();
   expect(document.querySelector("#issues")).not.toBeNull();
 });
