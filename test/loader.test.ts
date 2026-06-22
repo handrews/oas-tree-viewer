@@ -40,14 +40,16 @@ describe("loadDocument (upload)", () => {
     await expect(promise).rejects.toThrow(/components\/schemas\/Pet\/type/);
   });
 
-  it("loads an unsupported-dialect document but flags it with a schemaDialectWarning", async () => {
+  it("loads a document with an unvalidatable dialect, flagged with a schemaDialectWarning", async () => {
+    // A dialect Hyperjump doesn't know (not a draft or the OAS dialect): the Schema Object is
+    // skipped (not validated) rather than failing the load.
     const text = `openapi: 3.1.0
-jsonSchemaDialect: https://json-schema.org/draft-07/schema
+jsonSchemaDialect: https://example.com/custom-dialect
 info: { title: T, version: '1' }
 components: { schemas: { Pet: { type: strang } } }
 `;
     const doc = await loadDocument({ source: "upload", filename: "d.yaml", text, isEntry: true });
-    expect(doc.schemaDialectWarning).toMatch(/draft-07/);
+    expect(doc.schemaDialectWarning).toMatch(/custom-dialect/);
   });
 
   it("rejects a document with no openapi field", async () => {

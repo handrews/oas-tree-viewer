@@ -78,6 +78,12 @@ export interface TreeNode {
   };
   /** How this reference field resolved (set by the resolver); drives the marker shape. */
   resolvedAs?: ResolutionKind;
+  /**
+   * Set on a `$schema` / `jsonSchemaDialect` value node whose dialect the viewer can't fully
+   * *resolve* (anything but the OAS dialect or 2020-12). Drives a warning marker on the row and a
+   * note in the detail panel; the document still validated, but reference arcs use 2020-12 rules.
+   */
+  dialectResolutionWarning?: string;
   /** The scalar value, for leaf nodes only. */
   scalarValue?: string | number | boolean | null;
   children: TreeNode[];

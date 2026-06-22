@@ -19,3 +19,20 @@ export function appendPointer(parent: string, token: string): string {
 export function displayPointer(pointer: string): string {
   return pointer === "" ? "#" : `#${pointer}`;
 }
+
+/**
+ * Resolve a JSON Pointer (RFC 6901) within a parsed JSON/YAML value, returning the addressed
+ * sub-value (or `undefined` if any token is missing). The root pointer "" returns the whole value.
+ */
+export function valueAtPointer(value: unknown, pointer: string): unknown {
+  if (pointer === "") return value;
+  let current = value;
+  for (const rawToken of pointer.split("/").slice(1)) {
+    const token = unescapeToken(rawToken);
+    if (Array.isArray(current)) current = current[Number(token)];
+    else if (current !== null && typeof current === "object") {
+      current = (current as Record<string, unknown>)[token];
+    } else return undefined;
+  }
+  return current;
+}
