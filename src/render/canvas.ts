@@ -350,19 +350,17 @@ export class Canvas {
 
   private drawWarnings(): void {
     if (!this.warnG) return;
-    if (!this.resolved) {
-      this.warnG.selectAll("text").remove();
-      return;
-    }
-    // Group unresolved refs by the row they land on (several can collapse onto the
-    // same ancestor row). Each group renders one glyph; `broken` outranks `external`.
+
+    const data: WarnDatum[] = [];
+
+    // Unresolved references — grouped by the row they land on (several can collapse onto the same
+    // ancestor row). Each group renders one glyph; `broken` outranks `external`.
     const groups = new Map<string, { x: number; y: number; broken: boolean; count: number }>();
-    for (const edge of this.resolved.edges) {
+    for (const edge of this.resolved?.edges ?? []) {
       if (edge.status !== "external" && edge.status !== "broken") continue;
       const sv = this.viewForDoc(edge.sourceDocId);
-      if (!sv) continue;
       // Anchor in the right gutter, past the label, clear of the dot/triangle.
-      const p = sv.labelEndViewport(edge.sourceNodeId);
+      const p = sv?.labelEndViewport(edge.sourceNodeId);
       if (!p) continue;
       const key = `${Math.round(p.x)}:${Math.round(p.y)}`;
       const g = groups.get(key);
@@ -373,13 +371,30 @@ export class Canvas {
         groups.set(key, { x: p.x, y: p.y, broken: edge.status === "broken", count: 1 });
       }
     }
-    const data = [...groups].map(([key, g]) => ({ key, ...g }));
+    for (const [key, g] of groups) data.push({ key, kind: "ref", ...g });
+
+    // Dialect-resolution warnings — a property of the tree nodes, independent of references.
+    for (const view of this.views) {
+      for (const node of dialectWarnNodes(view.doc.root)) {
+        const p = view.labelEndViewport(node.id);
+        if (!p) continue;
+        data.push({
+          key: `dialect:${view.doc.id}:${node.id}`,
+          kind: "dialect",
+          x: p.x,
+          y: p.y,
+          title: node.dialectResolutionWarning!,
+        });
+      }
+    }
 
     this.warnG
-      .selectAll<SVGTextElement, (typeof data)[number]>("text")
+      .selectAll<SVGTextElement, WarnDatum>("text")
       .data(data, (d) => d.key)
       .join("text")
-      .attr("class", (d) => `warn-glyph status-${d.broken ? "broken" : "external"}`)
+      .attr("class", (d) =>
+        d.kind === "dialect" ? "warn-glyph status-dialect" : `warn-glyph status-${d.broken ? "broken" : "external"}`,
+      )
       .attr("x", (d) => d.x + 12)
       .attr("y", (d) => d.y + 6)
       .attr("text-anchor", "start")
@@ -387,6 +402,11 @@ export class Canvas {
         const sel = select(this);
         sel.selectAll("*").remove();
         sel.text(null);
+        if (d.kind === "dialect") {
+          sel.append("title").text(d.title);
+          sel.append("tspan").text("⚠");
+          return;
+        }
         sel.append("title").text(
           d.count > 1
             ? `${d.count} unresolved references on this row`
@@ -476,6 +496,22 @@ export class Canvas {
       this.cb.onLoadAnother?.();
     }
   }
+}
+
+/** A right-gutter warning glyph: an unresolved reference, or an unsupported-dialect field. */
+type WarnDatum =
+  | { key: string; kind: "ref"; x: number; y: number; broken: boolean; count: number }
+  | { key: string; kind: "dialect"; x: number; y: number; title: string };
+
+/** Nodes carrying a dialect-resolution warning, anywhere in a document's tree. */
+function dialectWarnNodes(root: TreeNode): TreeNode[] {
+  const out: TreeNode[] = [];
+  const visit = (node: TreeNode): void => {
+    if (node.dialectResolutionWarning) out.push(node);
+    for (const child of node.children) visit(child);
+  };
+  visit(root);
+  return out;
 }
 
 /**

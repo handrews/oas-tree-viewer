@@ -14,6 +14,7 @@ import {
 import { parseDocument } from "./parse/detectFormat";
 import { buildTree } from "./model/treeBuilder";
 import { classifyDocument } from "./oas/classify";
+import { annotateDialectSupport } from "./oas/dialects";
 import { displayPointer } from "./model/jsonPointer";
 import { validateOad, type SchemaViolation } from "./validation/validateOad";
 
@@ -79,6 +80,7 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
 
   const root = buildTree(value);
   classifyDocument(root, versionFamilyOf(oasVersion));
+  annotateDialectSupport(root, versionFamilyOf(oasVersion));
   assertValidLinks(root, oasVersion);
 
   // Validate against the official OpenAPI JSON Schema (offline). A structural failure rejects the

@@ -52,7 +52,7 @@ describe("colors", () => {
   it("node-shape, line, error, and warning legends cover the documented entries", () => {
     expect(shapeLegend.map((s) => s.shape)).toEqual(["circle", "square"]);
     expect(lineLegend.map((l) => l.variant)).toEqual(["collapsed", "type-mismatch"]);
-    expect(errorIconLegend.map((e) => e.status)).toEqual(["broken", "external"]);
+    expect(errorIconLegend.map((e) => e.status)).toEqual(["broken", "external", "dialect"]);
     for (const row of [...shapeLegend, ...lineLegend, ...errorIconLegend]) {
       expect(row.label).toBeTruthy();
     }
