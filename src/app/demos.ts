@@ -87,11 +87,14 @@ export const demos: Demo[] = [
     id: "dynamicref",
     label: "$dynamicRef / $dynamicAnchor (3.1)",
     description:
-      "JSON-Schema dynamic references: a $dynamicRef whose target depends on the evaluation path " +
-      "points tentatively (dotted) at every $dynamicAnchor of its name in an entry-reachable " +
-      "document. Plus the two static cases — a $dynamicRef whose local fragment is a plain $anchor " +
-      "(resolves like $ref), and a $ref landing on a $dynamicAnchor (treated like $anchor) — a " +
-      "broken $dynamicRef, and a $dynamicAnchor in an unreachable document that is excluded.",
+      "JSON-Schema dynamic references: GenericList's $dynamicRef (#item) points tentatively " +
+      "(dotted) only at the $dynamicAnchors that could actually be its runtime resolution — the " +
+      "outermost same-named anchor on an entry-rooted path that reaches the ref. The entry uses " +
+      "StrictList and LooseList, which override item and extend GenericList, so both win; " +
+      "GenericList's own default is always shadowed (hidden), Unrelated's item can't reach the ref " +
+      "(hidden), and the remote document is unreachable (hidden). Plus the two static cases — a " +
+      "$dynamicRef whose local fragment is a plain $anchor (resolves like $ref), and a $ref landing " +
+      "on a $dynamicAnchor (treated like $anchor) — and a broken $dynamicRef.",
     inputs: [
       urlDoc("dynamicref-3.1.yaml", true),
       urlDoc("dynamicref-shared-3.1.yaml"),

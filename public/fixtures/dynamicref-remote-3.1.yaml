@@ -4,13 +4,12 @@ info:
   title: $dynamicRef — unreachable document
   version: 1.0.0
   description: >
-    Not referenced from the entry, so it is unreachable. Its $dynamicAnchor "item" is therefore
-    excluded from the dynamic #item fan-out — tentative targets are narrowed to entry-reachable
-    documents.
+    Not referenced from the entry, so it is unreachable. Its $dynamicAnchor "item" can never be in
+    an entry-rooted dynamic scope, so it is excluded from GenericList's tentative #item targets.
 paths: {}
 components:
   schemas:
-    RemoteExtension:
-      $id: https://example.com/schemas/remoteextension
+    RemoteList:
+      $id: https://example.com/schemas/remotelist
       $dynamicAnchor: item
       type: object

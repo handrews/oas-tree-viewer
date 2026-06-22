@@ -14,7 +14,8 @@ import type { ReferenceEdge, RefContext, RefStatus, ResolvedRefs } from "./types
 import { refKey } from "./types";
 import { type ViewerConfig, defaultConfig } from "../app/config";
 import { annotateDiagnostics } from "./diagnostics";
-import { reachableDocIds } from "./reachability";
+import { analyzeDynamicScope } from "./dynamicScope";
+import type { AnchorRef, DynamicScopeAnalysis } from "./dynamicScope";
 import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
 
 interface Resource {
@@ -47,6 +48,7 @@ interface Indexes {
   anchorByUri: Map<string, TreeNode>; // `${base}#${name}` -> node ($anchor AND $dynamicAnchor)
   dynamicAnchorByUri: Map<string, TreeNode>; // `${base}#${name}` -> node ($dynamicAnchor only)
   dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>; // every $dynamicAnchor
+  resourceOf: Map<string, Map<string, string>>; // docId -> (nodeId -> the resource base URI it belongs to)
 }
 
 /** Per-resolution context for the version- and config-dependent component rules. */
@@ -73,6 +75,14 @@ interface OpIdSource {
   operationId: string;
 }
 
+/** A lexical-descent transition into a nested `$id` resource (gated by reachability later). */
+interface DescentEdge {
+  from: string;
+  to: string;
+  docId: string;
+  nodeId: string;
+}
+
 /** A Schema with a `$dynamicRef` — resolved after the URI edges (so the anchor maps exist). */
 interface DynRefSource {
   doc: OadDocument;
@@ -89,17 +99,23 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     anchorByUri: new Map(),
     dynamicAnchorByUri: new Map(),
     dynamicAnchorsByName: new Map(),
+    resourceOf: new Map(),
   };
   const sources: RefSource[] = [];
   const opIdSources: OpIdSource[] = [];
   const dynRefSources: DynRefSource[] = [];
+  // Lexical-descent transitions: a parent resource → a nested `$id` resource that evaluation can
+  // descend into (collected during the walk, excluding definition stores). Carries the nested
+  // resource's root node so the transition can be gated by entry reachability later.
+  const descentEdges: Array<DescentEdge> = [];
 
   // Pass 1: index all documents (so cross-document targets are known) and collect sources.
   for (const doc of oad.documents) {
     const pidx = new Map<string, TreeNode>();
     indexes.pointerIndex.set(doc.id, pidx);
+    indexes.resourceOf.set(doc.id, new Map());
     indexDocResource(doc, indexes);
-    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources);
+    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources, descentEdges);
   }
 
   const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
@@ -114,13 +130,32 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     edges.push(resolveOperationId(src, opIndex, `edge-${sources.length + j}`));
   });
 
-  // Pass 2b: resolve `$dynamicRef`s. Their tentative (dynamic) targets are narrowed to documents
-  // reachable from the entry over the static edges resolved so far (operationId/$dynamicRef edges
-  // don't propagate reachability), per the entry-reachable scope.
-  const reachable = reachableDocIds(oad, edges);
+  // Pass 2b: resolve `$dynamicRef`s. A dynamic one's tentative targets are the "strict winners" —
+  // the same-named `$dynamicAnchor`s that could be the *outermost* one in an entry-rooted dynamic
+  // scope reaching this ref (see dynamicScope.ts). Build the resource graph from the located edges
+  // resolved so far plus lexical descent, then narrow.
+  const entryRoot = entry ? docBase(entry) : "";
+  const reachableNodeSet = reachableNodes(entry, edges, indexes.pointerIndex);
+  const resourceEdges = buildResourceEdges(edges, indexes.resourceOf, reachableNodeSet);
+  for (const d of descentEdges) {
+    if (reachableNodeSet.has(nodeKey(d.docId, d.nodeId))) resourceEdges.push({ from: d.from, to: d.to });
+  }
+  const anchorsByName = buildAnchorsByName(indexes.dynamicAnchorsByName, indexes.resourceOf);
+  const dynamicRefDescriptors: Array<{ resourceUri: string; name: string }> = [];
+  for (const src of dynRefSources) {
+    const c = classifyDynamicRef(src.refString, src.base, indexes.dynamicAnchorByUri);
+    if (c.dynamic) dynamicRefDescriptors.push({ resourceUri: src.base, name: c.name });
+  }
+  const analysis = analyzeDynamicScope({
+    entryRoot,
+    resourceEdges,
+    dynamicRefs: dynamicRefDescriptors,
+    anchorsByName,
+  });
+
   let edgeNo = edges.length;
   for (const src of dynRefSources) {
-    for (const edge of resolveDynamicRef(src, indexes, reachable, () => `edge-${edgeNo++}`)) {
+    for (const edge of resolveDynamicRef(src, indexes, analysis, () => `edge-${edgeNo++}`)) {
       edges.push(edge);
     }
   }
@@ -175,15 +210,27 @@ function walkDoc(
   sources: RefSource[],
   opIdSources: OpIdSource[],
   dynRefSources: DynRefSource[],
+  descentEdges: Array<DescentEdge>,
 ): void {
-  const visit = (node: TreeNode, currentBase: string): void => {
+  const ridx = indexes.resourceOf.get(doc.id)!;
+  // `inDefs` tracks whether the path from the enclosing resource's root to here passes through a
+  // definitions store (`$defs`/`definitions`/`components`) — i.e. content that is merely *defined*
+  // (reached only by a reference), not *applied*. A nested `$id` resource reached without crossing
+  // one is descent-reachable; one inside a defs store is not.
+  const visit = (node: TreeNode, currentBase: string, inDefs: boolean): void => {
     pidx.set(node.id, node);
     let base = currentBase;
+    let childrenInDefs = inDefs;
 
     if (node.oasType === "Schema Object") {
       const id = childString(node, "$id");
       if (id !== undefined) {
         base = resolveUri(id, currentBase) ?? currentBase;
+        // Evaluation can descend into this nested resource only when it is applied, not defined.
+        if (!inDefs && base !== currentBase) {
+          descentEdges.push({ from: currentBase, to: base, docId: doc.id, nodeId: node.id });
+        }
+        childrenInDefs = false; // a new resource subtree starts outside any enclosing defs store
         indexes.resourceByUri.set(base, { rootNode: node, doc });
       }
       const anchor = childString(node, "$anchor");
@@ -210,6 +257,9 @@ function walkDoc(
         });
       }
     }
+
+    // Record which resource this node belongs to (an `$id` node belongs to its own new resource).
+    ridx.set(node.id, base);
 
     if (node.isReference && node.refTarget !== undefined) {
       const field = childByKey(node, "$ref");
@@ -268,10 +318,17 @@ function walkDoc(
       });
     }
 
-    for (const child of node.children) visit(child, base);
+    for (const child of node.children) {
+      visit(child, base, childrenInDefs || isDefsBoundary(child));
+    }
   };
 
-  visit(doc.root, docBase(doc));
+  visit(doc.root, docBase(doc), false);
+}
+
+/** Keys whose subtree holds schemas that are *defined* (reached only by a reference), not applied. */
+function isDefsBoundary(node: TreeNode): boolean {
+  return node.key === "$defs" || node.key === "definitions" || node.key === "components";
 }
 
 // ── resolution ───────────────────────────────────────────────────────────────
@@ -347,18 +404,38 @@ function resolveOperationId(
 }
 
 /**
- * Resolve a Schema `$dynamicRef`. It first resolves statically, like a `$ref`. If the statically-
- * located fragment is itself a `$dynamicAnchor` ("bookending"), dynamic scope engages and the real
- * target depends on the evaluation path — so we tentatively point (resolution `"dynamic"`, drawn
- * dotted) at every same-named `$dynamicAnchor` in an entry-reachable document. Otherwise it behaves
- * exactly like a `$ref`: a single static edge (the local `$anchor` — Case A — or broken). A plain
- * `$ref` landing on a `$dynamicAnchor` (Case B) is handled by the normal URI path, since
- * `$dynamicAnchor`s are also registered in `anchorByUri`.
+ * Classify a `$dynamicRef`: it engages dynamic scope ("bookending") iff its statically-located
+ * fragment is itself a `$dynamicAnchor` (a plain name registered in `dynamicAnchorByUri`). Otherwise
+ * it resolves exactly like a `$ref` — the local `$anchor` (Case A), a JSON-Pointer target, or broken.
+ */
+function classifyDynamicRef(
+  refString: string,
+  base: string,
+  dynamicAnchorByUri: Map<string, TreeNode>,
+): { dynamic: true; name: string } | { dynamic: false } {
+  const { uriPart, fragment } = splitFragment(refString);
+  const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
+  const decoded = fragment !== null ? decodeFragment(fragment) : null;
+  const isPlainName = decoded !== null && decoded !== "" && !decoded.startsWith("/");
+  if (resourceUri && isPlainName && dynamicAnchorByUri.has(`${resourceUri}#${decoded}`)) {
+    return { dynamic: true, name: decoded };
+  }
+  return { dynamic: false };
+}
+
+/**
+ * Resolve a Schema `$dynamicRef`. If it engages dynamic scope, the real target depends on the
+ * evaluation path — so we tentatively point (resolution `"dynamic"`, drawn dotted) at the *strict
+ * winners*: the same-named `$dynamicAnchor`s that could be the outermost one on an entry-rooted path
+ * reaching this ref (computed by {@link analyzeDynamicScope}). A ref the entry never reaches yields
+ * no edges. Otherwise it behaves exactly like a `$ref`: a single static edge (the local `$anchor` —
+ * Case A — or broken). A plain `$ref` landing on a `$dynamicAnchor` (Case B) is handled by the
+ * normal URI path, since `$dynamicAnchor`s are also registered in `anchorByUri`.
  */
 function resolveDynamicRef(
   src: DynRefSource,
   indexes: Indexes,
-  reachable: Set<string>,
+  analysis: DynamicScopeAnalysis,
   nextId: () => string,
 ): ReferenceEdge[] {
   const makeEdge = (overrides: Partial<ReferenceEdge>): ReferenceEdge => ({
@@ -375,17 +452,10 @@ function resolveDynamicRef(
     ...overrides,
   });
 
-  const { uriPart, fragment } = splitFragment(src.refString);
-  const resourceUri = uriPart === "" ? src.base : resolveUri(uriPart, src.base);
-  const decoded = fragment !== null ? decodeFragment(fragment) : null;
-  const isPlainName = decoded !== null && decoded !== "" && !decoded.startsWith("/");
-
-  if (resourceUri && isPlainName && indexes.dynamicAnchorByUri.has(`${resourceUri}#${decoded}`)) {
+  const classified = classifyDynamicRef(src.refString, src.base, indexes.dynamicAnchorByUri);
+  if (classified.dynamic) {
     src.fieldNode.resolvedAs = "dynamic";
-    const targets = (indexes.dynamicAnchorsByName.get(decoded) ?? []).filter((t) =>
-      reachable.has(t.docId),
-    );
-    return targets.map((t) =>
+    return analysis.winners(src.base, classified.name).map((t) =>
       makeEdge({
         resolution: "dynamic",
         status: "resolved",
@@ -399,6 +469,99 @@ function resolveDynamicRef(
   // Static: exactly like a `$ref` (Case A local `$anchor`, Case B `$dynamicAnchor`, or broken).
   src.fieldNode.resolvedAs = "uri-reference";
   return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
+}
+
+/** Key into the node-reachability set. */
+function nodeKey(docId: string, nodeId: string): string {
+  return `${docId} ${nodeId}`;
+}
+
+/**
+ * The nodes actually *evaluated* on some entry-rooted path: descend from the entry root through
+ * applied positions (everything except definition stores — `$defs`/`definitions`/`components`,
+ * skipped by {@link isDefsBoundary}) and follow located references. A component buried in a defs
+ * store is reached only if something references it; an unreferenced one is never evaluated, so its
+ * own references must not contribute dynamic-scope transitions.
+ */
+function reachableNodes(
+  entry: OadDocument | undefined,
+  edges: ReferenceEdge[],
+  pointerIndex: Map<string, Map<string, TreeNode>>,
+): Set<string> {
+  const reachable = new Set<string>();
+  if (!entry) return reachable;
+  const refAdj = new Map<string, Array<{ docId: string; nodeId: string }>>();
+  for (const e of edges) {
+    if (e.targetDocId == null || e.targetNodeId == null) continue;
+    const k = nodeKey(e.sourceDocId, e.sourceObjectId);
+    (refAdj.get(k) ?? refAdj.set(k, []).get(k)!).push({ docId: e.targetDocId, nodeId: e.targetNodeId });
+  }
+  const queue: Array<{ docId: string; node: TreeNode }> = [{ docId: entry.id, node: entry.root }];
+  reachable.add(nodeKey(entry.id, entry.root.id));
+  while (queue.length) {
+    const { docId, node } = queue.shift()!;
+    for (const child of node.children) {
+      if (isDefsBoundary(child)) continue; // do not lexically descend into a definition store
+      const ck = nodeKey(docId, child.id);
+      if (!reachable.has(ck)) {
+        reachable.add(ck);
+        queue.push({ docId, node: child });
+      }
+    }
+    for (const t of refAdj.get(nodeKey(docId, node.id)) ?? []) {
+      const tk = nodeKey(t.docId, t.nodeId);
+      if (reachable.has(tk)) continue;
+      const tnode = pointerIndex.get(t.docId)?.get(t.nodeId);
+      if (tnode) {
+        reachable.add(tk);
+        queue.push({ docId: t.docId, node: tnode });
+      }
+    }
+  }
+  return reachable;
+}
+
+/**
+ * Lift located reference edges to resource-level transitions (deduped, self-loops dropped). Only
+ * edges whose *source* node is evaluated on some entry-rooted path count — a reference inside an
+ * unreachable (defined-but-unapplied) schema is never followed, so it transitions nothing.
+ */
+function buildResourceEdges(
+  edges: ReferenceEdge[],
+  resourceOf: Map<string, Map<string, string>>,
+  reachable: Set<string>,
+): Array<{ from: string; to: string }> {
+  const out: Array<{ from: string; to: string }> = [];
+  const seen = new Set<string>();
+  for (const e of edges) {
+    if (e.targetDocId == null || e.targetNodeId == null) continue;
+    if (!reachable.has(nodeKey(e.sourceDocId, e.sourceObjectId))) continue;
+    const from = resourceOf.get(e.sourceDocId)?.get(e.sourceObjectId);
+    const to = resourceOf.get(e.targetDocId)?.get(e.targetNodeId);
+    if (from == null || to == null || from === to) continue;
+    const key = `${from}\n${to}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ from, to });
+  }
+  return out;
+}
+
+/** Tag every `$dynamicAnchor` with the resource that declares it, grouped by name. */
+function buildAnchorsByName(
+  dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>,
+  resourceOf: Map<string, Map<string, string>>,
+): Map<string, AnchorRef[]> {
+  const out = new Map<string, AnchorRef[]>();
+  for (const [name, list] of dynamicAnchorsByName) {
+    const refs: AnchorRef[] = [];
+    for (const { docId, node } of list) {
+      const resourceUri = resourceOf.get(docId)?.get(node.id);
+      if (resourceUri != null) refs.push({ resourceUri, docId, node });
+    }
+    out.set(name, refs);
+  }
+  return out;
 }
 
 /** Resolve a string as a URI-reference (the `$ref`/`operationRef` path; reused by components). */
