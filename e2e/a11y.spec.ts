@@ -70,10 +70,10 @@ for (const theme of ["dark", "light"] as const) {
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
 
-    test("draft-06/07 references view", async ({ page }) => {
-      // Exercises the broadened dialect ⚠ glyph (draft-06/07 advisories) and the new issue-drawer
+    test("draft-04/06/07 references view", async ({ page }) => {
+      // Exercises the broadened dialect ⚠ glyph (numbered-draft advisories) and the new issue-drawer
       // category against the contrast gate.
-      await page.goto("/view?demo=draft07");
+      await page.goto("/view?demo=numbered-drafts");
       await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
       await page.getByRole("button", { name: "Show all references" }).click();
       await setTheme(page, theme);

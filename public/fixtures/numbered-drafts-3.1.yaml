@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
-  title: draft-06/07 references & identification
+  title: draft-04/06/07 references & identification
   version: 1.0.0
   description: >
-    The document default dialect is draft-07 (jsonSchemaDialect), so every Schema Object below uses
-    the numbered-draft model: anchors come from $id FRAGMENTS rather than $anchor, keywords beside
-    $ref are ignored, and a JSON-Pointer $id fragment must be the schema's own location. "Catalog" is
-    a draft-07 resource; "Modern" re-declares 2020-12, where $anchor still works — confirming other
-    dialects are unaffected.
+    The document default dialect is draft-07 (jsonSchemaDialect), so most Schema Objects below use the
+    numbered-draft model: anchors come from identifier FRAGMENTS rather than $anchor, keywords beside
+    $ref are ignored, and a JSON-Pointer identifier fragment must be the schema's own location.
+    "Catalog" is a draft-07 resource (identifier keyword $id); "Draft04" re-declares draft-04, whose
+    identifier keyword is the un-prefixed "id"; "Modern" re-declares 2020-12, where $anchor still
+    works — confirming other dialects are unaffected.
 jsonSchemaDialect: 'http://json-schema.org/draft-07/schema#'
 paths:
   /catalog:
@@ -54,6 +55,21 @@ components:
         notAnchor:
           $anchor: ghost
           type: string
+    # draft-04: same model as draft-07, but the identifier keyword is the un-prefixed `id` (no $id).
+    Draft04:
+      $schema: 'http://json-schema.org/draft-04/schema#'
+      id: https://example.com/draft04/root
+      type: object
+      properties:
+        # Resolves to the `id`-fragment anchor "#leaf" (draft-04 has no $anchor either).
+        viaIdAnchor: { $ref: 'https://example.com/draft04/root#leaf' }
+        leaf:
+          id: '#leaf'
+          type: string
+        # WARNING: an `id` JSON-Pointer fragment that is NOT this schema's location ⇒ ignored.
+        misId:
+          id: '#/properties/wrong'
+          type: integer
     Modern:
       $id: https://example.com/modern
       $schema: https://json-schema.org/draft/2020-12/schema
