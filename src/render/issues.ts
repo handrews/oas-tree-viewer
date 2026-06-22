@@ -33,9 +33,10 @@ export interface RefAdvisory {
   detail: string;
 }
 
-/** A document-level problem (currently only unreachability). */
+/** A document-level problem: unreachable from the entry, or Schema Objects left unvalidated. */
 export interface DocIssue {
   severity: "warning";
+  kind: "unreachable" | "unvalidated-schema";
   doc: string;
   detail: string;
 }
@@ -94,9 +95,21 @@ export function collectIssues(
   const entryDoc = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
   const docIssues: DocIssue[] = unreachable.map((d) => ({
     severity: "warning",
+    kind: "unreachable",
     doc: docLabel(d, d.id),
     detail: "not reachable from the entry document",
   }));
+  // Documents whose Schema Objects use a dialect the validator doesn't support (loose fallback).
+  for (const d of oad.documents) {
+    if (d.schemaDialectWarning) {
+      docIssues.push({
+        severity: "warning",
+        kind: "unvalidated-schema",
+        doc: docLabel(d, d.id),
+        detail: d.schemaDialectWarning,
+      });
+    }
+  }
 
   return {
     entry: entryDoc ? docLabel(entryDoc, entryDoc.id) : "(none)",
@@ -176,9 +189,18 @@ export function formatIssueReport(report: IssueReport): string {
     }
   }
 
-  if (report.docIssues.length) {
-    lines.push("", `Unreachable documents (${report.docIssues.length}):`);
-    for (const i of report.docIssues) {
+  const unreachable = report.docIssues.filter((i) => i.kind === "unreachable");
+  if (unreachable.length) {
+    lines.push("", `Unreachable documents (${unreachable.length}):`);
+    for (const i of unreachable) {
+      lines.push(`  ${i.doc} — ${i.detail}`);
+    }
+  }
+
+  const unvalidated = report.docIssues.filter((i) => i.kind === "unvalidated-schema");
+  if (unvalidated.length) {
+    lines.push("", `Unvalidated Schema Objects (${unvalidated.length}):`);
+    for (const i of unvalidated) {
       lines.push(`  ${i.doc} — ${i.detail}`);
     }
   }

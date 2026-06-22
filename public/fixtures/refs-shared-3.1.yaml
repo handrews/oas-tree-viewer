@@ -1,5 +1,4 @@
 openapi: 3.1.0
-$self: https://example.com/oad/shared.yaml
 info:
   title: Shared Components
   version: 1.0.0

@@ -26,7 +26,9 @@ const report: IssueReportData = {
       detail: "the target Operation is a webhook, which is not directly callable",
     },
   ],
-  docIssues: [{ severity: "warning", doc: "extra.yaml", detail: "not reachable from the entry document" }],
+  docIssues: [
+    { severity: "warning", kind: "unreachable", doc: "extra.yaml", detail: "not reachable from the entry document" },
+  ],
   total: 3,
 };
 

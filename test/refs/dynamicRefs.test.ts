@@ -16,13 +16,13 @@ import type { Oad } from "../../src/types";
 // overriding extension, so its own default is shadowed.
 const ENTRY = `
 openapi: 3.1.0
-$self: https://example.com/oad/entry
 info: { title: Entry, version: '1.0' }
 paths:
   /strict:
     get:
       responses:
         '200':
+          description: ok
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StrictList' }
@@ -30,6 +30,7 @@ paths:
     get:
       responses:
         '200':
+          description: ok
           content:
             application/json:
               schema: { $ref: 'shared#/components/schemas/LooseList' }
@@ -37,6 +38,7 @@ paths:
     get:
       responses:
         '200':
+          description: ok
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Unrelated' }
@@ -91,7 +93,6 @@ components:
 // LeafOverride's $dynamicAnchor "leaf" must NOT capture FixedList (Case A stays static).
 const SHARED = `
 openapi: 3.1.0
-$self: https://example.com/oad/shared
 info: { title: Shared, version: '1.0' }
 paths: {}
 components:
@@ -110,7 +111,6 @@ components:
 // Unreachable: its $dynamicAnchor item is never in any entry-rooted scope → excluded.
 const REMOTE = `
 openapi: 3.1.0
-$self: https://example.com/oad/remote
 info: { title: Remote, version: '1.0' }
 paths: {}
 components:
@@ -131,9 +131,19 @@ const dynRefs = (frag: string): ReferenceEdge[] =>
   refs.edges.filter((e) => e.kind === "$dynamicRef" && e.refString === frag);
 
 beforeAll(async () => {
-  const entry = await makeDoc(ENTRY, { isEntry: true, filename: "entry.yaml" });
-  const shared = await makeDoc(SHARED, { filename: "shared.yaml" });
-  const remote = await makeDoc(REMOTE, { filename: "remote.yaml" });
+  const entry = await makeDoc(ENTRY, {
+    isEntry: true,
+    filename: "entry.yaml",
+    retrievalUri: "https://example.com/oad/entry",
+  });
+  const shared = await makeDoc(SHARED, {
+    filename: "shared.yaml",
+    retrievalUri: "https://example.com/oad/shared",
+  });
+  const remote = await makeDoc(REMOTE, {
+    filename: "remote.yaml",
+    retrievalUri: "https://example.com/oad/remote",
+  });
   entryId = entry.id;
   sharedId = shared.id;
   remoteId = remote.id;
@@ -219,13 +229,13 @@ describe("$ref to a $dynamicAnchor (Case B)", () => {
 describe("$dynamicRef — default reappears on direct use", () => {
   const ENTRY2 = `
 openapi: 3.1.0
-$self: https://example.com/oad/e2
 info: { title: E2, version: '1.0' }
 paths:
   /base:
     get:
       responses:
         '200':
+          description: ok
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GenericList' }
@@ -233,6 +243,7 @@ paths:
     get:
       responses:
         '200':
+          description: ok
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StrictList' }

@@ -7,7 +7,6 @@ import { makeDoc, makeOad } from "../helpers";
 // Entry document exercising every reference location and outcome.
 const ENTRY = `
 openapi: 3.1.0
-$self: https://example.com/oad/entry.yaml
 info: { title: Entry, version: '1.0' }
 paths:
   /pets:
@@ -42,7 +41,6 @@ components:
 // Referenced document with an $id/$anchor schema resource and an internal $defs ref.
 const SHARED = `
 openapi: 3.1.0
-$self: https://example.com/oad/shared.yaml
 info: { title: Shared, version: '1.0' }
 paths: {}
 components:
@@ -78,8 +76,15 @@ function byRef(refString: string): ReferenceEdge[] {
 }
 
 beforeAll(async () => {
-  const entry = await makeDoc(ENTRY, { isEntry: true, filename: "entry.yaml" });
-  const shared = await makeDoc(SHARED, { filename: "shared.yaml" });
+  const entry = await makeDoc(ENTRY, {
+    isEntry: true,
+    filename: "entry.yaml",
+    retrievalUri: "https://example.com/oad/entry.yaml",
+  });
+  const shared = await makeDoc(SHARED, {
+    filename: "shared.yaml",
+    retrievalUri: "https://example.com/oad/shared.yaml",
+  });
   entryId = entry.id;
   sharedId = shared.id;
   refs = resolveOad(makeOad(entry, shared));

@@ -140,9 +140,30 @@ describe("issues", () => {
   it("collects unreachable documents as warnings", () => {
     const report = collectIssues(oad, refsOf([]), [other]);
     expect(report.docIssues).toEqual([
-      { severity: "warning", doc: "common.yaml", detail: "not reachable from the entry document" },
+      {
+        severity: "warning",
+        kind: "unreachable",
+        doc: "common.yaml",
+        detail: "not reachable from the entry document",
+      },
     ]);
     expect(report.total).toBe(1);
+  });
+
+  it("reports a document with an unvalidated Schema-Object dialect as a warning", () => {
+    const warning = "Schema Objects use the dialect draft-07, which this tool can't yet validate.";
+    const warned = {
+      id: "a",
+      filename: "openapi.yaml",
+      isEntry: true,
+      source: "upload",
+      schemaDialectWarning: warning,
+    } as OadDocument;
+    const report = collectIssues({ documents: [warned], versionFamily: "3.1" }, refsOf([]), []);
+    expect(report.docIssues).toEqual([
+      { severity: "warning", kind: "unvalidated-schema", doc: "openapi.yaml", detail: warning },
+    ]);
+    expect(formatIssueReport(report)).toContain("Unvalidated Schema Objects (1):");
   });
 
   it("formats a self-describing plain-text report (root pointer renders as #)", () => {

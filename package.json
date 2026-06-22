@@ -19,6 +19,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
+    "@hyperjump/json-schema": "^1.17.6",
     "d3": "^7.9.0",
     "yaml": "^2.6.1"
   },

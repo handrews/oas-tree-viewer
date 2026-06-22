@@ -1,5 +1,4 @@
 openapi: 3.1.0
-$self: https://example.com/oad/dynamicref
 info:
   title: $dynamicRef / $dynamicAnchor — strict winners
   version: 1.0.0
@@ -23,6 +22,7 @@ paths:
     get:
       responses:
         '200':
+          description: OK
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StrictList' }
@@ -30,6 +30,7 @@ paths:
     get:
       responses:
         '200':
+          description: OK
           content:
             application/json:
               schema: { $ref: 'dynamicref-shared#/components/schemas/LooseList' }
@@ -37,6 +38,7 @@ paths:
     get:
       responses:
         '200':
+          description: OK
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Unrelated' }

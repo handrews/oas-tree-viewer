@@ -108,6 +108,12 @@ export interface OadDocument {
   value: unknown;
   /** The root `openapi` version string, e.g. "3.1.0". Always present (non-OAS = error). */
   oasVersion: string;
+  /**
+   * Set when schema validation could not check this document's Schema Objects because they use a
+   * dialect the tool doesn't validate yet — the structure was validated, the Schema Objects were
+   * not. Surfaced as a non-blocking issue-report warning; absent when fully validated.
+   */
+  schemaDialectWarning?: string;
   root: TreeNode;
 }
 
