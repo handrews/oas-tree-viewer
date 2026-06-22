@@ -104,6 +104,16 @@ export const demos: Demo[] = [
       urlDoc("dynamicref-remote-3.1.yaml", false, "https://example.com/oad/dynamicref-remote"),
     ],
   },
+  {
+    id: "dialects",
+    label: "Mixed Schema-Object dialects (3.1)",
+    description:
+      "Per-resource validation: each Schema Object is checked against the dialect it declares — the " +
+      "OAS dialect, JSON Schema 2020-12, or draft-07. The viewer only resolves references for the OAS " +
+      "dialect and 2020-12, so the draft-07 schema's $schema row carries a ⚠ (with a detail-panel " +
+      "note) even though it still validates.",
+    inputs: [urlDoc("dialects-3.1.yaml", true)],
+  },
 ];
 
 const byId = new Map(demos.map((d) => [d.id, d]));

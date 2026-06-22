@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: Mixed Schema-Object dialects
+  version: 1.0.0
+  description: >
+    Each Schema Object is validated against the dialect it declares — the OAS dialect (default),
+    standard JSON Schema 2020-12, or an older draft. The viewer only RESOLVES references using
+    OAS-dialect / 2020-12 rules, so a Schema Object on another dialect (the draft-07 "Legacy" below)
+    keeps a ⚠ on its $schema row, with a note in the detail panel; it still validates, against
+    draft-07.
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+components:
+  schemas:
+    # Default OAS dialect — validated against the OAS dialect, fully resolvable.
+    Pet:
+      type: object
+      properties:
+        id: { type: integer }
+        tag: { $ref: '#/components/schemas/Tag' }
+        plain: { $ref: '#/components/schemas/Plain2020' }
+        legacy: { $ref: '#/components/schemas/Legacy' }
+    Tag:
+      type: object
+      properties:
+        name: { type: string }
+    # An embedded resource on standard JSON Schema 2020-12 — validated against 2020-12, resolvable.
+    Plain2020:
+      $id: https://example.com/schemas/plain2020
+      $schema: https://json-schema.org/draft/2020-12/schema
+      type: object
+      properties:
+        value: { type: string }
+    # A legacy draft-07 Schema Object — validated against draft-07, but its reference-resolution
+    # rules aren't fully supported, so its $schema row is flagged.
+    Legacy:
+      $id: https://example.com/schemas/legacy
+      $schema: http://json-schema.org/draft-07/schema#
+      type: object
+      properties:
+        when: { type: string, format: date-time }
