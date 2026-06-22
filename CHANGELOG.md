@@ -5,6 +5,29 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-06-21
+
+### Added
+
+- A rendered **Changelog** page, themed to match the app and served alongside it, reachable
+  from the header.
+
+### Changed
+
+- The header is now two compact lines: the renamed title **"OpenAPI Description Structure
+  Viewer"** above a single line carrying the version, a Changelog link, and a GitHub link.
+- **`$dynamicRef` resolution is more precise.** A dynamic `$dynamicRef` now points only at the
+  `$dynamicAnchor`s that could actually be its runtime resolution — the outermost same-named
+  anchor on an evaluation path, rooted in the entry document, that reaches the reference —
+  rather than at every same-named anchor in a reachable document. Anchors that can never be
+  reached, or are always shadowed by an outer one, are no longer shown.
+- Tentative (`$dynamicRef`) arcs use denser, more legible dotting.
+
+### Fixed
+
+- The Explore page's headings now descend without skipping a level, for a clean accessibility
+  audit.
+
 ## [0.3.0] — 2026-06-20
 
 The reference-resolution release: the viewer now understands every kind of connection
@@ -115,6 +138,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[0.3.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.2.3...v0.3.0
 [0.2.3]: https://github.com/handrews/oas-tree-viewer/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/handrews/oas-tree-viewer/compare/v0.2.1...v0.2.2
