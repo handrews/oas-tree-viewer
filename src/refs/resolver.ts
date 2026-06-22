@@ -17,7 +17,7 @@ import { annotateDiagnostics } from "./diagnostics";
 import { analyzeDynamicScope } from "./dynamicScope";
 import type { AnchorRef, DynamicScopeAnalysis } from "./dynamicScope";
 import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
-import { type ReferenceModel, referenceModel } from "../oas/dialects";
+import { idKeyword, referenceModel } from "../oas/dialects";
 
 interface Resource {
   rootNode: TreeNode;
@@ -215,9 +215,10 @@ function walkDoc(
   version: VersionFamily,
 ): void {
   const ridx = indexes.resourceOf.get(doc.id)!;
-  // The document's default referencing model (its `jsonSchemaDialect`, else the OAS dialect), which
-  // each Schema Object inherits until one re-declares the dialect via `$schema`.
-  const docModel = referenceModel(childString(doc.root, "jsonSchemaDialect"), version);
+  // The document's default dialect (its `jsonSchemaDialect`, else undefined ⇒ the OAS dialect), which
+  // each Schema Object inherits — and so its referencing model + identifier keyword — until one
+  // re-declares the dialect via `$schema`.
+  const docDialect = childString(doc.root, "jsonSchemaDialect");
   // `inDefs` tracks whether the path from the enclosing resource's root to here passes through a
   // definitions store (`$defs`/`definitions`/`components`) — i.e. content that is merely *defined*
   // (reached only by a reference), not *applied*. A nested `$id` resource reached without crossing
@@ -226,23 +227,26 @@ function walkDoc(
     node: TreeNode,
     currentBase: string,
     inDefs: boolean,
-    currentModel: ReferenceModel,
+    currentDialect: string | undefined,
     resourceRootId: string,
   ): void => {
     pidx.set(node.id, node);
     let base = currentBase;
     let childrenInDefs = inDefs;
-    let model = currentModel;
+    let dialect = currentDialect;
     let rootId = resourceRootId;
 
     if (node.oasType === "Schema Object") {
-      // A `$schema` re-declares the dialect — and so the referencing model — for this subtree.
+      // A `$schema` re-declares the dialect — and so the referencing model + identifier keyword —
+      // for this subtree.
       const schema = childString(node, "$schema");
-      if (schema !== undefined) model = referenceModel(schema, version);
+      if (schema !== undefined) dialect = schema;
+      const model = referenceModel(dialect, version);
+      const idKey = idKeyword(dialect, version);
 
-      const id = childString(node, "$id");
+      const id = childString(node, idKey);
       if (id !== undefined && model === "numbered-draft") {
-        // draft-06/07: the non-fragment part sets the base; the fragment, if any, is either a
+        // draft-04/06/07: the non-fragment part sets the base; the fragment, if any, is either a
         // plain-name anchor (like a 2020-12 `$anchor`) or a JSON-Pointer that must be this schema's
         // own location. `$anchor`/`$dynamicAnchor`/`$dynamicRef` don't exist in this model.
         const { uriPart, fragment } = splitFragment(id);
@@ -262,10 +266,10 @@ function walkDoc(
             // JSON-Pointer fragment (the empty fragment included): must point to this schema itself.
             const expected = node.id.slice(rootId.length);
             if (decoded !== expected) {
-              addAdvisory(node, "$id", {
+              addAdvisory(node, idKey, {
                 code: "invalid-id-fragment",
                 detail:
-                  `The $id JSON-Pointer fragment "#${decoded}" is not this schema's own location ` +
+                  `The ${idKey} JSON-Pointer fragment "#${decoded}" is not this schema's own location ` +
                   `("#${expected}"), so it names nothing and is ignored.`,
               });
             }
@@ -311,7 +315,7 @@ function walkDoc(
         }
       }
 
-      // draft-06/07 ignore every keyword beside `$ref`; warn when a `$ref` schema carries siblings.
+      // draft-04/06/07 ignore every keyword beside `$ref`; warn when a `$ref` schema carries siblings.
       // The advisory describes the whole schema, so it rides on the Schema Object node itself.
       if (model === "numbered-draft" && node.isReference) {
         const ignored = node.children
@@ -320,7 +324,7 @@ function walkDoc(
         if (ignored.length) {
           (node.resolutionAdvisories ??= []).push({
             code: "ignored-ref-siblings",
-            detail: `In draft-06/07, keywords beside $ref are ignored: ${ignored.join(", ")}.`,
+            detail: `In draft-04/06/07, keywords beside $ref are ignored: ${ignored.join(", ")}.`,
           });
         }
       }
@@ -387,11 +391,11 @@ function walkDoc(
     }
 
     for (const child of node.children) {
-      visit(child, base, childrenInDefs || isDefsBoundary(child), model, rootId);
+      visit(child, base, childrenInDefs || isDefsBoundary(child), dialect, rootId);
     }
   };
 
-  visit(doc.root, docBase(doc), false, docModel, doc.root.id);
+  visit(doc.root, docBase(doc), false, docDialect, doc.root.id);
 }
 
 /** Keys whose subtree holds schemas that are *defined* (reached only by a reference), not applied. */

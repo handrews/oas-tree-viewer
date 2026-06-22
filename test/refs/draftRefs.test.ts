@@ -53,6 +53,18 @@ components:
       type: object
       properties:
         leaf: { $anchor: leaf, type: string }
+    Draft04:
+      $schema: 'http://json-schema.org/draft-04/schema#'
+      id: https://example.com/draft04/root
+      type: object
+      properties:
+        viaIdAnchor: { $ref: 'https://example.com/draft04/root#leaf' }
+        leaf:
+          id: '#leaf'
+          type: string
+        misId:
+          id: '#/properties/wrong'
+          type: integer
 `;
 
 const P = "/components/schemas/Catalog";
@@ -71,7 +83,7 @@ function at(root: TreeNode, pointer: string): TreeNode {
   return found;
 }
 
-describe("draft-06/07 reference & identification semantics", () => {
+describe("draft-04/06/07 reference & identification semantics", () => {
   let refs: ResolvedRefs;
   let doc: OadDocument;
   const byRef = (refString: string): ReferenceEdge =>
@@ -119,5 +131,19 @@ describe("draft-06/07 reference & identification semantics", () => {
   it("leaves a correct `$id` JSON-Pointer fragment and a plain-name `$id` unflagged", () => {
     expect(at(doc.root, `${P}/properties/selfPointed/$id`).resolutionAdvisories).toBeUndefined();
     expect(at(doc.root, `${P}/properties/thing/$id`).resolutionAdvisories).toBeUndefined();
+  });
+
+  it("reads draft-04 `id` (not `$id`) for the base and anchors, and flags a wrong `id` fragment", () => {
+    const D = "/components/schemas/Draft04";
+    // `id` set the base and a nested `id: '#leaf'` is the anchor the `$ref` resolves to.
+    const e = byRef("https://example.com/draft04/root#leaf");
+    expect(e.status).toBe("resolved");
+    expect(e.targetNodeId).toBe(`${D}/properties/leaf`);
+
+    // A wrong `id` JSON-Pointer fragment is flagged on the `id` row; a correct/plain one is not.
+    const bad = at(doc.root, `${D}/properties/misId/id`).resolutionAdvisories ?? [];
+    expect(bad.map((a) => a.code)).toEqual(["invalid-id-fragment"]);
+    expect(bad[0]!.detail).toMatch(/^The id JSON-Pointer fragment/); // message names `id`, not `$id`
+    expect(at(doc.root, `${D}/properties/leaf/id`).resolutionAdvisories).toBeUndefined();
   });
 });
