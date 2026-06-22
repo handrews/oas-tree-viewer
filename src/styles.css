@@ -662,6 +662,9 @@ body {
 .warn-glyph.status-external {
   fill: var(--ref-external);
 }
+.warn-glyph.status-dialect {
+  fill: var(--warn);
+}
 .warn-glyph .warn-count {
   font-size: 0.72em;
   font-weight: 700;
@@ -845,6 +848,9 @@ body {
 }
 .legend-warn.status-external {
   color: var(--ref-external);
+}
+.legend-warn.status-dialect {
+  color: var(--warn);
 }
 
 /* Reference-advisory glyph (▲), sized as large text (>=18.66px bold) so the orange/yellow clears

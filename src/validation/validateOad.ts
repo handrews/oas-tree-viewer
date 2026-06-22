@@ -1,16 +1,21 @@
 // Validate a loaded document against the official OpenAPI JSON Schema, offline.
 //
-// `@hyperjump/json-schema` pre-loads the OAS 3.1/3.2 schema families (envelope `schema`, the
-// OAS-dialect `schema-base`, and a `schema-draft-2020-12` variant) plus the JSON Schema 2020-12
-// core — all bundled, so nothing is fetched at runtime. We pick the validation entry schema from
-// the document's declared Schema-Object dialect (its `jsonSchemaDialect` and any Schema-Object
-// `$schema`), validating deeply against the OAS dialect or standard 2020-12, and falling back to
-// envelope-only ("loose") validation plus a warning for any dialect we don't yet support.
+// `@hyperjump/json-schema` pre-loads the OAS 3.1/3.2 schemas and the JSON Schema draft meta-schemas
+// (04/06/07/2019-09/2020-12), so nothing is fetched at runtime. Validation has two parts:
 //
-// The Hyperjump import is dynamic so the validator + its schemas land in a lazily-loaded chunk,
-// keeping them out of the initial app bundle.
+//  1. Envelope — the whole document is validated against the loose OAS `schema` (Schema Objects are
+//     only checked to be object/boolean), covering the OpenAPI structure.
+//  2. Per-resource Schema Objects — each top-most Schema Object is meta-validated against the
+//     dialect it actually declares (its `$schema`, else the document's `jsonSchemaDialect`, else the
+//     OAS dialect). We instance-validate the Schema Object against that dialect's meta-schema, which
+//     — unlike compiling it as a schema — never resolves the Schema Object's own `$ref`s, so a
+//     document with broken/external references still validates.
+//
+// The Hyperjump import is dynamic so the validator + schemas land in a lazily-loaded chunk.
 
 import type { TreeNode, VersionFamily } from "../types";
+import { displayPointer, valueAtPointer } from "../model/jsonPointer";
+import { isOasDialect, normalizeDialect, oasDialectUri } from "../oas/dialects";
 
 /** One schema-validation failure, located by JSON Pointer within the document. */
 export interface SchemaViolation {
@@ -23,62 +28,8 @@ export interface SchemaViolation {
 
 export interface ValidationResult {
   violations: SchemaViolation[];
-  /** Present when the document's Schema-Object dialect isn't validated deeply (loose fallback). */
+  /** Present when one or more Schema Objects use a dialect this tool can't validate (skipped). */
   dialectWarning?: string;
-}
-
-/** Standard JSON Schema 2020-12 dialect URI. */
-const DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema";
-
-/** Any `https://spec.openapis.org/oas/<version>/dialect[...]` URI is the OAS dialect (base or dated). */
-function isOasDialect(uri: string, version: VersionFamily): boolean {
-  return new RegExp(`^https://spec\\.openapis\\.org/oas/${version}/dialect(/|$)`).test(uri);
-}
-
-type DialectKind = "oas" | "2020-12" | "other";
-
-function classifyDialect(uri: string | undefined, version: VersionFamily): DialectKind {
-  if (uri === undefined) return "oas"; // absent jsonSchemaDialect ⇒ the OAS dialect default
-  if (isOasDialect(uri, version)) return "oas";
-  if (uri === DRAFT_2020_12) return "2020-12";
-  return "other";
-}
-
-/** Pre-loaded Hyperjump schema URIs, by role, for a version family. */
-function entrySchemas(version: VersionFamily): { base: string; draft202012: string; loose: string } {
-  const root = `https://spec.openapis.org/oas/${version}`;
-  return { base: `${root}/schema-base`, draft202012: `${root}/schema-draft-2020-12`, loose: `${root}/schema` };
-}
-
-/**
- * Choose the validation entry schema from the document's declared dialects. Pure (no Hyperjump),
- * so it is unit-testable on its own. v1 decides by the document default; if any declared dialect is
- * unsupported, fall back to loose validation with a warning. (Mixed *supported* dialects across
- * Schema Objects are validated against the default's schema for now — see the plan.)
- */
-export function selectValidationSchema(
-  defaultDialect: string | undefined,
-  overrideDialects: readonly string[],
-  version: VersionFamily,
-): { entryUri: string; dialectWarning?: string } {
-  const schemas = entrySchemas(version);
-  const all = [defaultDialect, ...overrideDialects];
-  const unsupported = [
-    ...new Set(all.filter((d): d is string => d !== undefined && classifyDialect(d, version) === "other")),
-  ];
-
-  if (unsupported.length > 0) {
-    const list = unsupported.join(", ");
-    return {
-      entryUri: schemas.loose,
-      dialectWarning:
-        `Schema Objects use the dialect ${list}, which this tool can't yet validate. ` +
-        `The document structure was validated, but its Schema Objects were not.`,
-    };
-  }
-
-  if (classifyDialect(defaultDialect, version) === "2020-12") return { entryUri: schemas.draft202012 };
-  return { entryUri: schemas.base };
 }
 
 /** The document-level `jsonSchemaDialect`, if present and a string. */
@@ -90,18 +41,30 @@ function documentDialect(value: unknown): string | undefined {
   return undefined;
 }
 
-/** Every distinct `$schema` declared on a Schema Object in the classified tree. */
-function schemaObjectDialects(root: TreeNode): string[] {
-  const found = new Set<string>();
+/** The top-most Schema Object nodes — each is a resource we hand to the validator as a unit. */
+function topSchemaObjects(root: TreeNode): TreeNode[] {
+  const out: TreeNode[] = [];
   const visit = (node: TreeNode): void => {
     if (node.oasType === "Schema Object") {
-      const schema = node.children.find((c) => c.key === "$schema");
-      if (schema && schema.valueKind === "string") found.add(schema.scalarValue as string);
+      out.push(node); // don't descend: nested schemas validate as part of this one
+      return;
     }
     for (const child of node.children) visit(child);
   };
   visit(root);
-  return [...found];
+  return out;
+}
+
+/** The dialect a Schema Object declares (its `$schema`), else the document/version default. */
+function declaredDialect(node: TreeNode, docDefault: string | undefined): string | undefined {
+  const own = node.children.find((c) => c.key === "$schema");
+  return own && own.valueKind === "string" ? (own.scalarValue as string) : docDefault;
+}
+
+/** Map a declared dialect to the registered meta-schema URI to validate against (OAS → base alias). */
+function metaSchemaUri(declared: string | undefined, version: VersionFamily): string {
+  if (declared === undefined || isOasDialect(declared, version)) return oasDialectUri(version);
+  return normalizeDialect(declared);
 }
 
 // Applicator / structural keywords carry no useful "what's wrong here" signal in a message.
@@ -121,19 +84,21 @@ interface BasicOutput {
   errors?: BasicErrorUnit[];
 }
 
-/** Map Hyperjump's BASIC output into located, de-duplicated violations. */
-function toViolations(output: BasicOutput, version: VersionFamily): SchemaViolation[] {
+/**
+ * Map Hyperjump's BASIC output into located, de-duplicated violations. `prefix` is the JSON Pointer
+ * of the validated subtree within the document ("" for the whole-document envelope pass).
+ */
+function toViolations(output: BasicOutput, version: VersionFamily, prefix: string): SchemaViolation[] {
   const byPointer = new Map<string, Set<string>>();
   for (const unit of output.errors ?? []) {
     if (unit.instanceLocation === undefined) continue;
-    const pointer = unit.instanceLocation.replace(/^#/, "");
-    const keyword = unit.keyword?.split("/").pop() ?? "";
+    const pointer = prefix + unit.instanceLocation.replace(/^#/, "");
+    const keyword = (unit.absoluteKeywordLocation ?? unit.keyword ?? "").split("/").pop() ?? "";
     const set = byPointer.get(pointer) ?? byPointer.set(pointer, new Set()).get(pointer)!;
-    if (keyword && !NOISE_KEYWORDS.has(keyword)) set.add(keyword);
+    if (keyword && !NOISE_KEYWORDS.has(keyword) && !/^\d+$/.test(keyword)) set.add(keyword);
   }
-  // Nothing located (every error was an applicator): emit one root-level violation.
   if (byPointer.size === 0) {
-    return [{ pointer: "", keywords: [], message: `does not conform to the OpenAPI ${version} schema` }];
+    return [{ pointer: prefix, keywords: [], message: `does not conform to the OpenAPI ${version} schema` }];
   }
   return [...byPointer].map(([pointer, keywords]) => {
     const names = [...keywords];
@@ -144,9 +109,10 @@ function toViolations(output: BasicOutput, version: VersionFamily): SchemaViolat
   });
 }
 
-// Lazily import Hyperjump (and register both OAS dialects) exactly once.
+// Lazily import Hyperjump (registering every dialect we validate against) exactly once.
 let validatorPromise: Promise<{
   validate: (uri: string, instance: unknown, format: string) => Promise<unknown>;
+  hasSchema: (uri: string) => boolean;
   BASIC: string;
 }> | null = null;
 
@@ -154,33 +120,58 @@ function loadValidator(): NonNullable<typeof validatorPromise> {
   if (!validatorPromise) {
     validatorPromise = (async () => {
       const oas31 = await import("@hyperjump/json-schema/openapi-3-1");
-      await import("@hyperjump/json-schema/openapi-3-2"); // registers the 3.2 dialect + schemas
+      await import("@hyperjump/json-schema/openapi-3-2"); // OAS 3.2 dialect + schemas
+      // Register the JSON Schema draft meta-schemas so a Schema Object can be validated against the
+      // dialect it declares (2020-12 comes via the openapi modules).
+      await import("@hyperjump/json-schema/draft-04");
+      await import("@hyperjump/json-schema/draft-06");
+      await import("@hyperjump/json-schema/draft-07");
+      await import("@hyperjump/json-schema/draft-2019-09");
       const { BASIC } = await import("@hyperjump/json-schema/experimental");
-      return { validate: oas31.validate as never, BASIC };
+      return { validate: oas31.validate as never, hasSchema: oas31.hasSchema as never, BASIC };
     })();
   }
   return validatorPromise;
 }
 
 /**
- * Validate a parsed document against the OpenAPI schema for its version, choosing the entry schema
- * from its declared Schema-Object dialect. Returns located violations (empty ⇒ valid) plus an
- * optional warning when Schema Objects could not be validated (unsupported dialect).
+ * Validate a parsed document against the OpenAPI schema for its version: the envelope structure plus
+ * each Schema Object against its own declared dialect. Returns located violations (empty ⇒ valid)
+ * plus an optional warning when a Schema Object's dialect could not be validated.
  */
 export async function validateOad(
   value: unknown,
   root: TreeNode,
   version: VersionFamily,
 ): Promise<ValidationResult> {
-  const { entryUri, dialectWarning } = selectValidationSchema(
-    documentDialect(value),
-    schemaObjectDialects(root),
-    version,
-  );
+  const { validate, hasSchema, BASIC } = await loadValidator();
+  const docDefault = documentDialect(value);
+  const violations: SchemaViolation[] = [];
+  const unvalidated: string[] = [];
 
-  const { validate, BASIC } = await loadValidator();
-  const output = (await validate(entryUri, value, BASIC)) as BasicOutput;
+  // 1. Envelope structure (Schema Objects treated loosely as object/boolean).
+  const envelope = (await validate(
+    `https://spec.openapis.org/oas/${version}/schema`,
+    value,
+    BASIC,
+  )) as BasicOutput;
+  if (!envelope.valid) violations.push(...toViolations(envelope, version, ""));
 
-  const violations = output.valid ? [] : toViolations(output, version);
+  // 2. Each top-most Schema Object against the dialect it declares.
+  for (const node of topSchemaObjects(root)) {
+    const declared = declaredDialect(node, docDefault);
+    const uri = metaSchemaUri(declared, version);
+    if (!hasSchema(uri)) {
+      unvalidated.push(`${displayPointer(node.id)} (dialect ${declared})`);
+      continue;
+    }
+    const out = (await validate(uri, valueAtPointer(value, node.id), BASIC)) as BasicOutput;
+    if (!out.valid) violations.push(...toViolations(out, version, node.id));
+  }
+
+  const dialectWarning =
+    unvalidated.length > 0
+      ? `Schema Objects using a dialect this tool can't validate were skipped: ${unvalidated.join(", ")}.`
+      : undefined;
   return { violations, dialectWarning };
 }

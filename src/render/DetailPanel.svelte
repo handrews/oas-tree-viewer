@@ -58,6 +58,10 @@
       {/if}
     </dl>
 
+    {#if node.dialectResolutionWarning}
+      <div class="ref-note advisory severity-warning">{node.dialectResolutionWarning}</div>
+    {/if}
+
     {#if ctx}
       {@const c = ctx}
       {@const out = outgoingRefs(c.refs, doc.id, node.id)}

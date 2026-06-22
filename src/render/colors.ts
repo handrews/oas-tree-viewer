@@ -123,11 +123,15 @@ export const lineLegend: ReadonlyArray<{ variant: "collapsed" | "type-mismatch";
   { variant: "type-mismatch", label: "Type mismatch — the reference resolved to the wrong type" },
 ];
 
-/** Error-icon (⚠) colors, for the legend's "Error icons" section. Mirrors the two on-tree
- *  glyph statuses (`broken`, `external`); `type-mismatch` is shown only in the detail panel. */
-export const errorIconLegend: ReadonlyArray<{ status: "broken" | "external"; label: string }> = [
+/** Error-icon (⚠) colors, for the legend's "Error icons" section. Mirrors the on-tree glyph
+ *  statuses (`broken`, `external`, `dialect`); `type-mismatch` is shown only in the detail panel. */
+export const errorIconLegend: ReadonlyArray<{
+  status: "broken" | "external" | "dialect";
+  label: string;
+}> = [
   { status: "broken", label: "Unresolved reference — target not found" },
   { status: "external", label: "Unresolved reference — document not loaded" },
+  { status: "dialect", label: "Dialect whose reference resolution isn't fully supported" },
 ];
 
 /** The single document-level warning, for the legend's "Documents" section. */

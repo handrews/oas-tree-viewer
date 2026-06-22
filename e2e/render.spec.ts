@@ -338,3 +338,20 @@ test.describe("$dynamicRef links", () => {
     await expect(issues).toContainText("Unreachable documents (1)");
   });
 });
+
+test.describe("dialect resolution warnings", () => {
+  test("flags a Schema Object on an unsupported dialect with a ⚠ and a detail note", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=dialects");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
+    await page.getByRole("button", { name: "Expand all" }).click();
+
+    // Exactly one dialect warning glyph — the draft-07 $schema row (the 2020-12 one is supported).
+    await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(1);
+
+    // Selecting that $schema row shows the resolution note; the document still validated (it rendered).
+    await page.locator("svg.tree-canvas g.row", { hasText: "draft-07/schema" }).first().click();
+    await expect(page.locator("#detail-panel .node-detail")).toContainText("isn't fully supported");
+  });
+});
