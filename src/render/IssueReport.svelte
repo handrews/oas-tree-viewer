@@ -9,6 +9,11 @@
 
   let copied = $state(false);
 
+  const unreachableDocs = $derived(report?.docIssues.filter((i) => i.kind === "unreachable") ?? []);
+  const unvalidatedDocs = $derived(
+    report?.docIssues.filter((i) => i.kind === "unvalidated-schema") ?? [],
+  );
+
   async function copy(): Promise<void> {
     if (!report) return;
     try {
@@ -69,12 +74,25 @@
           </ul>
         {/if}
 
-        {#if report.docIssues.length}
-          <h3>Unreachable documents ({report.docIssues.length})</h3>
+        {#if unreachableDocs.length}
+          <h3>Unreachable documents ({unreachableDocs.length})</h3>
           <ul class="issue-list">
-            {#each report.docIssues as i (i.doc)}
+            {#each unreachableDocs as i (i.doc)}
               <li class="issue status-unreachable">
                 <span class="issue-status status-unreachable">unreachable</span>
+                <span class="issue-loc">{i.doc}</span>
+                <span class="issue-detail">{i.detail}</span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+
+        {#if unvalidatedDocs.length}
+          <h3>Unvalidated Schema Objects ({unvalidatedDocs.length})</h3>
+          <ul class="issue-list">
+            {#each unvalidatedDocs as i (i.doc)}
+              <li class="issue status-unreachable">
+                <span class="issue-status status-unreachable">unvalidated</span>
                 <span class="issue-loc">{i.doc}</span>
                 <span class="issue-detail">{i.detail}</span>
               </li>
