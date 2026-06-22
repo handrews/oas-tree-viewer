@@ -83,42 +83,6 @@ npm run preview  # serve the production build
 npm run typecheck
 ```
 
-## Tests
-
-```bash
-npm test         # run the suite once (Vitest)
-npm run test:watch
-npm run coverage # run with v8 coverage; writes coverage/ (HTML + lcov) and fails below threshold
-```
-
-Specs live in [`test/`](test) mirroring `src/`, built on a `test/helpers.ts` that runs the
-real pipeline (`loadDocument → assembleOad → resolveOad`). They cover the core logic — the
-reference resolver, OAS classifier + 3.1/3.2 descriptor, model, parser, loader, assembler —
-plus jsdom tests for the input form and detail panel. The d3/SVG canvas and tree view are
-out of scope for unit coverage (they need real browser layout) and are excluded from the
-coverage denominator; they stay verified via the browser/preview workflow. Coverage is
-gated by thresholds in `vitest.config.ts`.
-
-## Architecture
-
-A clean **model layer** decoupled from rendering:
-
-| Layer | Files |
-| --- | --- |
-| Types | `src/types.ts`, `src/errors.ts` |
-| Parse | `src/parse/detectFormat.ts` |
-| Model | `src/model/jsonPointer.ts`, `src/model/treeBuilder.ts` |
-| OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts` |
-| Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
-| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts` |
-| Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/detailPanel.ts`, `src/render/colors.ts` |
-| UI | `src/ui/oadForm.ts`, `src/main.ts` |
-
-Each node keeps a stable **JSON Pointer** id and an `expectedType` (its grammar slot type),
-and each document keeps its **base URI** (`$self` / retrieval URI) — the foundation the
-resolver uses. Documents and `$id` schemas are indexed together as URI-identified
-**resources**, so a reference resolves its target resource once and then locates the node.
-
 ## Not yet implemented
 
 `operationId` (name-based) Link references; `$dynamicRef`/`$dynamicAnchor`; fetching
