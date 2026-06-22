@@ -131,7 +131,10 @@ export const errorIconLegend: ReadonlyArray<{
 }> = [
   { status: "broken", label: "Unresolved reference — target not found" },
   { status: "external", label: "Unresolved reference — document not loaded" },
-  { status: "dialect", label: "Dialect whose reference resolution isn't fully supported" },
+  {
+    status: "dialect",
+    label: "Reference-resolution caveat — unsupported dialect, or a draft-06/07 $ref/$id rule",
+  },
 ];
 
 /** The single document-level warning, for the legend's "Documents" section. */
