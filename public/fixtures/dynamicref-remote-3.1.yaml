@@ -1,5 +1,4 @@
 openapi: 3.1.0
-$self: https://example.com/oad/dynamicref-remote
 info:
   title: $dynamicRef — unreachable document
   version: 1.0.0

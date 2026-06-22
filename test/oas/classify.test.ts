@@ -27,7 +27,7 @@ paths:
         responses: { '204': { description: gone } }
 components:
   mediaTypes:
-    application/json: { schema: { type: object } }
+    Json: { schema: { type: object } }
   parameters:
     Ref: { name: r, in: query, schema: { type: integer } }
   schemas:

@@ -30,7 +30,7 @@ paths:
             description: Cleared
 components:
   mediaTypes:
-    application/json:
+    Json:
       schema:
         type: object
   schemas:

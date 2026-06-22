@@ -155,12 +155,12 @@ paths:
           description: ok
           links:
             toQuery:
-              operationRef: '#/components/pathItems/P/additionalOperations/QUERY'
+              operationRef: '#/components/pathItems/P/additionalOperations/PURGE'
 components:
   pathItems:
     P:
       additionalOperations:
-        QUERY:
+        PURGE:
           operationId: pq
           responses: { '200': { description: ok } }
 `;
@@ -170,7 +170,7 @@ describe("additionalOperations Operations inherit the Path Item habitat", () => 
     const doc = await makeDoc(ADDL, { filename: "addl.yaml", isEntry: true });
     const refs = resolveOad(makeOad(doc));
     const e = refs.edges.find(
-      (x) => x.refString === "#/components/pathItems/P/additionalOperations/QUERY",
+      (x) => x.refString === "#/components/pathItems/P/additionalOperations/PURGE",
     );
     expect((e?.diagnostics ?? []).map((d) => d.code)).toEqual(["operation-target-fragile"]);
   });

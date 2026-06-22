@@ -18,8 +18,8 @@ function fixtureUrl(name: string): string {
   return `/fixtures/${name}`;
 }
 
-function urlDoc(name: string, isEntry = false): DocInput {
-  return { source: "url", url: fixtureUrl(name), isEntry };
+function urlDoc(name: string, isEntry = false, retrievalUri?: string): DocInput {
+  return { source: "url", url: fixtureUrl(name), isEntry, retrievalUri };
 }
 
 export const demos: Demo[] = [
@@ -29,7 +29,10 @@ export const demos: Demo[] = [
     description:
       "A two-document OAD that exercises every reference outcome — resolved, type-mismatch, " +
       "broken, and external — so the issue report and warning glyphs have something to show.",
-    inputs: [urlDoc("refs-3.1.yaml", true), urlDoc("refs-shared-3.1.yaml")],
+    inputs: [
+      urlDoc("refs-3.1.yaml", true, "https://example.com/oad/entry.yaml"),
+      urlDoc("refs-shared-3.1.yaml", false, "https://example.com/oad/shared.yaml"),
+    ],
   },
   {
     id: "self",
@@ -96,9 +99,9 @@ export const demos: Demo[] = [
       "$dynamicRef whose local fragment is a plain $anchor (resolves like $ref), and a $ref landing " +
       "on a $dynamicAnchor (treated like $anchor) — and a broken $dynamicRef.",
     inputs: [
-      urlDoc("dynamicref-3.1.yaml", true),
-      urlDoc("dynamicref-shared-3.1.yaml"),
-      urlDoc("dynamicref-remote-3.1.yaml"),
+      urlDoc("dynamicref-3.1.yaml", true, "https://example.com/oad/dynamicref"),
+      urlDoc("dynamicref-shared-3.1.yaml", false, "https://example.com/oad/dynamicref-shared"),
+      urlDoc("dynamicref-remote-3.1.yaml", false, "https://example.com/oad/dynamicref-remote"),
     ],
   },
 ];

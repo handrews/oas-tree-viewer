@@ -4,6 +4,7 @@ import {
   InvalidDocumentError,
   NotOpenApiError,
   RetrievalError,
+  SchemaValidationError,
   UnsupportedVersionError,
 } from "../src/errors";
 
@@ -19,16 +20,34 @@ describe("versionFamilyOf", () => {
 
 describe("loadDocument (upload)", () => {
   it("loads, validates, and classifies a valid document", async () => {
+    // `$self` is an OAS 3.2 field, so a self-identifying document must declare 3.2.
     const doc = await loadDocument({
       source: "upload",
       filename: "d.yaml",
-      text: valid("$self: https://e/x"),
+      text: `openapi: 3.2.0\ninfo: { title: T, version: '1' }\npaths: {}\n$self: https://e/x`,
       isEntry: true,
     });
-    expect(doc.oasVersion).toBe("3.1.0");
+    expect(doc.oasVersion).toBe("3.2.0");
     expect(doc.format).toBe("yaml");
     expect(doc.selfUri).toBe("https://e/x");
     expect(doc.root.oasType).toBe("OpenAPI Object");
+  });
+
+  it("rejects a structurally-invalid document with a located SchemaValidationError", async () => {
+    const text = `openapi: 3.1.0\ninfo: { title: T, version: '1' }\ncomponents: { schemas: { Pet: { type: strang } } }\n`;
+    const promise = loadDocument({ source: "upload", filename: "d.yaml", text, isEntry: true });
+    await expect(promise).rejects.toBeInstanceOf(SchemaValidationError);
+    await expect(promise).rejects.toThrow(/components\/schemas\/Pet\/type/);
+  });
+
+  it("loads an unsupported-dialect document but flags it with a schemaDialectWarning", async () => {
+    const text = `openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft-07/schema
+info: { title: T, version: '1' }
+components: { schemas: { Pet: { type: strang } } }
+`;
+    const doc = await loadDocument({ source: "upload", filename: "d.yaml", text, isEntry: true });
+    expect(doc.schemaDialectWarning).toMatch(/draft-07/);
   });
 
   it("rejects a document with no openapi field", async () => {

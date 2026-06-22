@@ -7,6 +7,7 @@ import {
   InvalidDocumentError,
   NotOpenApiError,
   RetrievalError,
+  SchemaValidationError,
   UnsupportedVersionError,
   errorMessage,
 } from "./errors";
@@ -14,6 +15,7 @@ import { parseDocument } from "./parse/detectFormat";
 import { buildTree } from "./model/treeBuilder";
 import { classifyDocument } from "./oas/classify";
 import { displayPointer } from "./model/jsonPointer";
+import { validateOad, type SchemaViolation } from "./validation/validateOad";
 
 /** A locally-uploaded document; the file has already been read to text. */
 export interface UploadInput {
@@ -35,6 +37,12 @@ export interface UploadInput {
 export interface UrlInput {
   source: "url";
   url: string;
+  /**
+   * Base URI to record for this document, when it differs from the fetch `url`. Lets a document
+   * served from one location (e.g. a same-origin `/fixtures/…` demo file) declare the base URI it
+   * would have if served from its real home, so relative cross-document references resolve there.
+   */
+  retrievalUri?: string;
   isEntry: boolean;
 }
 
@@ -54,7 +62,7 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
 
   if (input.source === "url") {
     text = await fetchText(input.url);
-    retrievalUri = input.url;
+    retrievalUri = input.retrievalUri?.trim() || input.url;
     filename = filenameFromUrl(input.url);
   } else {
     text = input.text;
@@ -73,6 +81,13 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
   classifyDocument(root, versionFamilyOf(oasVersion));
   assertValidLinks(root, oasVersion);
 
+  // Validate against the official OpenAPI JSON Schema (offline). A structural failure rejects the
+  // document; an unsupported Schema-Object dialect is a non-blocking warning carried on the doc.
+  const { violations, dialectWarning } = await validateOad(value, root, versionFamilyOf(oasVersion));
+  if (violations.length > 0) {
+    throw new SchemaValidationError(schemaErrorMessage(oasVersion, violations), violations);
+  }
+
   return {
     id: `doc-${nextDocId++}`,
     isEntry: input.isEntry,
@@ -84,8 +99,22 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
     raw: text,
     value,
     oasVersion,
+    schemaDialectWarning: dialectWarning,
     root,
   };
+}
+
+/** A readable multi-line message listing the located schema violations (capped). */
+function schemaErrorMessage(oasVersion: string, violations: SchemaViolation[]): string {
+  const MAX = 20;
+  const lines = violations
+    .slice(0, MAX)
+    .map((v) => `  • ${displayPointer(v.pointer)} — ${v.message}`);
+  if (violations.length > MAX) lines.push(`  …and ${violations.length - MAX} more`);
+  return (
+    `Not a valid OpenAPI ${oasVersion} document: ${violations.length} schema ` +
+    `violation${violations.length === 1 ? "" : "s"}.\n${lines.join("\n")}`
+  );
 }
 
 /**

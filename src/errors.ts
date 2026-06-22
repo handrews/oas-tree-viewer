@@ -1,5 +1,7 @@
 // Typed errors so the UI can show distinct, accurate messages for each failure mode.
 
+import type { SchemaViolation } from "./validation/validateOad";
+
 /** Base class for everything that can go wrong loading/validating an OAD. */
 export class OadError extends Error {
   constructor(message: string) {
@@ -26,6 +28,16 @@ export class UnsupportedVersionError extends OadError {}
 /** The document is OpenAPI of a supported version, but structurally invalid — e.g. a Link
  *  Object that sets both `operationRef` and `operationId` (a Link must use exactly one). */
 export class InvalidDocumentError extends OadError {}
+
+/** The document is OpenAPI of a supported version, but fails JSON Schema validation against the
+ *  official OpenAPI schema. `violations` carry the located failures for the UI. */
+export class SchemaValidationError extends OadError {
+  readonly violations: SchemaViolation[];
+  constructor(message: string, violations: SchemaViolation[]) {
+    super(message);
+    this.violations = violations;
+  }
+}
 
 // ── OAD-level errors ───────────────────────────────────────────────────────
 

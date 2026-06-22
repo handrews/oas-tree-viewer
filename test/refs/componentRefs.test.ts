@@ -14,7 +14,6 @@ describe("discriminator mapping resolution", () => {
   // A Schema with a discriminator whose mapping values exercise name vs URI vs unresolvable.
   const DOC = `
 openapi: 3.1.0
-$self: https://example.com/oad/entry
 info: { title: T, version: '1' }
 paths: {}
 components:
@@ -81,7 +80,6 @@ components:
 describe("security requirement resolution", () => {
   const base = (version: string) => `
 openapi: ${version}
-$self: https://example.com/oad/entry
 info: { title: T, version: '1' }
 paths: {}
 security:
@@ -122,7 +120,6 @@ describe("entry-vs-local component lookup", () => {
   // The entry declares apiKey; a second document references it but has no local component.
   const ENTRY = `
 openapi: 3.1.0
-$self: https://example.com/oad/entry
 info: { title: Entry, version: '1' }
 paths:
   /a: { $ref: 'other#/components/pathItems/P' }
@@ -132,7 +129,6 @@ components:
 `;
   const OTHER = `
 openapi: 3.1.0
-$self: https://example.com/oad/other
 info: { title: Other, version: '1' }
 paths: {}
 components:
@@ -146,8 +142,11 @@ components:
 `;
 
   it("default looks in the entry document; the local-document option does not find it", async () => {
-    const entry = await makeDoc(ENTRY, { isEntry: true });
-    const other = await makeDoc(OTHER);
+    const entry = await makeDoc(ENTRY, {
+      isEntry: true,
+      retrievalUri: "https://example.com/oad/entry",
+    });
+    const other = await makeDoc(OTHER, { retrievalUri: "https://example.com/oad/other" });
     const oad = makeOad(entry, other);
 
     const entryLookup = resolveOad(oad); // default: entry

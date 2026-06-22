@@ -27,8 +27,18 @@ describe("demos", () => {
   it("demoById / demoInputs resolve known ids and reject unknown ones", () => {
     expect(demoById("refs")?.id).toBe("refs");
     expect(demoInputs("refs")).toEqual([
-      { source: "url", url: "/fixtures/refs-3.1.yaml", isEntry: true },
-      { source: "url", url: "/fixtures/refs-shared-3.1.yaml", isEntry: false },
+      {
+        source: "url",
+        url: "/fixtures/refs-3.1.yaml",
+        isEntry: true,
+        retrievalUri: "https://example.com/oad/entry.yaml",
+      },
+      {
+        source: "url",
+        url: "/fixtures/refs-shared-3.1.yaml",
+        isEntry: false,
+        retrievalUri: "https://example.com/oad/shared.yaml",
+      },
     ]);
     expect(demoById("nope")).toBeUndefined();
     expect(demoInputs("nope")).toBeUndefined();
