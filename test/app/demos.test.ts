@@ -44,7 +44,7 @@ describe("demos", () => {
     expect(demoInputs("nope")).toBeUndefined();
   });
 
-  it("includes the refs, $self, component-name, operation, operationId, $dynamicRef, draft07, and dialects demos", () => {
+  it("includes the refs, $self, component-name, operation, operationId, $dynamicRef, numbered-drafts, and dialects demos", () => {
     expect(demos.map((d) => d.id)).toEqual([
       "refs",
       "self",
@@ -52,7 +52,7 @@ describe("demos", () => {
       "operation-refs",
       "operationid",
       "dynamicref",
-      "draft07",
+      "numbered-drafts",
       "dialects",
     ]);
     expect(demoInputs("self")![0]!).toMatchObject({ url: "/fixtures/oads/openapi.yaml", isEntry: true });
@@ -73,8 +73,8 @@ describe("demos", () => {
       url: "/fixtures/dynamicref-3.1.yaml",
       isEntry: true,
     });
-    expect(demoInputs("draft07")).toEqual([
-      { source: "url", url: "/fixtures/draft07-3.1.yaml", isEntry: true },
+    expect(demoInputs("numbered-drafts")).toEqual([
+      { source: "url", url: "/fixtures/numbered-drafts-3.1.yaml", isEntry: true },
     ]);
   });
 });

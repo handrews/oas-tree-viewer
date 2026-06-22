@@ -356,22 +356,23 @@ test.describe("dialect resolution warnings", () => {
   });
 });
 
-test.describe("draft-06/07 resolution advisories", () => {
-  test("resolves $id-fragment anchors and flags ignored siblings / a wrong $id fragment", async ({
+test.describe("numbered-draft resolution advisories", () => {
+  test("resolves identifier-fragment anchors and flags ignored siblings / a wrong id fragment", async ({
     page,
   }) => {
-    await page.goto("/view?demo=draft07");
+    await page.goto("/view?demo=numbered-drafts");
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
     await page.getByRole("button", { name: "Expand all" }).click();
 
-    // Two advisory glyphs: the ignored-sibling $ref row and the mis-pointed $id row. (The 2020-12
-    // and draft-07 $schema rows are supported, so they carry no dialect ⚠.)
-    await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(2);
+    // Three advisory glyphs: Catalog's ignored-sibling $ref and mis-pointed $id (draft-07), plus
+    // Draft04's mis-pointed `id` (draft-04). The 2020-12/draft-07/draft-04 $schema rows are all
+    // supported, so they carry no dialect ⚠.
+    await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(3);
 
-    // The issues drawer aggregates both advisories, plus the one $ref that leans on a draft-07
+    // The issues drawer aggregates all three advisories, plus the one $ref that leans on a draft-07
     // `$anchor` (which doesn't exist) and so breaks.
     const issues = page.locator("#issues");
-    await expect(issues).toContainText("Reference-resolution advisories (2)");
+    await expect(issues).toContainText("Reference-resolution advisories (3)");
     await expect(issues).toContainText("Unresolved references (1)");
 
     // Selecting the ignored-sibling $ref row shows its detail note.

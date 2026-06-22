@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
+  DRAFT_04,
   DRAFT_06,
   DRAFT_07,
   DRAFT_2020_12,
   annotateDialectSupport,
+  idKeyword,
   isOasDialect,
   isResolutionSupported,
   normalizeDialect,
@@ -15,6 +17,7 @@ import { classifyDocument } from "../../src/oas/classify";
 import type { TreeNode } from "../../src/types";
 
 const DRAFT_07_HASH = "http://json-schema.org/draft-07/schema#";
+const DRAFT_04_HASH = "http://json-schema.org/draft-04/schema#";
 const DRAFT_2019_09 = "https://json-schema.org/draft/2019-09/schema";
 
 describe("dialect recognition", () => {
@@ -42,11 +45,23 @@ describe("dialect recognition", () => {
     expect(referenceModel(DRAFT_07, "3.1")).toBe("numbered-draft");
     expect(referenceModel(DRAFT_07_HASH, "3.1")).toBe("numbered-draft"); // trailing # tolerated
     expect(referenceModel(DRAFT_06, "3.1")).toBe("numbered-draft");
+    expect(referenceModel(DRAFT_04, "3.1")).toBe("numbered-draft");
+    expect(referenceModel(DRAFT_04_HASH, "3.1")).toBe("numbered-draft");
     expect(referenceModel(DRAFT_2019_09, "3.1")).toBe("unsupported");
     expect(referenceModel("https://example.com/custom-dialect", "3.1")).toBe("unsupported");
   });
 
-  it("resolves the OAS dialect, 2020-12, and draft-06/07; not 2019-09 or unknown dialects", () => {
+  it("names the identifier keyword per dialect (draft-04 uses `id`, the rest `$id`)", () => {
+    expect(idKeyword(DRAFT_04, "3.1")).toBe("id");
+    expect(idKeyword(DRAFT_04_HASH, "3.1")).toBe("id");
+    expect(idKeyword(DRAFT_06, "3.1")).toBe("$id");
+    expect(idKeyword(DRAFT_07, "3.1")).toBe("$id");
+    expect(idKeyword(DRAFT_2020_12, "3.1")).toBe("$id");
+    expect(idKeyword("https://spec.openapis.org/oas/3.1/dialect/base", "3.1")).toBe("$id");
+    expect(idKeyword(undefined, "3.1")).toBe("$id");
+  });
+
+  it("resolves the OAS dialect, 2020-12, and draft-04/06/07; not 2019-09 or unknown dialects", () => {
     expect(isResolutionSupported(undefined, "3.1")).toBe(true); // default = OAS
     expect(isResolutionSupported("https://spec.openapis.org/oas/3.1/dialect/base", "3.1")).toBe(true);
     expect(isResolutionSupported(DRAFT_2020_12, "3.1")).toBe(true);
@@ -54,6 +69,7 @@ describe("dialect recognition", () => {
     expect(isResolutionSupported(DRAFT_07, "3.1")).toBe(true); // now supported
     expect(isResolutionSupported(DRAFT_07_HASH, "3.1")).toBe(true);
     expect(isResolutionSupported(DRAFT_06, "3.1")).toBe(true);
+    expect(isResolutionSupported(DRAFT_04, "3.1")).toBe(true);
     expect(isResolutionSupported(DRAFT_2019_09, "3.1")).toBe(false);
     expect(isResolutionSupported("https://example.com/custom-dialect", "3.1")).toBe(false);
   });

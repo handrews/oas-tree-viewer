@@ -105,15 +105,16 @@ export const demos: Demo[] = [
     ],
   },
   {
-    id: "draft07",
-    label: "draft-06/07 references (3.1)",
+    id: "numbered-drafts",
+    label: "draft-04/06/07 references (3.1)",
     description:
-      "The numbered-draft identification model: named anchors come from $id fragments (not $anchor), " +
-      "keywords beside $ref are ignored, and a JSON-Pointer $id fragment must be the schema's own " +
-      "location. Catalog (draft-07, the document default) resolves a $ref to an $id-fragment anchor, " +
-      "warns on an ignored-sibling $ref and a mis-pointed $id, and breaks where it leans on a " +
-      "non-existent $anchor; Modern re-declares 2020-12, where $anchor still resolves.",
-    inputs: [urlDoc("draft07-3.1.yaml", true)],
+      "The numbered-draft identification model: named anchors come from identifier fragments (not " +
+      "$anchor), keywords beside $ref are ignored, and a JSON-Pointer identifier fragment must be the " +
+      "schema's own location. Catalog (draft-07) resolves a $ref to an $id-fragment anchor, warns on " +
+      "an ignored-sibling $ref and a mis-pointed $id, and breaks where it leans on a non-existent " +
+      "$anchor; Draft04 (draft-04) does the same but with the un-prefixed `id` keyword; Modern " +
+      "re-declares 2020-12, where $anchor still resolves.",
+    inputs: [urlDoc("numbered-drafts-3.1.yaml", true)],
   },
   {
     id: "dialects",
