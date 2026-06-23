@@ -154,23 +154,25 @@ export const demos: Demo[] = [
   },
   {
     id: "fragment",
-    label: "Document fragment — Path Item (3.1)",
+    label: "Document fragments — Path Item & Schema (3.0)",
     description:
-      "A document fragment: pet-pathitem-3.1.yaml has a bare Path Item Object at its root (no openapi/" +
-      "$id/$schema), so it loads only with fragments enabled. The entry's /pets $ref types its root as a " +
-      "Path Item — its header reads “Fragment · Path Item Object” — and its operations' schema references " +
-      "resolve back to the entry's Pet schema. (This demo sets fragment loading to “referenced by the root”.)",
+      "A 3.0 OAD split into fragments (the common 3.0 style): pet-pathitem-3.0.yaml is a bare Path Item " +
+      "Object and pet-schema-3.0.yaml is a bare Schema Object (3.0 schemas have no openapi/$id/$schema). " +
+      "Each is typed from the reference pointing at its root, so their headers read “Fragment · Path Item " +
+      "Object” and “Fragment · Schema Object”; the entry and the Path Item fragment both reference the " +
+      "shared schema. (This demo sets fragment loading to “referenced by the root”.)",
     inputs: [
-      urlDoc("ref-to-fragment-3.1.yaml", true, "https://example.com/oad/ref-to-fragment-3.1.yaml"),
-      urlDoc("pet-pathitem-3.1.yaml", false, "https://example.com/oad/pet-pathitem-3.1.yaml"),
+      urlDoc("ref-to-fragment-3.0.yaml", true, "https://example.com/oad/ref-to-fragment-3.0.yaml"),
+      urlDoc("pet-pathitem-3.0.yaml", false, "https://example.com/oad/pet-pathitem-3.0.yaml"),
+      urlDoc("pet-schema-3.0.yaml", false, "https://example.com/oad/pet-schema-3.0.yaml"),
     ],
     config: { fragments: "root" },
   },
   {
     id: "fragment-interior",
-    label: "Document fragment — interior references (3.1)",
+    label: "Document fragment — interior references (3.0)",
     description:
-      "A reusable Components Object as a document fragment: schema-lib-3.1.yaml holds “schemas” and " +
+      "A reusable Components Object as a document fragment: schema-lib-3.0.yaml holds “schemas” and " +
       "“responses”, but a Components Object can never be the target of a reference, so nothing types its " +
       "root. The entry references three interior nodes (#/schemas/Pet, #/schemas/Error, " +
       "#/responses/PetList), which type just those subtrees — the header reads “Fragment · partially " +
@@ -178,8 +180,8 @@ export const demos: Demo[] = [
       "response → Pet) resolve too. (This demo sets fragment loading to “any”, which interior typing " +
       "requires.)",
     inputs: [
-      urlDoc("schema-lib-refs-3.1.yaml", true, "https://example.com/oad/schema-lib-refs-3.1.yaml"),
-      urlDoc("schema-lib-3.1.yaml", false, "https://example.com/oad/schema-lib-3.1.yaml"),
+      urlDoc("schema-lib-refs-3.0.yaml", true, "https://example.com/oad/schema-lib-refs-3.0.yaml"),
+      urlDoc("schema-lib-3.0.yaml", false, "https://example.com/oad/schema-lib-3.0.yaml"),
     ],
     config: { fragments: "any" },
   },

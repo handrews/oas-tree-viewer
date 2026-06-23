@@ -1,0 +1,25 @@
+# A complete OpenAPI 3.0 document that assembles two document FRAGMENTS — the common 3.0 multi-document
+# style. With fragments enabled, each fragment's root type is inferred from the reference pointing at it:
+# pet-pathitem-3.0.yaml is a bare Path Item Object, and pet-schema-3.0.yaml is a bare Schema Object
+# (3.0 schemas have no `$id`/`$schema`, so they load as fragments, not standalone JSON Schema documents).
+openapi: 3.0.4
+info:
+  title: Document-fragment demo
+  version: '1.0'
+paths:
+  /pets:
+    $ref: pet-pathitem-3.0.yaml
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: A pet
+          content:
+            application/json:
+              schema: { $ref: pet-schema-3.0.yaml }

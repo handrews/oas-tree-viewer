@@ -88,15 +88,21 @@ describe("demos", () => {
     expect(demoInputs("fragment")).toEqual([
       {
         source: "url",
-        url: "/fixtures/ref-to-fragment-3.1.yaml",
+        url: "/fixtures/ref-to-fragment-3.0.yaml",
         isEntry: true,
-        retrievalUri: "https://example.com/oad/ref-to-fragment-3.1.yaml",
+        retrievalUri: "https://example.com/oad/ref-to-fragment-3.0.yaml",
       },
       {
         source: "url",
-        url: "/fixtures/pet-pathitem-3.1.yaml",
+        url: "/fixtures/pet-pathitem-3.0.yaml",
         isEntry: false,
-        retrievalUri: "https://example.com/oad/pet-pathitem-3.1.yaml",
+        retrievalUri: "https://example.com/oad/pet-pathitem-3.0.yaml",
+      },
+      {
+        source: "url",
+        url: "/fixtures/pet-schema-3.0.yaml",
+        isEntry: false,
+        retrievalUri: "https://example.com/oad/pet-schema-3.0.yaml",
       },
     ]);
     // The interior-references demo needs the "any" tier (interior typing) via its config override.
@@ -104,15 +110,15 @@ describe("demos", () => {
     expect(demoInputs("fragment-interior")).toEqual([
       {
         source: "url",
-        url: "/fixtures/schema-lib-refs-3.1.yaml",
+        url: "/fixtures/schema-lib-refs-3.0.yaml",
         isEntry: true,
-        retrievalUri: "https://example.com/oad/schema-lib-refs-3.1.yaml",
+        retrievalUri: "https://example.com/oad/schema-lib-refs-3.0.yaml",
       },
       {
         source: "url",
-        url: "/fixtures/schema-lib-3.1.yaml",
+        url: "/fixtures/schema-lib-3.0.yaml",
         isEntry: false,
-        retrievalUri: "https://example.com/oad/schema-lib-3.1.yaml",
+        retrievalUri: "https://example.com/oad/schema-lib-3.0.yaml",
       },
     ]);
   });
