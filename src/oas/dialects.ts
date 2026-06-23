@@ -7,6 +7,9 @@ import type { TreeNode, VersionFamily } from "../types";
 /** Standard JSON Schema 2020-12 dialect / meta-schema URI. */
 export const DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema";
 
+/** JSON Schema 2019-09: the 2020-12 referencing model, but with `$recursiveRef`/`$recursiveAnchor`. */
+export const DRAFT_2019_09 = "https://json-schema.org/draft/2019-09/schema";
+
 /** The numbered (`draft-NN`) meta-schema URIs whose referencing model this tool resolves. */
 export const DRAFT_07 = "http://json-schema.org/draft-07/schema";
 export const DRAFT_06 = "http://json-schema.org/draft-06/schema";
@@ -35,26 +38,40 @@ export function normalizeDialect(uri: string): string {
 /**
  * The referencing/identification rules a declared dialect uses, as far as this tool resolves them:
  *  - `"2020-12"` — the modern/date-formatted model: `$anchor` named anchors, a fragmentless `$id`,
- *    `$ref` siblings apply, and `$dynamicRef` dynamic scope. Covers the OAS dialect and 2020-12.
+ *    and `$ref` siblings apply. Covers the OAS dialect, 2020-12, **and 2019-09** — these share the
+ *    identification model and differ only in the dynamic-scope keyword family (`$dynamicRef` vs
+ *    `$recursiveRef`; see {@link dynamicScopeKeywords}).
  *  - `"numbered-draft"` — the `draft-NN` model, for the numbered drafts this tool resolves:
  *    **draft-04, draft-06, and draft-07**. Anchors come from identifier fragments, `$ref` siblings
  *    are ignored, and `$anchor`/`$dynamicAnchor`/`$dynamicRef` don't exist. The identifier keyword is
  *    `id` in draft-04 and `$id` in draft-06/07 (see {@link idKeyword}). Older numbered drafts
  *    (draft-03 and earlier) were never widely used and aren't registered by Hyperjump, so they fall
  *    through to `"unsupported"`.
- *  - `"unsupported"` — anything else (2019-09, draft-03 and earlier, unknown): resolved with the
- *    2020-12 model as a best effort, and flagged with the dialect ⚠.
+ *  - `"unsupported"` — anything else (draft-03 and earlier, unknown): resolved with the 2020-12 model
+ *    as a best effort, and flagged with the dialect ⚠.
  */
 export type ReferenceModel = "2020-12" | "numbered-draft" | "unsupported";
 
 export function referenceModel(dialect: string | undefined, version: VersionFamily): ReferenceModel {
   if (dialect === undefined || isOasDialect(dialect, version)) return "2020-12";
   const normalized = normalizeDialect(dialect);
-  if (normalized === DRAFT_2020_12) return "2020-12";
+  if (normalized === DRAFT_2020_12 || normalized === DRAFT_2019_09) return "2020-12";
   if (normalized === DRAFT_07 || normalized === DRAFT_06 || normalized === DRAFT_04) {
     return "numbered-draft";
   }
   return "unsupported";
+}
+
+/**
+ * Which dynamic-scope keyword family the `"2020-12"`-model dialect uses: 2019-09 has
+ * `$recursiveAnchor`/`$recursiveRef`; OAS / 2020-12 (and the unsupported best-effort fallback) have
+ * `$dynamicAnchor`/`$dynamicRef`. (`_version` kept for signature parity.)
+ */
+export function dynamicScopeKeywords(
+  dialect: string | undefined,
+  _version: VersionFamily,
+): "dynamic" | "recursive" {
+  return dialect !== undefined && normalizeDialect(dialect) === DRAFT_2019_09 ? "recursive" : "dynamic";
 }
 
 /**

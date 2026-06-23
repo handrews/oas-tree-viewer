@@ -44,7 +44,7 @@ describe("demos", () => {
     expect(demoInputs("nope")).toBeUndefined();
   });
 
-  it("includes the refs, $self, component-name, operation, operationId, $dynamicRef, numbered-drafts, and dialects demos", () => {
+  it("includes the refs, $self, component-name, operation, operationId, $dynamicRef, $recursiveRef, numbered-drafts, and dialects demos", () => {
     expect(demos.map((d) => d.id)).toEqual([
       "refs",
       "self",
@@ -52,6 +52,7 @@ describe("demos", () => {
       "operation-refs",
       "operationid",
       "dynamicref",
+      "recursiveref",
       "numbered-drafts",
       "dialects",
     ]);
@@ -73,6 +74,9 @@ describe("demos", () => {
       url: "/fixtures/dynamicref-3.1.yaml",
       isEntry: true,
     });
+    expect(demoInputs("recursiveref")).toEqual([
+      { source: "url", url: "/fixtures/recursiveref-3.1.yaml", isEntry: true },
+    ]);
     expect(demoInputs("numbered-drafts")).toEqual([
       { source: "url", url: "/fixtures/numbered-drafts-3.1.yaml", isEntry: true },
     ]);

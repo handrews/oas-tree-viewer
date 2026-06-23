@@ -70,6 +70,16 @@ for (const theme of ["dark", "light"] as const) {
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
 
+    test("$recursiveRef links view", async ({ page }) => {
+      // The 2019-09 recursive fan-out reuses the dotted "tentative" arcs; check them against contrast.
+      await page.goto("/view?demo=recursiveref");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
     test("draft-04/06/07 references view", async ({ page }) => {
       // Exercises the broadened dialect ⚠ glyph (numbered-draft advisories) and the new issue-drawer
       // category against the contrast gate.

@@ -179,6 +179,8 @@ function refLabel(kind: RefKind | undefined): string {
       return "operationId";
     case "$dynamicRef":
       return "$dynamicRef";
+    case "$recursiveRef":
+      return "$recursiveRef";
     case "discriminatorMapping":
       return "mapping value";
     case "securityRequirement":
