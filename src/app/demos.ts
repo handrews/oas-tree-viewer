@@ -105,6 +105,18 @@ export const demos: Demo[] = [
     ],
   },
   {
+    id: "recursiveref",
+    label: "$recursiveRef / $recursiveAnchor (2019-09)",
+    description:
+      "draft-2019-09 recursive references — the anonymous form of $dynamicRef. GenericTree's " +
+      "$recursiveRef (#) fans out tentatively (dotted) to the outermost $recursiveAnchor: true " +
+      "resources on an entry-rooted path: StrictTree and LooseTree, which both extend GenericTree, so " +
+      "both win (GenericTree's own anchor is shadowed). PlainTree declares no $recursiveAnchor, so its " +
+      "$recursiveRef is a plain static self-reference. The anonymous anchor has no name, so it can't be " +
+      "reached by a $ref fragment at all.",
+    inputs: [urlDoc("recursiveref-3.1.yaml", true)],
+  },
+  {
     id: "numbered-drafts",
     label: "draft-04/06/07 references (3.1)",
     description:

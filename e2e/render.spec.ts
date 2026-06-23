@@ -347,12 +347,38 @@ test.describe("dialect resolution warnings", () => {
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
     await page.getByRole("button", { name: "Expand all" }).click();
 
-    // Exactly one dialect warning glyph — the draft-2019-09 $schema row (2020-12 and draft-07 resolve).
+    // Exactly one dialect warning glyph — the draft-03 $schema row (2020-12, 2019-09, draft-04/06/07
+    // all resolve now, so only the too-old draft-03 is flagged).
     await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(1);
 
-    // Selecting that $schema row shows the resolution note; the document still validated (it rendered).
-    await page.locator("svg.tree-canvas g.row", { hasText: "2019-09/schema" }).first().click();
+    // Selecting that $schema row shows the resolution note; the structure still rendered.
+    await page.locator("svg.tree-canvas g.row", { hasText: "draft-03/schema" }).first().click();
     await expect(page.locator("#detail-panel .node-detail")).toContainText("isn't fully supported");
+  });
+});
+
+test.describe("$recursiveRef links (2019-09)", () => {
+  test("fans an engaged $recursiveRef out to dotted winners; a static one stays solid", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=recursiveref");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+
+    // Seven reference fields, all asterisks: three response $refs, two extension allOf $refs, and the
+    // two $recursiveRefs. None are the implicit diamond, and 2019-09 needs no dialect ⚠.
+    await expect(page.locator("svg .marker.asterisk")).toHaveCount(7);
+    await expect(page.locator("svg .marker.diamond")).toHaveCount(0);
+    await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(0);
+
+    // GenericTree's $recursiveRef fans out, dotted, to its two strict winners (StrictTree, LooseTree);
+    // PlainTree's $recursiveRef is a solid static self-reference. The six other resolves stay solid.
+    await expect(page.locator("svg path.ref-edge.dotted")).toHaveCount(2);
+    await expect(page.locator("svg path.ref-edge.status-resolved:not(.dotted)")).toHaveCount(6);
+
+    // Everything resolves and every document is reachable — a clean drawer.
+    await expect(page.locator("#issues .issue-count")).toHaveText("0");
   });
 });
 

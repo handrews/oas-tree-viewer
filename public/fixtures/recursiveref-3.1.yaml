@@ -1,0 +1,71 @@
+openapi: 3.1.0
+info:
+  title: $recursiveRef / $recursiveAnchor (2019-09)
+  version: 1.0.0
+  description: >
+    draft-2019-09's recursive references — the anonymous, simplified form of $dynamicRef. GenericTree's
+    $recursiveRef "#" engages recursive scope (its resource declares $recursiveAnchor: true) and points
+    TENTATIVELY (dotted) at the outermost $recursiveAnchor: true resources on the entry-rooted paths.
+    The entry uses StrictTree and LooseTree, which both set $recursiveAnchor: true and extend GenericTree
+    (allOf $ref), so both win; GenericTree's own anchor is always shadowed (it is only ever reached
+    through an extension). PlainTree declares no $recursiveAnchor, so its $recursiveRef "#" is a plain
+    static self-reference. (The anonymous anchor has no name, so — unlike a $dynamicAnchor — it can't be
+    reached by a $ref fragment at all.)
+jsonSchemaDialect: 'https://json-schema.org/draft/2019-09/schema'
+paths:
+  /strict:
+    get:
+      operationId: getStrict
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StrictTree' }
+  /loose:
+    get:
+      operationId: getLoose
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LooseTree' }
+  /plain:
+    get:
+      operationId: getPlain
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlainTree' }
+components:
+  schemas:
+    # The recursive base: $recursiveAnchor: true makes it extendable; its $recursiveRef "#" follows
+    # the outermost extension at runtime (drawn tentatively, dotted).
+    GenericTree:
+      $id: https://example.com/recursive/generic
+      $recursiveAnchor: true
+      type: object
+      properties:
+        value: { type: string }
+        child: { $recursiveRef: '#' }
+    # Two extensions the entry reaches directly — each is an outermost recursive anchor ⇒ a winner.
+    StrictTree:
+      $id: https://example.com/recursive/strict
+      $recursiveAnchor: true
+      allOf:
+        - $ref: 'https://example.com/recursive/generic'
+    LooseTree:
+      $id: https://example.com/recursive/loose
+      $recursiveAnchor: true
+      allOf:
+        - $ref: 'https://example.com/recursive/generic'
+    # No $recursiveAnchor ⇒ $recursiveRef "#" is a plain static reference to this resource root.
+    PlainTree:
+      $id: https://example.com/recursive/plain
+      type: object
+      properties:
+        value: { type: string }
+        child: { $recursiveRef: '#' }
