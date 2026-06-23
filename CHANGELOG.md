@@ -5,6 +5,30 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-06-23
+
+### Added
+
+- **OAS 3.0 support.** OpenAPI 3.0 documents now load, render, and validate. A 3.0 Schema Object is
+  not JSON Schema, so a Schema `$ref` is shown as a Reference Object and the whole document is
+  validated against the single bundled OAS 3.0 schema — there are no Schema-Object dialects.
+- **Standalone JSON Schema documents.** A document whose root is a Schema Object (detected by a root
+  `$id`/`$schema`) is rendered as a Schema Object tree and validated against its declared dialect; its
+  header shows the JSON Schema dialect instead of an OAS version.
+- **Document fragments** (opt-in, off by default). A document that is neither a complete OpenAPI
+  document nor a JSON Schema document — for example a bare Path Item Object, a standalone Schema
+  Object, or a reusable Components Object — can be loaded and typed from the references that point at
+  it. *Referenced by the root* types a fragment from a reference to its root; *any fragment* also
+  types it from references to its interior nodes (only the referenced node and its descendants take a
+  type) and tolerates an unreferenced fragment. References that disagree about a node's type make just
+  that node generic and flag the conflicting references as errors.
+- Built-in OAS 3.0 fragment demos: a Path Item + Schema split, and a reusable Components Object library.
+
+### Changed
+
+- On the Configure page, the load-behavior selector now sits with the documents it governs, and the
+  **Render OAD** button moves into the resolution-options row.
+
 ## [0.4.1] — 2026-06-22
 
 ### Added
@@ -168,6 +192,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[0.5.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.3.0...v0.3.1
