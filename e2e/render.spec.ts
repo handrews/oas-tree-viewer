@@ -79,7 +79,7 @@ test.describe("error handling", () => {
     await page.locator(".doc-row").nth(1).locator("input.file").setInputFiles(fixture("tictactoe-3.2.yaml"));
     await page.getByRole("button", { name: "Render OAD" }).click();
 
-    await expect(page.locator(".oad-error")).toContainText(/mixes OAS 3.1 and 3.2/i);
+    await expect(page.locator(".oad-error")).toContainText(/mixes OAS versions/i);
   });
 
   test("a Link with both operationRef and operationId is rejected on its row", async ({ page }) => {
@@ -410,13 +410,19 @@ test.describe("standalone JSON Schema document", () => {
 });
 
 test.describe("document fragments", () => {
-  test("types a Path Item fragment from a reference and labels its header", async ({ page }) => {
+  test("types Path Item and Schema fragments from references and labels their headers", async ({
+    page,
+  }) => {
     await page.goto("/view?demo=fragment&fragments=root");
-    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(3);
 
-    // The fragment's header reads "Fragment · <inferred type>", and its root row is the inferred type.
+    // Each fragment's header reads "Fragment · <inferred type>" (Path Item and Schema), shown on the
+    // referenced fragments' roots.
     await expect(
       page.locator("svg .doc-sub", { hasText: "Fragment · Path Item Object" }),
+    ).toHaveCount(1);
+    await expect(
+      page.locator("svg .doc-sub", { hasText: "Fragment · Schema Object" }),
     ).toHaveCount(1);
     await expect(
       page.locator("svg.tree-canvas g.row", { hasText: "Path Item Object" }).first(),
@@ -425,8 +431,8 @@ test.describe("document fragments", () => {
     await page.getByRole("button", { name: "Expand all" }).click();
     await page.getByRole("button", { name: "Show all references" }).click();
 
-    // Every reference resolves (the entry's Path Item $ref + the fragment's two schema $refs + the
-    // entry's own Pet $ref), all solid, and the drawer is clean.
+    // Every reference resolves (entry → Path Item fragment, entry → Schema fragment, and the Path Item
+    // fragment's two refs to the Schema fragment), all solid, and the drawer is clean.
     await expect(page.locator("svg path.ref-edge.status-resolved")).toHaveCount(4);
     await expect(page.locator("svg .warnings text.warn-glyph")).toHaveCount(0);
     await expect(page.locator("#issues .issue-count")).toHaveText("0");
@@ -434,9 +440,9 @@ test.describe("document fragments", () => {
 
   test("the fragment demo opens with fragments enabled in the URL", async ({ page }) => {
     await page.goto("/configure");
-    await page.getByRole("button", { name: "Document fragment — Path Item (3.1)" }).click();
+    await page.getByRole("button", { name: "Document fragments — Path Item & Schema (3.0)" }).click();
     await expect(page).toHaveURL(/\/view\?demo=fragment.*fragments=root/);
-    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(3);
   });
 
   test("types interior nodes of a Components-Object fragment and labels it partially typed", async ({

@@ -1,6 +1,6 @@
 # A document FRAGMENT shaped like a Components Object: it holds `schemas` and `responses`, but a
 # Components Object can never itself be the target of a reference, so nothing ever types this fragment's
-# root — it loads only with fragment loading set to "any". The entry (schema-lib-refs-3.1.yaml) references
+# root — it loads only with fragment loading set to "any". The entry (schema-lib-refs-3.0.yaml) references
 # its interior nodes (#/schemas/Pet, #/schemas/Error, #/responses/PetList), which type just those
 # subtrees; the root and the schemas/responses maps stay generic. References inside the fragment
 # (Pet → Error, the PetList response → Pet) resolve too.

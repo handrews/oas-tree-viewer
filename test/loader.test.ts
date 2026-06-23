@@ -60,7 +60,7 @@ components: { schemas: { Pet: { type: strang } } }
 
   it("rejects an unsupported version", async () => {
     await expect(
-      loadDocument({ source: "upload", filename: "d.yaml", text: "openapi: 3.0.3\ninfo: {}\n", isEntry: true }),
+      loadDocument({ source: "upload", filename: "d.yaml", text: "openapi: 4.0.0\ninfo: {}\n", isEntry: true }),
     ).rejects.toBeInstanceOf(UnsupportedVersionError);
   });
 

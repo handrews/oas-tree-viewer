@@ -31,7 +31,7 @@ describe("runPipeline", () => {
       { source: "upload", filename: "b.yaml", text: valid("B", "3.2.0"), isEntry: false },
     ]);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.oadError).toMatch(/3\.1 and 3\.2/i);
+    if (!r.ok) expect(r.oadError).toMatch(/mixes OAS versions/i);
   });
 });
 

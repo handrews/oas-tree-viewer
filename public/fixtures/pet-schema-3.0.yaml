@@ -1,0 +1,9 @@
+# A document FRAGMENT whose root is a bare Schema Object (no `openapi`/`$id`/`$schema`). In OAS 3.0 a
+# Schema Object is not JSON Schema, so it carries no `$id`/`$schema` and never matches the standalone-
+# JSON-Schema heuristic — it loads as a fragment and is typed from the references that point at it (the
+# entry's response and the Path Item fragment's operations), so its header reads "Fragment · Schema Object".
+type: object
+required: [name]
+properties:
+  name: { type: string }
+  tag: { type: string }

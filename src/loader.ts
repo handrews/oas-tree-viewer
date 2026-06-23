@@ -77,8 +77,9 @@ export interface DetectedDoc {
 
 let nextDocId = 1;
 
-/** Map a full version string ("3.2.0") to its family ("3.2"). Assumes 3.1/3.2. */
+/** Map a full version string ("3.2.0") to its family ("3.2"). Assumes 3.0/3.1/3.2. */
 export function versionFamilyOf(version: string): VersionFamily {
+  if (version.startsWith("3.0")) return "3.0";
   return version.startsWith("3.2") ? "3.2" : "3.1";
 }
 
@@ -86,7 +87,7 @@ export function versionFamilyOf(version: string): VersionFamily {
  * The OAS version family an OAD uses, taken from its OpenAPI documents (a JSON Schema document has
  * none of its own). `determined` is false when there is no OpenAPI document to set it — then a default
  * of "3.1" is returned for machinery that needs a value, but a `$schema`-less JSON Schema document is
- * left unvalidated rather than validated against a guessed dialect. Throws on a 3.1/3.2 mix.
+ * left unvalidated rather than validated against a guessed dialect. Throws when versions are mixed.
  */
 export function determineVersionFamily(
   docs: { kind: DocKind; oasVersion?: string }[],
@@ -98,7 +99,8 @@ export function determineVersionFamily(
   );
   if (families.size > 1) {
     throw new VersionMismatchError(
-      "This OAD mixes OAS 3.1 and 3.2 documents, which is not supported. Use a single version family.",
+      "This OAD mixes OAS versions, which is not supported. Use a single version family " +
+        "(all 3.0, all 3.1, or all 3.2).",
     );
   }
   const [family] = families;
@@ -164,14 +166,16 @@ export async function finalizeDocument(
   // documents classify and validate now, against the OAD's version family.
   if (d.kind !== "fragment") {
     classifyDocument(d.root, family, d.kind);
-    annotateDialectSupport(d.root, family);
+    // OAS 3.0 Schema Objects are not JSON Schema — there is no `$schema`/`jsonSchemaDialect` to flag.
+    if (family !== "3.0") annotateDialectSupport(d.root, family);
     if (d.kind === "openapi") assertValidLinks(d.root, d.oasVersion!);
 
     // The effective dialect a JSON Schema document validates/resolves against: its own `$schema`, else
-    // the borrowed OAS dialect, else undefined (no version determined ⇒ left unvalidated).
+    // the borrowed OAS dialect, else undefined (no version determined, or a 3.0 OAD that has no JSON
+    // Schema dialect to borrow ⇒ left unvalidated).
     schemaDialect =
       d.kind === "schema"
-        ? (d.rootSchema ?? (versionDetermined ? oasDialectUri(family) : undefined))
+        ? (d.rootSchema ?? (versionDetermined && family !== "3.0" ? oasDialectUri(family) : undefined))
         : undefined;
 
     // Validate (offline). A structural failure rejects the document; an unsupported / undetermined
@@ -281,9 +285,9 @@ function detectKind(
   // Complete OpenAPI document.
   const openapi = obj["openapi"];
   if (typeof openapi === "string") {
-    if (!/^3\.(1|2)(\.|$)/.test(openapi)) {
+    if (!/^3\.(0|1|2)(\.|$)/.test(openapi)) {
       throw new UnsupportedVersionError(
-        `Unsupported OpenAPI version "${openapi}". This tool supports OAS 3.1 and 3.2.`,
+        `Unsupported OpenAPI version "${openapi}". This tool supports OAS 3.0, 3.1, and 3.2.`,
       );
     }
     const self = obj["$self"];

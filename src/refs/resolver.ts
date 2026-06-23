@@ -260,7 +260,10 @@ function walkDoc(
     let dialect = currentDialect;
     let rootId = resourceRootId;
 
-    if (node.oasType === "Schema Object") {
+    // In OAS 3.0 a Schema Object is not JSON Schema — no `$schema`/`$id`/`$anchor`/dynamic keywords —
+    // so skip all of this; a 3.0 schema `$ref` is a plain Reference Object, handled by the source
+    // collection below.
+    if (node.oasType === "Schema Object" && version !== "3.0") {
       // A `$schema` re-declares the dialect — and so the referencing model + identifier keyword —
       // for this subtree.
       const schema = childString(node, "$schema");
@@ -823,7 +826,9 @@ function resolveComponentEdge(
   });
 
   if (spec.field === "securityRequirement") {
-    if (ctx.version === "3.1") return asName();
+    // 3.0 and 3.1: a Security Requirement key is always a component name (no URI form). 3.2 adds the
+    // URI-reference fallback when no component matches.
+    if (ctx.version !== "3.2") return asName();
     return nameTarget ? asName() : asUri();
   }
 

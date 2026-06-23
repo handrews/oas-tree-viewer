@@ -18,12 +18,14 @@ _Produced by Henry Andrews using Claude Code._
 - Loads an OAD made of **one or more documents**: the **first document is the entry
   document** (use **Make entry** to promote another), any others are additional (referenced)
   documents.
-- Parses **JSON or YAML** and validates each document against the official **OAS 3.1 or 3.2**
-  JSON Schema — **offline**, since the schemas are bundled rather than fetched at runtime. Each
-  Schema Object is validated against the dialect it declares in `$schema` (the OAS dialect, JSON
-  Schema 2020-12 and 2019-09, and draft-07/06/04 are all checked); a document using an older or
-  unknown dialect still renders, with a non-blocking warning that those Schema Objects were not
-  validated.
+- Parses **JSON or YAML** and validates each document against the official **OAS 3.0, 3.1, or 3.2**
+  JSON Schema — **offline**, since the schemas are bundled rather than fetched at runtime. In 3.1/3.2 a
+  Schema Object is JSON Schema, so each is additionally validated against the dialect it declares in
+  `$schema` (the OAS dialect, JSON Schema 2020-12 and 2019-09, and draft-07/06/04 are all checked); a
+  document using an older or unknown dialect still renders, with a non-blocking warning that those Schema
+  Objects were not validated. In **3.0** a Schema Object is *not* JSON Schema (no `$id`/`$anchor`/dynamic
+  keywords; a Schema `$ref` is a plain Reference Object), so there are no dialects — the single 3.0 schema
+  validates the whole document.
 - Also accepts a **standalone JSON Schema document** — one whose root is a **Schema Object** rather
   than an OpenAPI Object, detected by a root `$id`/`$schema`. It is rendered as a Schema Object tree
   and validated against its declared dialect (or, when it omits `$schema`, the OAS dialect of the rest
@@ -148,7 +150,7 @@ npm run typecheck
 
 ## Not yet implemented
 
-* OAS 3.0 support (OAS 2.0 support is not planned)
+* OAS 2.0 (Swagger) support (not planned)
 * Search/filter
 
 ## Contributing

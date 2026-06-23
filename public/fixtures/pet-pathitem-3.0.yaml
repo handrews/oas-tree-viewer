@@ -1,6 +1,6 @@
 # A document FRAGMENT: its root is a Path Item Object (no `openapi`/`$id`/`$schema`), so it loads only
-# with fragments enabled. The reference to it from ref-to-fragment-3.1.yaml (a `/pets` slot) types its
-# root as a Path Item; its own schema references resolve back to that document's Pet schema.
+# with fragments enabled. The reference to it from ref-to-fragment-3.0.yaml (a `/pets` slot) types its
+# root as a Path Item; its operations reference the shared Pet schema fragment (pet-schema-3.0.yaml).
 get:
   operationId: listPets
   summary: List pets
@@ -12,7 +12,7 @@ get:
           schema:
             type: array
             items:
-              $ref: ref-to-fragment-3.1.yaml#/components/schemas/Pet
+              $ref: pet-schema-3.0.yaml
 post:
   operationId: createPet
   summary: Create a pet
@@ -21,7 +21,7 @@ post:
     content:
       application/json:
         schema:
-          $ref: ref-to-fragment-3.1.yaml#/components/schemas/Pet
+          $ref: pet-schema-3.0.yaml
   responses:
     '201':
       description: Created
