@@ -17,7 +17,15 @@ import { annotateDiagnostics } from "./diagnostics";
 import { analyzeDynamicScope } from "./dynamicScope";
 import type { AnchorRef, DynamicScopeAnalysis } from "./dynamicScope";
 import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
-import { idKeyword, referenceModel } from "../oas/dialects";
+import { dynamicScopeKeywords, idKeyword, referenceModel } from "../oas/dialects";
+
+/**
+ * The anonymous name under which a 2019-09 `$recursiveAnchor: true` is tracked for strict-winner
+ * analysis. It lives ONLY in name-keyed structures (`dynamicAnchorsByName`, `anchorsByName`) and the
+ * `recursiveAnchorResources` set — never in a `${base}#${name}` URI map — so the anonymous anchor can
+ * never surface as a spurious URI fragment. The leading `$` also makes it an impossible anchor name.
+ */
+const RECURSIVE_SENTINEL = "$recursive";
 
 interface Resource {
   rootNode: TreeNode;
@@ -50,6 +58,7 @@ interface Indexes {
   dynamicAnchorByUri: Map<string, TreeNode>; // `${base}#${name}` -> node ($dynamicAnchor only)
   dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>; // every $dynamicAnchor
   resourceOf: Map<string, Map<string, string>>; // docId -> (nodeId -> the resource base URI it belongs to)
+  recursiveAnchorResources: Set<string>; // base URIs whose root has 2019-09 `$recursiveAnchor: true`
 }
 
 /** Per-resolution context for the version- and config-dependent component rules. */
@@ -101,10 +110,12 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     dynamicAnchorByUri: new Map(),
     dynamicAnchorsByName: new Map(),
     resourceOf: new Map(),
+    recursiveAnchorResources: new Set(),
   };
   const sources: RefSource[] = [];
   const opIdSources: OpIdSource[] = [];
   const dynRefSources: DynRefSource[] = [];
+  const recursiveRefSources: DynRefSource[] = [];
   // Lexical-descent transitions: a parent resource → a nested `$id` resource that evaluation can
   // descend into (collected during the walk, excluding definition stores). Carries the nested
   // resource's root node so the transition can be gated by entry reachability later.
@@ -116,7 +127,7 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     indexes.pointerIndex.set(doc.id, pidx);
     indexes.resourceOf.set(doc.id, new Map());
     indexDocResource(doc, indexes);
-    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources, descentEdges, oad.versionFamily);
+    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources, recursiveRefSources, descentEdges, oad.versionFamily);
   }
 
   const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
@@ -147,6 +158,13 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     const c = classifyDynamicRef(src.refString, src.base, indexes.dynamicAnchorByUri);
     if (c.dynamic) dynamicRefDescriptors.push({ resourceUri: src.base, name: c.name });
   }
+  // A 2019-09 `$recursiveRef` that engages recursive scope fans out over the anonymous sentinel —
+  // every `$recursiveAnchor: true` resource — exactly like a `$dynamicRef` over a named anchor.
+  for (const src of recursiveRefSources) {
+    if (classifyRecursiveRef(src.refString, src.base, indexes.recursiveAnchorResources).recursive) {
+      dynamicRefDescriptors.push({ resourceUri: src.base, name: RECURSIVE_SENTINEL });
+    }
+  }
   const analysis = analyzeDynamicScope({
     entryRoot,
     resourceEdges,
@@ -157,6 +175,11 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
   let edgeNo = edges.length;
   for (const src of dynRefSources) {
     for (const edge of resolveDynamicRef(src, indexes, analysis, () => `edge-${edgeNo++}`)) {
+      edges.push(edge);
+    }
+  }
+  for (const src of recursiveRefSources) {
+    for (const edge of resolveRecursiveRef(src, indexes, analysis, () => `edge-${edgeNo++}`)) {
       edges.push(edge);
     }
   }
@@ -211,6 +234,7 @@ function walkDoc(
   sources: RefSource[],
   opIdSources: OpIdSource[],
   dynRefSources: DynRefSource[],
+  recursiveRefSources: DynRefSource[],
   descentEdges: Array<DescentEdge>,
   version: VersionFamily,
 ): void {
@@ -288,30 +312,52 @@ function walkDoc(
       }
 
       if (model !== "numbered-draft") {
-        // `$anchor` (2019-09+) and `$dynamicAnchor`/`$dynamicRef` (2020-12) are date-formatted-draft
-        // keywords; the numbered drafts handled above have no counterpart (anchors come from `$id`).
+        // `$anchor` (named, 2019-09+) is shared across the date-formatted drafts; the numbered drafts
+        // handled above have no counterpart (anchors come from `$id`).
         const anchor = childString(node, "$anchor");
         if (anchor !== undefined) indexes.anchorByUri.set(`${base}#${anchor}`, node);
-        // A `$dynamicAnchor` is also a plain anchor (so `$ref` and a static `$dynamicRef` find it),
-        // and additionally a dynamic-scope anchor (so a dynamic `$dynamicRef` can fan out to every
-        // same-named one).
-        const dynAnchor = childString(node, "$dynamicAnchor");
-        if (dynAnchor !== undefined) {
-          const key = `${base}#${dynAnchor}`;
-          if (!indexes.anchorByUri.has(key)) indexes.anchorByUri.set(key, node);
-          indexes.dynamicAnchorByUri.set(key, node);
-          push(indexes.dynamicAnchorsByName, dynAnchor, { docId: doc.id, node });
-        }
-        // `$dynamicRef`: a schema-only reference whose target depends on the evaluation path.
-        const dynRefField = childByKey(node, "$dynamicRef");
-        if (dynRefField && dynRefField.valueKind === "string") {
-          dynRefSources.push({
-            doc,
-            schemaNode: node,
-            fieldNode: dynRefField,
-            refString: dynRefField.scalarValue as string,
-            base,
-          });
+
+        if (dynamicScopeKeywords(dialect, version) === "recursive") {
+          // 2019-09: `$recursiveAnchor: true` is an ANONYMOUS dynamic anchor. It is tracked only by
+          // the sentinel name and as a recursive-anchored resource — never in a `${base}#…` map — so
+          // it can't be reached by `$ref` and can't surface as a spurious URI fragment.
+          if (childBool(node, "$recursiveAnchor") === true) {
+            indexes.recursiveAnchorResources.add(base);
+            push(indexes.dynamicAnchorsByName, RECURSIVE_SENTINEL, { docId: doc.id, node });
+          }
+          const recRefField = childByKey(node, "$recursiveRef");
+          if (recRefField && recRefField.valueKind === "string") {
+            recursiveRefSources.push({
+              doc,
+              schemaNode: node,
+              fieldNode: recRefField,
+              refString: recRefField.scalarValue as string,
+              base,
+            });
+          }
+        } else {
+          // 2020-12 / OAS (and the unsupported best-effort fallback): `$dynamicAnchor`/`$dynamicRef`.
+          // A `$dynamicAnchor` is also a plain anchor (so `$ref` and a static `$dynamicRef` find it),
+          // and additionally a dynamic-scope anchor (so a dynamic `$dynamicRef` can fan out to every
+          // same-named one).
+          const dynAnchor = childString(node, "$dynamicAnchor");
+          if (dynAnchor !== undefined) {
+            const key = `${base}#${dynAnchor}`;
+            if (!indexes.anchorByUri.has(key)) indexes.anchorByUri.set(key, node);
+            indexes.dynamicAnchorByUri.set(key, node);
+            push(indexes.dynamicAnchorsByName, dynAnchor, { docId: doc.id, node });
+          }
+          // `$dynamicRef`: a schema-only reference whose target depends on the evaluation path.
+          const dynRefField = childByKey(node, "$dynamicRef");
+          if (dynRefField && dynRefField.valueKind === "string") {
+            dynRefSources.push({
+              doc,
+              schemaNode: node,
+              fieldNode: dynRefField,
+              refString: dynRefField.scalarValue as string,
+              base,
+            });
+          }
         }
       }
 
@@ -543,6 +589,66 @@ function resolveDynamicRef(
   return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
 }
 
+/**
+ * Classify a 2019-09 `$recursiveRef` (almost always `"#"`): it engages recursive scope iff it
+ * statically resolves to a schema *resource root* (empty/null fragment) whose resource declares
+ * `$recursiveAnchor: true`. Otherwise it is a plain static `$ref` to that target.
+ */
+function classifyRecursiveRef(
+  refString: string,
+  base: string,
+  recursiveAnchorResources: Set<string>,
+): { recursive: boolean } {
+  const { uriPart, fragment } = splitFragment(refString);
+  const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
+  const atResourceRoot = fragment === null || fragment === "";
+  return { recursive: !!resourceUri && atResourceRoot && recursiveAnchorResources.has(resourceUri) };
+}
+
+/**
+ * Resolve a `$recursiveRef`. If it engages recursive scope, point tentatively (dotted) at the strict
+ * winners — the outermost `$recursiveAnchor: true` resources on an entry-rooted path reaching it
+ * (the anonymous {@link RECURSIVE_SENTINEL} fan-out). Otherwise it behaves like a static `$ref` to
+ * `"#"` (the resource root).
+ */
+function resolveRecursiveRef(
+  src: DynRefSource,
+  indexes: Indexes,
+  analysis: DynamicScopeAnalysis,
+  nextId: () => string,
+): ReferenceEdge[] {
+  const makeEdge = (overrides: Partial<ReferenceEdge>): ReferenceEdge => ({
+    id: nextId(),
+    sourceDocId: src.doc.id,
+    sourceNodeId: src.fieldNode.id,
+    sourceObjectId: src.schemaNode.id,
+    refString: src.refString,
+    kind: "$recursiveRef",
+    context: "schema",
+    resolution: "uri-reference",
+    status: "external",
+    requiredType: "Schema",
+    ...overrides,
+  });
+
+  if (classifyRecursiveRef(src.refString, src.base, indexes.recursiveAnchorResources).recursive) {
+    src.fieldNode.resolvedAs = "dynamic";
+    return analysis.winners(src.base, RECURSIVE_SENTINEL).map((t) =>
+      makeEdge({
+        resolution: "dynamic",
+        status: "resolved",
+        targetDocId: t.docId,
+        targetNodeId: t.node.id,
+        targetType: t.node.expectedType,
+      }),
+    );
+  }
+
+  // Static: a plain `$ref` to its target (`"#"` ⇒ the resource root).
+  src.fieldNode.resolvedAs = "uri-reference";
+  return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
+}
+
 /** Key into the node-reachability set. */
 function nodeKey(docId: string, nodeId: string): string {
   return `${docId} ${nodeId}`;
@@ -757,6 +863,11 @@ function childByKey(node: TreeNode, key: string): TreeNode | undefined {
 function childString(node: TreeNode, key: string): string | undefined {
   const child = childByKey(node, key);
   return child && child.valueKind === "string" ? (child.scalarValue as string) : undefined;
+}
+
+function childBool(node: TreeNode, key: string): boolean | undefined {
+  const child = childByKey(node, key);
+  return child && child.valueKind === "boolean" ? (child.scalarValue as boolean) : undefined;
 }
 
 /** Attach a resolution advisory to a Schema Object's `$ref`/`$id` field row (or the schema itself). */
