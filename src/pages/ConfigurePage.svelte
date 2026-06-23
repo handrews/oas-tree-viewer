@@ -3,7 +3,7 @@
   import OadForm from "../ui/OadForm.svelte";
   import type { RenderOutcome } from "../ui/oadForm";
   import { runPipeline } from "../app/bootstrap";
-  import { demos } from "../app/demos";
+  import { demos, type Demo } from "../app/demos";
   import { session } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
   import { viewPath } from "../app/viewUrl";
@@ -30,8 +30,10 @@
     return { ok: true };
   }
 
-  function openDemo(id: string): void {
-    navigate(viewPath({ kind: "demo", demoId: id }, config));
+  // A demo may carry a config override (e.g. enabling fragments), merged over the current options so
+  // the demo opens in the mode it needs — and that mode is carried in the bookmarkable view URL.
+  function openDemo(demo: Demo): void {
+    navigate(viewPath({ kind: "demo", demoId: demo.id }, { ...config, ...demo.config }));
   }
 </script>
 
@@ -55,6 +57,10 @@
           <option value="local">the local document</option>
         </select>
       </label>
+      <label class="option option-check">
+        <input type="checkbox" bind:checked={config.allowFragments} />
+        <span class="option-label">Load document fragments (unvalidated; root type inferred from references)</span>
+      </label>
     </div>
   </details>
 
@@ -63,7 +69,7 @@
     <ul class="demo-list">
       {#each demos as demo (demo.id)}
         <li class="demo-item">
-          <button type="button" class="demo-open" onclick={() => openDemo(demo.id)}>
+          <button type="button" class="demo-open" onclick={() => openDemo(demo)}>
             {demo.label}
           </button>
           <p class="demo-desc">{demo.description}</p>
@@ -72,3 +78,15 @@
     </ul>
   </section>
 </section>
+
+<style>
+  /* A boolean option reads as a checkbox + inline label, unlike the stacked label/select options. */
+  .option-check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .option-check .option-label {
+    margin: 0;
+  }
+</style>

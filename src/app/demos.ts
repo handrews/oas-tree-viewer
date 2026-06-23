@@ -4,6 +4,7 @@
 // is framework-free so it is unit-testable in node.
 
 import type { DocInput } from "../loader";
+import type { ViewerConfig } from "./config";
 
 export interface Demo {
   id: string;
@@ -11,6 +12,8 @@ export interface Demo {
   description: string;
   /** Document inputs, entry first. */
   inputs: DocInput[];
+  /** Resolution options this demo needs (e.g. enabling fragments), merged over the current config. */
+  config?: Partial<ViewerConfig>;
 }
 
 /** Root-absolute same-origin fixture URL, so it resolves the same under any in-app route. */
@@ -148,6 +151,20 @@ export const demos: Demo[] = [
       "self-reference to the document root (#), a JSON-Pointer ref into $defs, and a plain-name $anchor " +
       "reference.",
     inputs: [urlDoc("jsonschema-2020-12.yaml", true)],
+  },
+  {
+    id: "fragment",
+    label: "Document fragment — Path Item (3.1)",
+    description:
+      "A document fragment: pet-pathitem-3.1.yaml has a bare Path Item Object at its root (no openapi/" +
+      "$id/$schema), so it loads only with fragments enabled. The entry's /pets $ref types its root as a " +
+      "Path Item — its header reads “Fragment · Path Item Object” — and its operations' schema references " +
+      "resolve back to the entry's Pet schema. (This demo turns the “Load document fragments” option on.)",
+    inputs: [
+      urlDoc("fragment-3.1.yaml", true, "https://example.com/oad/fragment-3.1.yaml"),
+      urlDoc("pet-pathitem-3.1.yaml", false, "https://example.com/oad/pet-pathitem-3.1.yaml"),
+    ],
+    config: { allowFragments: true },
   },
 ];
 

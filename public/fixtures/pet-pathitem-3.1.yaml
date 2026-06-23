@@ -1,0 +1,27 @@
+# A document FRAGMENT: its root is a Path Item Object (no `openapi`/`$id`/`$schema`), so it loads only
+# with fragments enabled. The reference to it from fragment-3.1.yaml (a `/pets` slot) types its root as
+# a Path Item; its own schema references resolve back to that document's Pet schema.
+get:
+  operationId: listPets
+  summary: List pets
+  responses:
+    '200':
+      description: A list of pets
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: fragment-3.1.yaml#/components/schemas/Pet
+post:
+  operationId: createPet
+  summary: Create a pet
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: fragment-3.1.yaml#/components/schemas/Pet
+  responses:
+    '201':
+      description: Created

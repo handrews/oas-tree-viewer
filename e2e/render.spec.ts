@@ -409,6 +409,37 @@ test.describe("standalone JSON Schema document", () => {
   });
 });
 
+test.describe("document fragments", () => {
+  test("types a Path Item fragment from a reference and labels its header", async ({ page }) => {
+    await page.goto("/view?demo=fragment&fragments=on");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+
+    // The fragment's header reads "Fragment · <inferred type>", and its root row is the inferred type.
+    await expect(
+      page.locator("svg .doc-sub", { hasText: "Fragment · Path Item Object" }),
+    ).toHaveCount(1);
+    await expect(
+      page.locator("svg.tree-canvas g.row", { hasText: "Path Item Object" }).first(),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+
+    // Every reference resolves (the entry's Path Item $ref + the fragment's two schema $refs + the
+    // entry's own Pet $ref), all solid, and the drawer is clean.
+    await expect(page.locator("svg path.ref-edge.status-resolved")).toHaveCount(4);
+    await expect(page.locator("svg .warnings text.warn-glyph")).toHaveCount(0);
+    await expect(page.locator("#issues .issue-count")).toHaveText("0");
+  });
+
+  test("the fragment demo opens with fragments enabled in the URL", async ({ page }) => {
+    await page.goto("/configure");
+    await page.getByRole("button", { name: "Document fragment — Path Item (3.1)" }).click();
+    await expect(page).toHaveURL(/\/view\?demo=fragment.*fragments=on/);
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+  });
+});
+
 test.describe("numbered-draft resolution advisories", () => {
   test("resolves identifier-fragment anchors and flags ignored siblings / a wrong id fragment", async ({
     page,

@@ -43,6 +43,14 @@ describe("docVersionLabel", () => {
     );
     expect(docVersionLabel(schema)).toBe("JSON Schema 2020-12");
   });
+
+  it("labels a fragment by its inferred root type, or ambiguous / undetermined", () => {
+    const frag = (root: { oasType?: string }, fragmentAmbiguous = false): OadDocument =>
+      ({ kind: "fragment", fragmentAmbiguous, root } as unknown as OadDocument);
+    expect(docVersionLabel(frag({ oasType: "Path Item Object" }))).toBe("Fragment · Path Item Object");
+    expect(docVersionLabel(frag({}, true))).toBe("Fragment · ambiguous root");
+    expect(docVersionLabel(frag({}))).toBe("Fragment · type undetermined");
+  });
 });
 
 function at(root: TreeNode, pointer: string): TreeNode {

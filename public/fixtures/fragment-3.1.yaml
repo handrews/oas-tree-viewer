@@ -1,0 +1,32 @@
+# A complete OpenAPI document that references a document FRAGMENT (pet-pathitem-3.1.yaml), whose root is
+# a bare Path Item Object — no `openapi`, `$id`, or `$schema`. With fragments enabled, that fragment's
+# root is inferred to be a Path Item from the reference below, and its whole tree is classified from it.
+openapi: 3.1.0
+info:
+  title: Document-fragment demo
+  version: '1.0'
+paths:
+  /pets:
+    $ref: pet-pathitem-3.1.yaml
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: A pet
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Pet' }
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        tag: { type: string }
