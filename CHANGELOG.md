@@ -5,6 +5,23 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] — 2026-06-22
+
+### Added
+
+- **Reference resolution for older JSON Schema dialects.** A Schema Object that declares an older
+  dialect now has its references resolved with that dialect's own identification rules, instead of a
+  2020-12 best-effort:
+  - **draft-2019-09** — `$recursiveRef` / `$recursiveAnchor`, drawn like `$dynamicRef` as tentative,
+    dotted arcs to the outermost recursive anchor on an entry-rooted path.
+  - **draft-07, draft-06, draft-04** — named anchors come from identifier fragments (`$id`, or `id`
+    in draft-04), and the constructs these drafts ignore are flagged: a `$ref` with sibling keywords,
+    and an identifier fragment that is not the schema's own location.
+- **Per-resource Schema Object validation.** Each Schema Object is validated against the dialect it
+  declares in `$schema` rather than a single document-wide default, so a document mixing dialects
+  validates each part correctly. Only dialects too old for the bundled validator stay unvalidated.
+- Built-in **`$recursiveRef`** (2019-09) and **draft-04/06/07** reference demos.
+
 ## [0.4.0] — 2026-06-22
 
 ### Added

@@ -19,10 +19,11 @@ _Produced by Henry Andrews using Claude Code._
   document** (use **Make entry** to promote another), any others are additional (referenced)
   documents.
 - Parses **JSON or YAML** and validates each document against the official **OAS 3.1 or 3.2**
-  JSON Schema — **offline**, since the schemas are bundled rather than fetched at runtime. Schema
-  Objects are validated against their declared dialect (the OAS dialect or standard JSON Schema
-  2020-12); a document using any other dialect still renders, with a non-blocking warning that its
-  Schema Objects were not validated.
+  JSON Schema — **offline**, since the schemas are bundled rather than fetched at runtime. Each
+  Schema Object is validated against the dialect it declares in `$schema` (the OAS dialect, JSON
+  Schema 2020-12 and 2019-09, and draft-07/06/04 are all checked); a document using an older or
+  unknown dialect still renders, with a non-blocking warning that those Schema Objects were not
+  validated.
 - Builds a tree of JSON-Pointer-addressed nodes and **classifies** each node by its OAS
   type (OpenAPI, Info, Paths, Path Item, Operation, Components, Schema, …), flagging
   Reference (`$ref`) objects. OAS 3.2 additions are recognized (`$self`, `query`,
@@ -46,11 +47,18 @@ loaded documents (matched by `$self` / retrieval URI).
   keys, each resolved as a component name or a URI-reference (per OAS version and the
   resolution options) and drawn as a distinct **implicit connection**.
 - **Link `operationId`** — resolved to its Operation, as an implicit connection.
-- **`$dynamicRef` / `$dynamicAnchor`** — a dynamic `$dynamicRef` is drawn as **tentative,
-  dotted** arcs to its *strict winners*: the `$dynamicAnchor`s that could actually be its
-  runtime resolution (the outermost same-named anchor on an evaluation path, rooted in the
+- **`$dynamicRef` / `$dynamicAnchor`** (2020-12) — a dynamic `$dynamicRef` is drawn as
+  **tentative, dotted** arcs to its *strict winners*: the `$dynamicAnchor`s that could actually be
+  its runtime resolution (the outermost same-named anchor on an evaluation path, rooted in the
   entry document, that reaches the reference). The JSON Schema "bookending" cases (a local
   `$anchor`, or a `$ref` landing on a `$dynamicAnchor`) resolve statically, like `$ref`.
+- **`$recursiveRef` / `$recursiveAnchor`** (2019-09) — the anonymous predecessor of `$dynamicRef`,
+  resolved with the same tentative-dotted strict-winner analysis; a `$recursiveRef` with no
+  `$recursiveAnchor` in scope is a plain static reference.
+- **Older-dialect identification** — Schema Objects declaring **draft-07/06/04** use identifier
+  (`$id`, or `id` in draft-04) fragments for anchors and ignore keywords next to `$ref`; the viewer
+  resolves them by those rules and flags the ignored-`$ref`-sibling and bad-identifier-fragment
+  cases. A dialect older than draft-04 (or unknown) keeps a ⚠ and is drawn with 2020-12 rules.
 - **Operation-reference advisories** — an `operationRef`/`operationId` that resolves but
   points somewhere not unambiguously callable (e.g. a webhook or callback Operation) is
   flagged with an advisory rather than treated as broken.
