@@ -107,8 +107,8 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-/** The two OAS version families this tool understands. */
-export type VersionFamily = "3.1" | "3.2";
+/** The OAS version families this tool understands. */
+export type VersionFamily = "3.0" | "3.1" | "3.2";
 
 export type DocSource = "upload" | "url";
 

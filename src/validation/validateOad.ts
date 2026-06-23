@@ -121,6 +121,7 @@ function loadValidator(): NonNullable<typeof validatorPromise> {
   if (!validatorPromise) {
     validatorPromise = (async () => {
       const oas31 = await import("@hyperjump/json-schema/openapi-3-1");
+      await import("@hyperjump/json-schema/openapi-3-0"); // OAS 3.0 schema (one self-contained schema)
       await import("@hyperjump/json-schema/openapi-3-2"); // OAS 3.2 dialect + schemas
       // Register the JSON Schema draft meta-schemas so a Schema Object can be validated against the
       // dialect it declares (2020-12 comes via the openapi modules).
@@ -152,8 +153,11 @@ export async function validateOad(
   const violations: SchemaViolation[] = [];
   const unvalidated: string[] = [];
 
-  // 1. Envelope structure (Schema Objects treated loosely as object/boolean). OpenAPI documents only:
-  //    a standalone JSON Schema document has no OpenAPI envelope — it is validated entirely in step 2.
+  // 1. Envelope structure. OpenAPI documents only: a standalone JSON Schema document has no OpenAPI
+  //    envelope — it is validated entirely in step 2. For 3.1/3.2 the envelope treats Schema Objects
+  //    loosely (object/boolean) and step 2 meta-validates each against its dialect; for 3.0 — whose
+  //    Schema Objects are not JSON Schema — the single 3.0 schema validates them fully here, so step 2
+  //    is skipped for it.
   if (kind === "openapi") {
     const envelope = (await validate(
       `https://spec.openapis.org/oas/${version}/schema`,
@@ -163,24 +167,29 @@ export async function validateOad(
     if (!envelope.valid) violations.push(...toViolations(envelope, `OpenAPI ${version}`, ""));
   }
 
-  // 2. Each top-most Schema Object against the dialect it declares. For a schema document that is the
-  //    root itself; a `$schema`-less root borrows the OAS dialect, unless no OAS version was
-  //    determinable (no OpenAPI document in the OAD) — then it is left unvalidated rather than guessed.
-  for (const node of topSchemaObjects(root)) {
-    const declared = declaredDialect(node, docDefault);
-    if (kind === "schema" && declared === undefined && !versionDetermined) {
-      unvalidated.push(`${displayPointer(node.id)} (dialect undetermined)`);
-      continue;
+  // 2. Each top-most Schema Object against the dialect it declares (3.1/3.2 and standalone JSON Schema
+  //    documents only — an OpenAPI 3.0 doc's schemas are covered by the envelope in step 1). For a
+  //    schema document that is the root itself; a `$schema`-less root borrows the OAS dialect, unless no
+  //    OAS version was determinable (no OpenAPI document in the OAD) — then it is left unvalidated.
+  if (kind === "schema" || version !== "3.0") {
+    for (const node of topSchemaObjects(root)) {
+      const declared = declaredDialect(node, docDefault);
+      // A standalone JSON Schema document with no own `$schema` borrows the OAS dialect — but only when
+      // one exists: not when the version is undetermined, and not for 3.0 (3.0 has no JSON Schema dialect).
+      if (kind === "schema" && declared === undefined && (!versionDetermined || version === "3.0")) {
+        unvalidated.push(`${displayPointer(node.id)} (dialect undetermined)`);
+        continue;
+      }
+      const uri = metaSchemaUri(declared, version);
+      if (!hasSchema(uri)) {
+        unvalidated.push(`${displayPointer(node.id)} (dialect ${declared})`);
+        continue;
+      }
+      const subject =
+        kind === "schema" ? dialectLabel(declared ?? oasDialectUri(version)) : `OpenAPI ${version}`;
+      const out = (await validate(uri, valueAtPointer(value, node.id), BASIC)) as BasicOutput;
+      if (!out.valid) violations.push(...toViolations(out, subject, node.id));
     }
-    const uri = metaSchemaUri(declared, version);
-    if (!hasSchema(uri)) {
-      unvalidated.push(`${displayPointer(node.id)} (dialect ${declared})`);
-      continue;
-    }
-    const subject =
-      kind === "schema" ? dialectLabel(declared ?? oasDialectUri(version)) : `OpenAPI ${version}`;
-    const out = (await validate(uri, valueAtPointer(value, node.id), BASIC)) as BasicOutput;
-    if (!out.valid) violations.push(...toViolations(out, subject, node.id));
   }
 
   const dialectWarning =

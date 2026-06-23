@@ -26,7 +26,9 @@ export function classifyDocument(
   rootType?: TypeRef,
 ): void {
   const typeRef = rootType ?? (kind === "schema" ? "Schema" : "OpenApi");
-  visitValue(root, typeRef, buildDescriptors(version));
+  // In OAS 3.0 a Schema Object is not JSON Schema: its `$ref` is a plain Reference Object (no
+  // sibling-keyword behavior). 3.1/3.2 Schema Objects are JSON Schema, where `$ref` may have siblings.
+  visitValue(root, typeRef, buildDescriptors(version), version !== "3.0");
 }
 
 /**
@@ -55,19 +57,26 @@ export function clearClassification(node: TreeNode): void {
   for (const child of node.children) clearClassification(child);
 }
 
-/** A node expected to be a single object of `typeRef` (or a Reference Object). */
-function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors): void {
+/**
+ * A node expected to be a single object of `typeRef` (or a Reference Object). `jsonSchema` is true for
+ * OAS 3.1/3.2 (where a Schema Object is JSON Schema and a `$ref` may have siblings) and false for 3.0
+ * (where a Schema `$ref` is a plain Reference Object); it is threaded through the recursion so nested
+ * Schema Objects classify consistently.
+ */
+function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors, jsonSchema: boolean): void {
   // Record the slot's expected type before anything else, so a Reference Object here
   // inherits the type it stands in for (used by reference type-compatibility checks).
   node.expectedType = typeRef;
 
-  const isSchema = typeRef === "Schema";
+  // A Schema `$ref` keeps its sibling keywords (and stays a Schema) only under JSON Schema (3.1/3.2);
+  // in 3.0 it is a pure Reference Object like any other `$ref`.
+  const schemaRefIsKeyword = typeRef === "Schema" && jsonSchema;
   const ref = node.valueKind === "object" ? refStringOf(node) : undefined;
 
   if (ref !== undefined) {
     node.isReference = true;
     node.refTarget = ref;
-    if (!isSchema) {
+    if (!schemaRefIsKeyword) {
       // A pure Reference Object: its only meaningful children are scalars. It is colored as
       // the type it stands in for (a $ref in a Path Item slot reads as a Path Item); the
       // distinct asterisk marks the `$ref` field row itself, not this object.
@@ -76,7 +85,7 @@ function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors): void {
       classifyGeneric(node);
       return;
     }
-    // Schema with `$ref`: in JSON Schema `$ref` is a keyword and may have siblings,
+    // Schema with `$ref` (JSON Schema): `$ref` is a keyword and may have siblings,
     // so keep classifying this node as a Schema below (still flagged isReference).
   }
 
@@ -84,7 +93,7 @@ function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors): void {
   if (desc && node.valueKind === "object") {
     node.oasType = desc.label;
     node.category = desc.category;
-    classifyObjectChildren(node, desc, d);
+    classifyObjectChildren(node, desc, d, jsonSchema);
   } else {
     // The value isn't the object we expected (e.g. boolean `additionalProperties`,
     // or an unknown type): fall back to structural typing.
@@ -94,7 +103,7 @@ function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors): void {
 }
 
 /** A node expected to be an array of `elemType`. */
-function visitArray(node: TreeNode, elemType: TypeRef, d: Descriptors): void {
+function visitArray(node: TreeNode, elemType: TypeRef, d: Descriptors, jsonSchema: boolean): void {
   if (node.valueKind !== "array") {
     assignStructural(node);
     classifyGeneric(node);
@@ -102,11 +111,11 @@ function visitArray(node: TreeNode, elemType: TypeRef, d: Descriptors): void {
   }
   node.oasType = `Array of ${labelOf(elemType, d)}`;
   node.category = "array";
-  for (const element of node.children) visitValue(element, elemType, d);
+  for (const element of node.children) visitValue(element, elemType, d, jsonSchema);
 }
 
 /** A node expected to be a map (object) whose values are `valueType`. */
-function visitMap(node: TreeNode, valueType: TypeRef, d: Descriptors): void {
+function visitMap(node: TreeNode, valueType: TypeRef, d: Descriptors, jsonSchema: boolean): void {
   if (node.valueKind !== "object") {
     assignStructural(node);
     classifyGeneric(node);
@@ -116,14 +125,19 @@ function visitMap(node: TreeNode, valueType: TypeRef, d: Descriptors): void {
   // a generic square — matching how an array holder gets the generic "array" kind below.
   node.oasType = `Map of ${labelOf(valueType, d)}`;
   node.category = "object";
-  for (const value of node.children) visitValue(value, valueType, d);
+  for (const value of node.children) visitValue(value, valueType, d, jsonSchema);
 }
 
-function classifyObjectChildren(node: TreeNode, desc: TypeDescriptor, d: Descriptors): void {
+function classifyObjectChildren(
+  node: TreeNode,
+  desc: TypeDescriptor,
+  d: Descriptors,
+  jsonSchema: boolean,
+): void {
   for (const child of node.children) {
     const rule = child.key !== null ? desc.fields?.[child.key] : undefined;
     if (rule) {
-      applyRule(child, rule, d);
+      applyRule(child, rule, d, jsonSchema);
     } else if (desc.refKeys && child.key !== null) {
       // This object's keys are component references (e.g. Security Requirement scheme names).
       child.componentRef = {
@@ -134,7 +148,7 @@ function classifyObjectChildren(node: TreeNode, desc: TypeDescriptor, d: Descrip
       assignStructural(child);
       classifyGeneric(child);
     } else if (desc.mapOf) {
-      visitValue(child, desc.mapOf, d);
+      visitValue(child, desc.mapOf, d, jsonSchema);
     } else {
       // Extension fields (x-*) and anything off-grammar: keep, but type generically.
       assignStructural(child);
@@ -143,10 +157,10 @@ function classifyObjectChildren(node: TreeNode, desc: TypeDescriptor, d: Descrip
   }
 }
 
-function applyRule(node: TreeNode, rule: FieldRule, d: Descriptors): void {
-  if ("value" in rule) visitValue(node, rule.value, d);
-  else if ("array" in rule) visitArray(node, rule.array, d);
-  else if ("map" in rule) visitMap(node, rule.map, d);
+function applyRule(node: TreeNode, rule: FieldRule, d: Descriptors, jsonSchema: boolean): void {
+  if ("value" in rule) visitValue(node, rule.value, d, jsonSchema);
+  else if ("array" in rule) visitArray(node, rule.array, d, jsonSchema);
+  else if ("map" in rule) visitMap(node, rule.map, d, jsonSchema);
   else visitRefValues(node, rule.refValues, d);
 }
 

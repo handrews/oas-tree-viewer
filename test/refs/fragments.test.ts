@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { runPipeline } from "../../src/app/bootstrap";
 import { defaultConfig } from "../../src/app/config";
 import { makeInput } from "../helpers";
+import { docVersionLabel } from "../../src/render/detail";
 import type { Oad, TreeNode } from "../../src/types";
 import type { ResolvedRefs } from "../../src/refs/types";
 
@@ -287,5 +288,40 @@ a:
     expect(toPathItem?.status).toBe("resolved");
     const toGet = refs.edges.find((e) => e.targetDocId === frag.id && e.targetNodeId === "/a/get");
     expect(toGet?.status).toBe("type-mismatch");
+  });
+});
+
+describe("document fragments — Schema-root fragment (OAS 3.0)", () => {
+  // A 3.0 OAD commonly puts a Schema Object in its own file, referenced by `$ref`. It has no
+  // `$id`/`$schema` (3.0 schemas don't use them), so it is a fragment — never the standalone-JSON-Schema
+  // heuristic — typed from the reference as a Schema Object, shown as "Fragment · Schema Object".
+  const ENTRY = `
+openapi: 3.0.4
+info: { title: T, version: '1.0' }
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: pet-schema.yaml }
+`;
+  const SCHEMA = `
+type: object
+required: [name]
+properties:
+  name: { type: string }
+`;
+
+  it("types a bare-Schema fragment as a Schema Object fragment, not a JSON Schema document", async () => {
+    const { oad } = await ok([input(ENTRY, "openapi.yaml", true), input(SCHEMA, "pet-schema.yaml")]);
+    const frag = fragOf(oad, "pet-schema.yaml");
+    expect(oad.versionFamily).toBe("3.0");
+    expect(frag.kind).toBe("fragment"); // detected as a fragment, not a standalone JSON Schema document
+    expect(frag.root.oasType).toBe("Schema Object");
+    expect(docVersionLabel(frag)).toBe("Fragment · Schema Object");
   });
 });
