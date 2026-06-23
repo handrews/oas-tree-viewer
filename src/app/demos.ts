@@ -166,6 +166,23 @@ export const demos: Demo[] = [
     ],
     config: { fragments: "root" },
   },
+  {
+    id: "fragment-interior",
+    label: "Document fragment — interior references (3.1)",
+    description:
+      "A reusable Components Object as a document fragment: schema-lib-3.1.yaml holds “schemas” and " +
+      "“responses”, but a Components Object can never be the target of a reference, so nothing types its " +
+      "root. The entry references three interior nodes (#/schemas/Pet, #/schemas/Error, " +
+      "#/responses/PetList), which type just those subtrees — the header reads “Fragment · partially " +
+      "typed” and the root stays generic. References inside the fragment (Pet → Error, the PetList " +
+      "response → Pet) resolve too. (This demo sets fragment loading to “any”, which interior typing " +
+      "requires.)",
+    inputs: [
+      urlDoc("schema-lib-refs-3.1.yaml", true, "https://example.com/oad/schema-lib-refs-3.1.yaml"),
+      urlDoc("schema-lib-3.1.yaml", false, "https://example.com/oad/schema-lib-3.1.yaml"),
+    ],
+    config: { fragments: "any" },
+  },
 ];
 
 const byId = new Map(demos.map((d) => [d.id, d]));

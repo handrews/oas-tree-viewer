@@ -102,8 +102,18 @@ for (const theme of ["dark", "light"] as const) {
     });
 
     test("document fragment view", async ({ page }) => {
-      // A fragment typed from a reference, with its "Fragment · …" header and resolved arcs.
-      await page.goto("/view?demo=fragment&fragments=on");
+      // A fragment typed from a root reference, with its "Fragment · …" header and resolved arcs.
+      await page.goto("/view?demo=fragment&fragments=root");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
+    test("interior-references fragment view", async ({ page }) => {
+      // A library fragment typed only at interior nodes ("partially typed" header).
+      await page.goto("/view?demo=fragment-interior&fragments=any");
       await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
       await page.getByRole("button", { name: "Show all references" }).click();
       await setTheme(page, theme);
