@@ -53,7 +53,7 @@ components:
     const refs = resolveOad(makeOad(await makeDoc(DOC, { isEntry: true })), {
       mappingPrecedence: "uri-first",
       componentLookup: "entry",
-      allowFragments: false,
+      fragments: "none",
     });
     // "#/components/schemas/Dog" locates a target as a URI -> stays a URI-reference.
     expect(edge(refs, "#/components/schemas/Dog", "discriminatorMapping")).toMatchObject({
@@ -160,7 +160,7 @@ components:
     const localLookup = resolveOad(oad, {
       mappingPrecedence: "name-first",
       componentLookup: "local",
-      allowFragments: false,
+      fragments: "none",
     });
     // Not in the local (other) document, and 3.1 has no URI fallback -> broken.
     expect(edge(localLookup, "apiKey", "securityRequirement")).toMatchObject({

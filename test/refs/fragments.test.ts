@@ -5,11 +5,11 @@ import { makeInput } from "../helpers";
 import type { Oad } from "../../src/types";
 import type { ResolvedRefs } from "../../src/refs/types";
 
-// v0.5.0 phase 2: a document fragment (neither an OpenAPI document nor a JSON Schema document) is
-// loaded only when `allowFragments` is on, unvalidated; its root type is inferred from the references
-// that target its root, which classifies the whole tree.
+// v0.5.0 phase 2+3: a document fragment (neither an OpenAPI document nor a JSON Schema document) is
+// loaded only when `fragments` is "root"/"any", unvalidated; its type is inferred from the references
+// that target it — its root (phase 2) or interior nodes ("any" mode, phase 3).
 
-const FRAGMENTS = { ...defaultConfig, allowFragments: true };
+const FRAGMENTS = { ...defaultConfig, fragments: "any" } as const;
 const BASE = "https://ex.test";
 
 const input = (yaml: string, name: string, isEntry = false) =>

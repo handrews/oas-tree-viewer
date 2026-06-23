@@ -83,7 +83,7 @@ describe("demos", () => {
       { source: "url", url: "/fixtures/numbered-drafts-3.1.yaml", isEntry: true },
     ]);
     // The fragment demo enables fragments via a per-demo config override.
-    expect(demoById("fragment")?.config).toEqual({ allowFragments: true });
+    expect(demoById("fragment")?.config).toEqual({ fragments: "root" });
     expect(demoInputs("fragment")).toEqual([
       {
         source: "url",

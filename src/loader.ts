@@ -106,7 +106,7 @@ export function determineVersionFamily(
 }
 
 /** Phase 1: acquire, parse, build the tree, and detect the document kind. */
-export async function detectDocument(input: DocInput, allowFragments = false): Promise<DetectedDoc> {
+export async function detectDocument(input: DocInput, fragmentsEnabled = false): Promise<DetectedDoc> {
   let text: string;
   let filename: string | undefined;
   let retrievalUri: string | undefined;
@@ -126,7 +126,7 @@ export async function detectDocument(input: DocInput, allowFragments = false): P
   }
 
   const { value, format } = parseDocument(text, filename);
-  const detected = detectKind(value, allowFragments);
+  const detected = detectKind(value, fragmentsEnabled);
   const root = buildTree(value);
 
   return {
@@ -252,12 +252,12 @@ function assertValidLinks(root: TreeNode, oasVersion: string): void {
  * Decide a parsed document's kind. A `$id` and/or `$schema` at the root marks a JSON Schema document
  * (draft-04's bare `id` is too generic to be a reliable signal — those go unrecognized for now); a
  * string `openapi` marks a complete OpenAPI document. Anything else is neither — a load error, unless
- * `allowFragments` is on, when an object-rooted unrecognized document becomes a `"fragment"` (its root
+ * `fragmentsEnabled` is on, when an object-rooted unrecognized document becomes a `"fragment"` (its
  * type is inferred later from the references that point at it).
  */
 function detectKind(
   value: unknown,
-  allowFragments: boolean,
+  fragmentsEnabled: boolean,
 ): {
   kind: DocKind;
   oasVersion?: string;
@@ -292,7 +292,7 @@ function detectKind(
   }
 
   // A document fragment — accepted only when fragments are enabled; typed later from incoming references.
-  if (allowFragments) return { kind: "fragment" };
+  if (fragmentsEnabled) return { kind: "fragment" };
 
   throw new NotOpenApiError(
     "No `openapi` field and no `$id`/`$schema` — this is neither an OpenAPI document nor a " +
