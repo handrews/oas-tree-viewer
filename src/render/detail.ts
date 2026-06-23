@@ -5,6 +5,7 @@
 import type { OadDocument } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
+import { dialectLabel } from "../oas/dialects";
 
 export interface DetailContext {
   refs: ResolvedRefs;
@@ -20,6 +21,11 @@ export function docName(doc: OadDocument): string {
 /** Base URI shown for a document ($self takes precedence over the retrieval URI). */
 export function baseUri(doc: OadDocument): string | undefined {
   return doc.selfUri ?? doc.retrievalUri;
+}
+
+/** The version/dialect line for a document header: the OAS version, or a JSON Schema dialect label. */
+export function docVersionLabel(doc: OadDocument): string {
+  return doc.kind === "schema" ? dialectLabel(doc.schemaDialect) : `OAS ${doc.oasVersion}`;
 }
 
 /** Stringify a scalar leaf value for display. */

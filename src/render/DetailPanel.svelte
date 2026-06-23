@@ -8,6 +8,7 @@
   import {
     docName,
     baseUri,
+    docVersionLabel,
     formatScalar,
     outgoingRefs,
     incomingRefs,
@@ -31,7 +32,7 @@
     <dl class="detail-grid">
       <dt>Document</dt>
       <dd>
-        {docName(doc)} <span class="dim">· OAS {doc.oasVersion}</span>{#if doc.isEntry}
+        {docName(doc)} <span class="dim">· {docVersionLabel(doc)}</span>{#if doc.isEntry}
           <span class="pill">entry</span>{/if}
       </dd>
 

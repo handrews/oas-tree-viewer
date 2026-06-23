@@ -138,6 +138,17 @@ export const demos: Demo[] = [
       "note) even though it still validates.",
     inputs: [urlDoc("dialects-3.1.yaml", true)],
   },
+  {
+    id: "jsonschema",
+    label: "Standalone JSON Schema (2020-12)",
+    description:
+      "A single document whose root is a Schema Object, not an OpenAPI Object — detected by its " +
+      "$id/$schema and rendered as a Schema Object tree. Its header shows the JSON Schema dialect " +
+      "(2020-12) rather than an OAS version, and its three internal references all resolve: a recursive " +
+      "self-reference to the document root (#), a JSON-Pointer ref into $defs, and a plain-name $anchor " +
+      "reference.",
+    inputs: [urlDoc("jsonschema-2020-12.yaml", true)],
+  },
 ];
 
 const byId = new Map(demos.map((d) => [d.id, d]));
