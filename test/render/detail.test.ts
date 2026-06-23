@@ -44,11 +44,14 @@ describe("docVersionLabel", () => {
     expect(docVersionLabel(schema)).toBe("JSON Schema 2020-12");
   });
 
-  it("labels a fragment by its inferred root type, or ambiguous / undetermined", () => {
-    const frag = (root: { oasType?: string }, fragmentAmbiguous = false): OadDocument =>
-      ({ kind: "fragment", fragmentAmbiguous, root } as unknown as OadDocument);
+  it("labels a fragment by its inferred root type, or ambiguous / partial / undetermined", () => {
+    const frag = (
+      root: { oasType?: string },
+      extra: { fragmentAmbiguous?: boolean; fragmentInteriorTyped?: boolean } = {},
+    ): OadDocument => ({ kind: "fragment", root, ...extra } as unknown as OadDocument);
     expect(docVersionLabel(frag({ oasType: "Path Item Object" }))).toBe("Fragment · Path Item Object");
-    expect(docVersionLabel(frag({}, true))).toBe("Fragment · ambiguous root");
+    expect(docVersionLabel(frag({}, { fragmentAmbiguous: true }))).toBe("Fragment · ambiguous root");
+    expect(docVersionLabel(frag({}, { fragmentInteriorTyped: true }))).toBe("Fragment · partially typed");
     expect(docVersionLabel(frag({}))).toBe("Fragment · type undetermined");
   });
 });

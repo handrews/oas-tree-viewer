@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import { runPipeline } from "../../src/app/bootstrap";
 import { defaultConfig } from "../../src/app/config";
 import { makeInput } from "../helpers";
-import type { Oad } from "../../src/types";
+import type { Oad, TreeNode } from "../../src/types";
 import type { ResolvedRefs } from "../../src/refs/types";
 
-// v0.5.0 phase 2: a document fragment (neither an OpenAPI document nor a JSON Schema document) is
-// loaded only when `allowFragments` is on, unvalidated; its root type is inferred from the references
-// that target its root, which classifies the whole tree.
+// v0.5.0 phase 2+3: a document fragment (neither an OpenAPI document nor a JSON Schema document) is
+// loaded only when `fragments` is "root"/"any", unvalidated; its type is inferred from the references
+// that target it — its root (phase 2) or interior nodes ("any" mode, phase 3).
 
-const FRAGMENTS = { ...defaultConfig, allowFragments: true };
+const FRAGMENTS = { ...defaultConfig, fragments: "any" } as const;
 const BASE = "https://ex.test";
 
 const input = (yaml: string, name: string, isEntry = false) =>
@@ -23,6 +23,16 @@ async function ok(inputs: ReturnType<typeof input>[]): Promise<{ oad: Oad; refs:
 
 const fragOf = (oad: Oad, name: string) =>
   oad.documents.find((d) => d.kind === "fragment" && d.retrievalUri === `${BASE}/${name}`)!;
+
+/** Find a node by JSON Pointer within a tree (property keys only — enough for these fixtures). */
+function nodeAt(root: TreeNode, pointer: string): TreeNode | undefined {
+  if (pointer === "") return root;
+  let cur: TreeNode | undefined = root;
+  for (const seg of pointer.split("/").slice(1)) {
+    cur = cur?.children.find((c) => c.key === seg);
+  }
+  return cur;
+}
 
 describe("document fragments — detection", () => {
   it("rejects an unrecognized document when fragments are off, loads it as a fragment when on", async () => {
@@ -163,5 +173,119 @@ properties:
     ]);
     expect(fragOf(oad, "a.yaml").root.oasType).toBe("Path Item Object");
     expect(fragOf(oad, "b.yaml").root.oasType).toBe("Schema Object");
+  });
+});
+
+describe("document fragments — interior references (any mode)", () => {
+  // A shared schema library: nothing references its root, but the entry references two interior schemas
+  // (#/Pet, #/Error). Only those nodes (and their descendants) take a type; the root stays generic.
+  const ENTRY = `
+openapi: 3.1.0
+info: { title: T, version: '1.0' }
+paths: {}
+components:
+  schemas:
+    PetRef: { $ref: schema-lib.yaml#/Pet }
+    ErrorRef: { $ref: schema-lib.yaml#/Error }
+`;
+  const LIB = `
+Pet:
+  type: object
+  properties:
+    name: { type: string }
+    problem: { $ref: '#/Error' }
+Error:
+  type: object
+  properties:
+    message: { type: string }
+`;
+
+  it("types only the referenced interior nodes, leaving the root generic", async () => {
+    const { oad, refs } = await ok([input(ENTRY, "openapi.yaml", true), input(LIB, "schema-lib.yaml")]);
+    const lib = fragOf(oad, "schema-lib.yaml");
+
+    expect(lib.root.oasType).toBeUndefined(); // root untyped (a generic map of schemas)
+    expect(lib.fragmentInteriorTyped).toBe(true);
+    expect(nodeAt(lib.root, "/Pet")?.oasType).toBe("Schema Object");
+    expect(nodeAt(lib.root, "/Error")?.oasType).toBe("Schema Object");
+
+    // The two interior references resolve, and Pet's internal #/Error ref resolves within the fragment.
+    const incoming = refs.edges.filter((e) => e.targetDocId === lib.id);
+    expect(incoming.length).toBeGreaterThanOrEqual(2);
+    expect(incoming.every((e) => e.status === "resolved")).toBe(true);
+    const internal = refs.edges.find((e) => e.sourceDocId === lib.id && e.targetNodeId === "/Error");
+    expect(internal?.status).toBe("resolved");
+  });
+
+  it("is a load error under root mode (no reference to its root)", async () => {
+    const result = await runPipeline([input(ENTRY, "openapi.yaml", true), input(LIB, "schema-lib.yaml")], {
+      ...defaultConfig,
+      fragments: "root",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : result.oadError).toMatch(/no reference to its root/i);
+  });
+});
+
+describe("document fragments — interior type conflicts", () => {
+  it("blanks just the node two references disagree about, keeping the rest typed", async () => {
+    // The entry references frag.yaml#/a once as a Path Item and once as a Schema.
+    const ENTRY = `
+openapi: 3.1.0
+info: { title: T, version: '1.0' }
+paths:
+  /x: { $ref: frag.yaml#/a }
+components:
+  schemas:
+    S: { $ref: frag.yaml#/a }
+    T: { $ref: frag.yaml#/b }
+`;
+    const FRAG = `
+a: { hello: world }
+b: { type: string }
+`;
+    const { oad, refs } = await ok([input(ENTRY, "openapi.yaml", true), input(FRAG, "frag.yaml")]);
+    const frag = fragOf(oad, "frag.yaml");
+
+    expect(frag.fragmentAmbiguous).toBeFalsy(); // the root is fine — only /a is contested
+    expect(frag.fragmentContested).toContain("/a");
+    expect(nodeAt(frag.root, "/a")?.oasType).toBeUndefined(); // blanked to generic
+    expect(nodeAt(frag.root, "/b")?.oasType).toBe("Schema Object"); // the other ref still types /b
+
+    const intoA = refs.edges.filter((e) => e.targetDocId === frag.id && e.targetNodeId === "/a");
+    expect(intoA.length).toBe(2);
+    expect(intoA.every((e) => e.status === "type-mismatch")).toBe(true);
+    const intoB = refs.edges.find((e) => e.targetDocId === frag.id && e.targetNodeId === "/b");
+    expect(intoB?.status).toBe("resolved");
+  });
+
+  it("detects an ancestor's type implying a different type than a descendant reference", async () => {
+    // /a is typed a Path Item (from /x); /a/get is then an Operation — but a Schema ref also targets it.
+    const ENTRY = `
+openapi: 3.1.0
+info: { title: T, version: '1.0' }
+paths:
+  /x: { $ref: frag.yaml#/a }
+components:
+  schemas:
+    S: { $ref: frag.yaml#/a/get }
+`;
+    const FRAG = `
+a:
+  get:
+    responses:
+      '200': { description: ok }
+`;
+    const { oad, refs } = await ok([input(ENTRY, "openapi.yaml", true), input(FRAG, "frag.yaml")]);
+    const frag = fragOf(oad, "frag.yaml");
+
+    expect(nodeAt(frag.root, "/a")?.oasType).toBe("Path Item Object"); // ancestor stays typed
+    expect(frag.fragmentContested).toContain("/a/get");
+    expect(nodeAt(frag.root, "/a/get")?.oasType).toBeUndefined(); // contested → generic
+
+    const toPathItem = refs.edges.find((e) => e.targetDocId === frag.id && e.targetNodeId === "/a");
+    expect(toPathItem?.status).toBe("resolved");
+    const toGet = refs.edges.find((e) => e.targetDocId === frag.id && e.targetNodeId === "/a/get");
+    expect(toGet?.status).toBe("type-mismatch");
   });
 });

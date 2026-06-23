@@ -57,6 +57,7 @@ describe("demos", () => {
       "dialects",
       "jsonschema",
       "fragment",
+      "fragment-interior",
     ]);
     expect(demoInputs("self")![0]!).toMatchObject({ url: "/fixtures/oads/openapi.yaml", isEntry: true });
     expect(demoInputs("component-refs")![0]!).toMatchObject({
@@ -83,7 +84,7 @@ describe("demos", () => {
       { source: "url", url: "/fixtures/numbered-drafts-3.1.yaml", isEntry: true },
     ]);
     // The fragment demo enables fragments via a per-demo config override.
-    expect(demoById("fragment")?.config).toEqual({ allowFragments: true });
+    expect(demoById("fragment")?.config).toEqual({ fragments: "root" });
     expect(demoInputs("fragment")).toEqual([
       {
         source: "url",
@@ -96,6 +97,22 @@ describe("demos", () => {
         url: "/fixtures/pet-pathitem-3.1.yaml",
         isEntry: false,
         retrievalUri: "https://example.com/oad/pet-pathitem-3.1.yaml",
+      },
+    ]);
+    // The interior-references demo needs the "any" tier (interior typing) via its config override.
+    expect(demoById("fragment-interior")?.config).toEqual({ fragments: "any" });
+    expect(demoInputs("fragment-interior")).toEqual([
+      {
+        source: "url",
+        url: "/fixtures/schema-lib-refs-3.1.yaml",
+        isEntry: true,
+        retrievalUri: "https://example.com/oad/schema-lib-refs-3.1.yaml",
+      },
+      {
+        source: "url",
+        url: "/fixtures/schema-lib-3.1.yaml",
+        isEntry: false,
+        retrievalUri: "https://example.com/oad/schema-lib-3.1.yaml",
       },
     ]);
   });

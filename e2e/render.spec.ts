@@ -411,7 +411,7 @@ test.describe("standalone JSON Schema document", () => {
 
 test.describe("document fragments", () => {
   test("types a Path Item fragment from a reference and labels its header", async ({ page }) => {
-    await page.goto("/view?demo=fragment&fragments=on");
+    await page.goto("/view?demo=fragment&fragments=root");
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
 
     // The fragment's header reads "Fragment · <inferred type>", and its root row is the inferred type.
@@ -435,8 +435,37 @@ test.describe("document fragments", () => {
   test("the fragment demo opens with fragments enabled in the URL", async ({ page }) => {
     await page.goto("/configure");
     await page.getByRole("button", { name: "Document fragment — Path Item (3.1)" }).click();
-    await expect(page).toHaveURL(/\/view\?demo=fragment.*fragments=on/);
+    await expect(page).toHaveURL(/\/view\?demo=fragment.*fragments=root/);
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+  });
+
+  test("types interior nodes of a Components-Object fragment and labels it partially typed", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=fragment-interior&fragments=any");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(2);
+
+    // No reference targets the Components-Object root, so its header reads "partially typed"; the
+    // referenced interior nodes type as a Schema Object (#/schemas/*) and a Response Object
+    // (#/responses/PetList).
+    await expect(
+      page.locator("svg .doc-sub", { hasText: "Fragment · partially typed" }),
+    ).toHaveCount(1);
+
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+    await expect(
+      page.locator("svg.tree-canvas g.row", { hasText: "Schema Object" }).first(),
+    ).toBeVisible();
+    await expect(
+      page.locator("svg.tree-canvas g.row", { hasText: "Response Object" }).first(),
+    ).toBeVisible();
+
+    // Every reference resolves (entry → #/responses/PetList, #/schemas/Pet, #/schemas/Error, plus the
+    // two internal refs Pet → Error and PetList → Pet), all solid, with a clean drawer.
+    await expect(page.locator("svg path.ref-edge.status-resolved")).toHaveCount(5);
+    await expect(page.locator("svg .warnings text.warn-glyph")).toHaveCount(0);
+    await expect(page.locator("#issues .issue-count")).toHaveText("0");
   });
 });
 

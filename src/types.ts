@@ -156,6 +156,18 @@ export interface OadDocument {
    */
   fragmentAmbiguous?: boolean;
   /**
+   * For `kind: "fragment"` ("any" mode): JSON-Pointer ids of *interior* subtrees whose type is
+   * over-determined — a reference's expected type disagrees with another reference at the same node or
+   * with the type an enclosing referenced ancestor implies. Each such subtree is blanked to generic and
+   * references into it are type errors; the rest of the fragment keeps its inferred types.
+   */
+  fragmentContested?: string[];
+  /**
+   * For `kind: "fragment"` ("any" mode): true when the root is untyped but at least one interior node
+   * was typed from a reference into it — drives the "Fragment · partially typed" header.
+   */
+  fragmentInteriorTyped?: boolean;
+  /**
    * Set when schema validation could not check this document's Schema Objects because they use a
    * dialect the tool doesn't validate yet — the structure was validated, the Schema Objects were
    * not. Surfaced as a non-blocking issue-report warning; absent when fully validated.

@@ -33,7 +33,7 @@ export async function runPipeline(
 
   for (let i = 0; i < inputs.length; i++) {
     try {
-      detected.push(await detectDocument(inputs[i]!, config.allowFragments));
+      detected.push(await detectDocument(inputs[i]!, config.fragments !== "none"));
     } catch (e) {
       rowErrors[i] = errorMessage(e);
     }

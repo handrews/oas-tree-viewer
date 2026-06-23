@@ -15,17 +15,23 @@ export interface ViewerConfig {
    */
   componentLookup: "entry" | "local";
   /**
-   * Whether to load **document fragments** — documents that are neither a complete OpenAPI document nor
-   * a JSON Schema document. Off by default (such a document is a load error); on, the document loads
-   * unvalidated and its root type is inferred from the references that point at it.
+   * Whether (and how aggressively) to load **document fragments** — documents that are neither a
+   * complete OpenAPI document nor a JSON Schema document. Such a document loads unvalidated, and its
+   * type is inferred from the references that point at it.
+   * - "none" (default): fragments are a load error — only complete OpenAPI / JSON Schema documents load.
+   * - "root": load fragments, but type them only from a reference to their **root**; a fragment with
+   *   no root reference is a load error.
+   * - "any": also type fragments from **interior** references (only the referenced node and its
+   *   descendants take a type), and tolerate truly-unreachable fragments (rendered generic). An
+   *   unreachable fragment is allowed only here.
    */
-  allowFragments: boolean;
+  fragments: "none" | "root" | "any";
 }
 
 export const defaultConfig: ViewerConfig = {
   mappingPrecedence: "name-first",
   componentLookup: "entry",
-  allowFragments: false,
+  fragments: "none",
 };
 
 /** Parse config from URL params, falling back to a default for any absent/unrecognized value. */
@@ -33,7 +39,8 @@ export function parseConfig(params: URLSearchParams): ViewerConfig {
   return {
     mappingPrecedence: params.get("disc") === "uri-first" ? "uri-first" : "name-first",
     componentLookup: params.get("lookup") === "local" ? "local" : "entry",
-    allowFragments: params.get("fragments") === "on",
+    fragments:
+      params.get("fragments") === "any" ? "any" : params.get("fragments") === "root" ? "root" : "none",
   };
 }
 
@@ -46,8 +53,8 @@ export function configParams(config: ViewerConfig): URLSearchParams {
   if (config.componentLookup !== defaultConfig.componentLookup) {
     params.set("lookup", config.componentLookup);
   }
-  if (config.allowFragments !== defaultConfig.allowFragments) {
-    params.set("fragments", config.allowFragments ? "on" : "off");
+  if (config.fragments !== defaultConfig.fragments) {
+    params.set("fragments", config.fragments);
   }
   return params;
 }

@@ -57,9 +57,13 @@
           <option value="local">the local document</option>
         </select>
       </label>
-      <label class="option option-check">
-        <input type="checkbox" bind:checked={config.allowFragments} />
-        <span class="option-label">Load document fragments (unvalidated; root type inferred from references)</span>
+      <label class="option">
+        <span class="option-label">Load document fragments (unvalidated; type inferred from references)</span>
+        <select class="option-select" bind:value={config.fragments}>
+          <option value="none">no — complete documents only (default)</option>
+          <option value="root">yes, if referenced by the root</option>
+          <option value="any">yes, any fragment (incl. interior-referenced)</option>
+        </select>
       </label>
     </div>
   </details>
@@ -79,14 +83,3 @@
   </section>
 </section>
 
-<style>
-  /* A boolean option reads as a checkbox + inline label, unlike the stacked label/select options. */
-  .option-check {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .option-check .option-label {
-    margin: 0;
-  }
-</style>

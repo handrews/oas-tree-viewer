@@ -72,13 +72,13 @@ describe("viewUrl", () => {
     expect(parseRoute("/view", "?demo=refs&disc=uri-first&lookup=local")).toEqual({
       page: "view",
       request: { kind: "demo", demoId: "refs" },
-      config: { mappingPrecedence: "uri-first", componentLookup: "local", allowFragments: false },
+      config: { mappingPrecedence: "uri-first", componentLookup: "local", fragments: "none" },
     });
     // Config without a demo/doc is still a session, with the parsed config.
     expect(parseRoute("/view", "?lookup=local")).toEqual({
       page: "view",
       request: { kind: "session" },
-      config: { mappingPrecedence: "name-first", componentLookup: "local", allowFragments: false },
+      config: { mappingPrecedence: "name-first", componentLookup: "local", fragments: "none" },
     });
   });
 
@@ -90,7 +90,7 @@ describe("viewUrl", () => {
     ];
     const configs: ViewerConfig[] = [
       defaultConfig,
-      { mappingPrecedence: "uri-first", componentLookup: "local", allowFragments: true },
+      { mappingPrecedence: "uri-first", componentLookup: "local", fragments: "any" },
     ];
     for (const request of requests) {
       for (const config of configs) {

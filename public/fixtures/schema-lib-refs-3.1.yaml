@@ -1,0 +1,35 @@
+# Entry document for the interior-fragment demo: a small Pet API whose reusable definitions all live in a
+# separate fragment (schema-lib-3.1.yaml) shaped like a Components Object — which has no referenceable
+# root. Each reference points at an *interior* node of that fragment (#/schemas/Pet, #/schemas/Error,
+# #/responses/PetList), which types just that node and its descendants — the fragment's root stays
+# generic. Loading it needs fragment support set to "any".
+openapi: 3.1.0
+info:
+  title: Pet store (shared schema library)
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List pets
+      responses:
+        '200':
+          $ref: schema-lib-3.1.yaml#/responses/PetList
+    post:
+      operationId: createPet
+      summary: Create a pet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: schema-lib-3.1.yaml#/schemas/Pet
+      responses:
+        '201':
+          description: Created
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: schema-lib-3.1.yaml#/schemas/Error
