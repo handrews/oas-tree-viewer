@@ -62,20 +62,18 @@ git pull
 git status            # must report a clean working tree
 ```
 
-### 2. Update the changelog
+### 2. Update the changelog and README
 
-Add a section to [`CHANGELOG.md`](CHANGELOG.md) for the new version and its compare link at the
-bottom of the file:
+Add a section to [`CHANGELOG.md`](CHANGELOG.md) for the new version. Both parts matter — the second
+is easy to forget:
 
 - Heading: `## [X.Y.Z] — YYYY-MM-DD`, with the changes grouped (Added / Changed / Fixed / …).
-- Link: `[X.Y.Z]: https://github.com/handrews/oas-tree-viewer/compare/v<previous>...vX.Y.Z`
+- Compare link at the **bottom** of the file:
+  `[X.Y.Z]: https://github.com/handrews/oas-tree-viewer/compare/v<previous>...vX.Y.Z`
 
-Commit it (the working tree must be clean before `npm version` in step 5):
+If the release changes user-facing behavior, update [`README.md`](README.md) to match.
 
-```bash
-git add CHANGELOG.md
-git commit -m "Changelog for vX.Y.Z"
-```
+Leave these edits **uncommitted** — they go into the single release commit in step 5.
 
 ### 3. Install from the lockfile and confirm it is in sync
 
@@ -106,14 +104,22 @@ npm run e2e          # Playwright + axe (starts its own dev server)
 npm run build
 ```
 
-### 5. Bump the version and tag
+### 5. Bump the version, then commit and tag as one release
 
-`npm version` updates `package.json` **and** `package-lock.json`, creates a commit, and tags it
-`vX.Y.Z`:
+Bump `package.json` **and** `package-lock.json` without letting npm commit or tag, so the changelog,
+README, and version bump all land in a single `Release vX.Y.Z` commit:
 
 ```bash
-npm version patch    # 0.3.0 -> 0.3.1   (use `minor` for 0.4.0, `major` for 1.0.0)
+npm version X.Y.Z --no-git-tag-version   # bumps package.json + package-lock.json only
+git add -A
+git commit -m "Release vX.Y.Z"           # changelog + README + version bump together
+git tag -a vX.Y.Z -m vX.Y.Z              # ANNOTATED — required by --follow-tags in step 6
 ```
+
+`--no-git-tag-version` keeps `npm version`'s lockfile-safe bump (it doesn't touch the dependency
+tree — see the caution above) while letting us make one clean release commit instead of a separate
+bare bump commit. The tag must be **annotated** (`-a`): `git push --follow-tags` only pushes
+annotated tags, and every release tag to date is annotated — keep it that way.
 
 ### 6. Push `main` with the tag
 
@@ -122,7 +128,8 @@ git push origin main --follow-tags
 ```
 
 `--follow-tags` is required: the `henry-web` deploy installs this repo **by tag**, and
-`npm install github:handrews/oas-tree-viewer#vX.Y.Z` only resolves once the tag is on GitHub.
+`npm install 'github:handrews/oas-tree-viewer#vX.Y.Z'` only resolves once the tag is on GitHub.
+(Quote the argument — an unquoted `#…` can be eaten by the shell.)
 
 ### 7. Deploy to a site
 

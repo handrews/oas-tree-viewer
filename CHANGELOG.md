@@ -168,6 +168,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[0.4.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.2.3...v0.3.0
