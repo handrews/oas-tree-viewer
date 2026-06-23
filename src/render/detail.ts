@@ -25,13 +25,15 @@ export function baseUri(doc: OadDocument): string | undefined {
 
 /**
  * The version/dialect line for a document header: the OAS version, a JSON Schema dialect, or — for a
- * fragment — its inferred root type ("Fragment · Path Item Object"), or "ambiguous root" / "type
- * undetermined" when it could not be typed.
+ * fragment — its inferred root type ("Fragment · Path Item Object"), "partially typed" when only
+ * interior nodes were typed, or "ambiguous root" / "type undetermined" when it could not be typed.
  */
 export function docVersionLabel(doc: OadDocument): string {
   if (doc.kind === "fragment") {
     if (doc.fragmentAmbiguous) return "Fragment · ambiguous root";
-    return doc.root.oasType ? `Fragment · ${doc.root.oasType}` : "Fragment · type undetermined";
+    if (doc.root.oasType) return `Fragment · ${doc.root.oasType}`;
+    if (doc.fragmentInteriorTyped) return "Fragment · partially typed";
+    return "Fragment · type undetermined";
   }
   return doc.kind === "schema" ? dialectLabel(doc.schemaDialect) : `OAS ${doc.oasVersion}`;
 }

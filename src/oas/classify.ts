@@ -38,6 +38,23 @@ export function classifyAsGeneric(root: TreeNode): void {
   classifyGeneric(root);
 }
 
+/**
+ * Reset a subtree to generic, clearing every classifier-set type field (so it reads as plain JSON
+ * structure). Used by the fragment-typing fixpoint to re-derive a fragment's classification each pass,
+ * and to blank a *contested* subtree — one whose type is over-determined by disagreeing references.
+ * Unlike {@link classifyAsGeneric}, this clears any types a prior pass (or an enclosing anchor's walk)
+ * already assigned, not just the missing ones.
+ */
+export function clearClassification(node: TreeNode): void {
+  node.oasType = undefined;
+  node.expectedType = undefined;
+  node.isReference = undefined;
+  node.refTarget = undefined;
+  node.componentRef = undefined;
+  node.category = structuralCategory(node);
+  for (const child of node.children) clearClassification(child);
+}
+
 /** A node expected to be a single object of `typeRef` (or a Reference Object). */
 function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors): void {
   // Record the slot's expected type before anything else, so a Reference Object here
