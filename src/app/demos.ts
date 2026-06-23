@@ -161,7 +161,7 @@ export const demos: Demo[] = [
       "Path Item — its header reads “Fragment · Path Item Object” — and its operations' schema references " +
       "resolve back to the entry's Pet schema. (This demo turns the “Load document fragments” option on.)",
     inputs: [
-      urlDoc("fragment-3.1.yaml", true, "https://example.com/oad/fragment-3.1.yaml"),
+      urlDoc("ref-to-fragment-3.1.yaml", true, "https://example.com/oad/ref-to-fragment-3.1.yaml"),
       urlDoc("pet-pathitem-3.1.yaml", false, "https://example.com/oad/pet-pathitem-3.1.yaml"),
     ],
     config: { allowFragments: true },

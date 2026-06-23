@@ -87,9 +87,9 @@ describe("demos", () => {
     expect(demoInputs("fragment")).toEqual([
       {
         source: "url",
-        url: "/fixtures/fragment-3.1.yaml",
+        url: "/fixtures/ref-to-fragment-3.1.yaml",
         isEntry: true,
-        retrievalUri: "https://example.com/oad/fragment-3.1.yaml",
+        retrievalUri: "https://example.com/oad/ref-to-fragment-3.1.yaml",
       },
       {
         source: "url",
