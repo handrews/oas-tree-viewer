@@ -1,20 +1,23 @@
-// Load a single document of an OAD: acquire its text (URL fetch or supplied upload
-// text), parse it, validate that it is a supported OpenAPI document, build and
-// classify its tree. Produces an OadDocument or throws a typed error.
+// Load a single document of an OAD in two phases. `detectDocument` acquires the text (URL fetch or
+// supplied upload text), parses it, and decides whether its root is an OpenAPI Object or a standalone
+// JSON Schema. `finalizeDocument` then classifies + validates it against the OAD's version family —
+// which is only known after every document is detected (a JSON Schema document has no intrinsic OAS
+// version). Either phase produces a typed error on failure.
 
-import type { OadDocument, TreeNode, VersionFamily } from "./types";
+import type { DocKind, OadDocument, TreeNode, VersionFamily } from "./types";
 import {
   InvalidDocumentError,
   NotOpenApiError,
   RetrievalError,
   SchemaValidationError,
   UnsupportedVersionError,
+  VersionMismatchError,
   errorMessage,
 } from "./errors";
 import { parseDocument } from "./parse/detectFormat";
 import { buildTree } from "./model/treeBuilder";
 import { classifyDocument } from "./oas/classify";
-import { annotateDialectSupport } from "./oas/dialects";
+import { annotateDialectSupport, oasDialectUri } from "./oas/dialects";
 import { displayPointer } from "./model/jsonPointer";
 import { validateOad, type SchemaViolation } from "./validation/validateOad";
 
@@ -49,6 +52,29 @@ export interface UrlInput {
 
 export type DocInput = UploadInput | UrlInput;
 
+/**
+ * A document after detection (phase 1): its text is parsed, its structural tree is built, and its
+ * kind is known, but it is not yet classified or validated (that needs the OAD's version family).
+ */
+export interface DetectedDoc {
+  kind: DocKind;
+  source: "upload" | "url";
+  isEntry: boolean;
+  filename?: string;
+  retrievalUri?: string;
+  /** OAS 3.2 `$self` (OpenAPI documents only). */
+  selfUri?: string;
+  format: "json" | "yaml";
+  raw: string;
+  value: unknown;
+  /** The structural tree, not yet classified. */
+  root: TreeNode;
+  /** The root `openapi` version string (OpenAPI documents only). */
+  oasVersion?: string;
+  /** The root `$schema` value, if a string (JSON Schema documents only). */
+  rootSchema?: string;
+}
+
 let nextDocId = 1;
 
 /** Map a full version string ("3.2.0") to its family ("3.2"). Assumes 3.1/3.2. */
@@ -56,7 +82,31 @@ export function versionFamilyOf(version: string): VersionFamily {
   return version.startsWith("3.2") ? "3.2" : "3.1";
 }
 
-export async function loadDocument(input: DocInput): Promise<OadDocument> {
+/**
+ * The OAS version family an OAD uses, taken from its OpenAPI documents (a JSON Schema document has
+ * none of its own). `determined` is false when there is no OpenAPI document to set it — then a default
+ * of "3.1" is returned for machinery that needs a value, but a `$schema`-less JSON Schema document is
+ * left unvalidated rather than validated against a guessed dialect. Throws on a 3.1/3.2 mix.
+ */
+export function determineVersionFamily(
+  docs: { kind: DocKind; oasVersion?: string }[],
+): { family: VersionFamily; determined: boolean } {
+  const families = new Set(
+    docs
+      .filter((d) => d.kind === "openapi" && d.oasVersion !== undefined)
+      .map((d) => versionFamilyOf(d.oasVersion!)),
+  );
+  if (families.size > 1) {
+    throw new VersionMismatchError(
+      "This OAD mixes OAS 3.1 and 3.2 documents, which is not supported. Use a single version family.",
+    );
+  }
+  const [family] = families;
+  return { family: family ?? "3.1", determined: families.size === 1 };
+}
+
+/** Phase 1: acquire, parse, build the tree, and detect the document kind. */
+export async function detectDocument(input: DocInput): Promise<DetectedDoc> {
   let text: string;
   let filename: string | undefined;
   let retrievalUri: string | undefined;
@@ -76,45 +126,99 @@ export async function loadDocument(input: DocInput): Promise<OadDocument> {
   }
 
   const { value, format } = parseDocument(text, filename);
-  const { oasVersion, selfUri } = validateOpenApi(value);
-
+  const detected = detectKind(value);
   const root = buildTree(value);
-  classifyDocument(root, versionFamilyOf(oasVersion));
-  annotateDialectSupport(root, versionFamilyOf(oasVersion));
-  assertValidLinks(root, oasVersion);
 
-  // Validate against the official OpenAPI JSON Schema (offline). A structural failure rejects the
-  // document; an unsupported Schema-Object dialect is a non-blocking warning carried on the doc.
-  const { violations, dialectWarning } = await validateOad(value, root, versionFamilyOf(oasVersion));
+  return {
+    kind: detected.kind,
+    source: input.source,
+    isEntry: input.isEntry,
+    filename,
+    retrievalUri,
+    selfUri: detected.selfUri,
+    format,
+    raw: text,
+    value,
+    root,
+    oasVersion: detected.oasVersion,
+    rootSchema: detected.rootSchema,
+  };
+}
+
+/**
+ * Phase 2: classify and validate a detected document against the OAD's version family. An OpenAPI
+ * document validates against its envelope + Schema-Object dialects; a JSON Schema document validates
+ * its single Schema Object against its `$schema`, else the borrowed OAS dialect (or is left unvalidated
+ * when no version was determined). Throws a typed error on a structural/schema failure.
+ */
+export async function finalizeDocument(
+  d: DetectedDoc,
+  family: VersionFamily,
+  versionDetermined: boolean,
+): Promise<OadDocument> {
+  classifyDocument(d.root, family, d.kind);
+  annotateDialectSupport(d.root, family);
+  if (d.kind === "openapi") assertValidLinks(d.root, d.oasVersion!);
+
+  // The effective dialect a JSON Schema document validates/resolves against: its own `$schema`, else
+  // the borrowed OAS dialect, else undefined (no version determined ⇒ left unvalidated).
+  const schemaDialect =
+    d.kind === "schema"
+      ? (d.rootSchema ?? (versionDetermined ? oasDialectUri(family) : undefined))
+      : undefined;
+
+  // Validate (offline). A structural failure rejects the document; an unsupported / undetermined
+  // Schema-Object dialect is a non-blocking warning carried on the doc.
+  const { violations, dialectWarning } = await validateOad(
+    d.value,
+    d.root,
+    family,
+    d.kind,
+    versionDetermined,
+  );
   if (violations.length > 0) {
-    throw new SchemaValidationError(schemaErrorMessage(oasVersion, violations), violations);
+    const subject = d.kind === "schema" ? "JSON Schema" : `OpenAPI ${d.oasVersion}`;
+    throw new SchemaValidationError(schemaErrorMessage(subject, violations), violations);
   }
 
   return {
     id: `doc-${nextDocId++}`,
-    isEntry: input.isEntry,
-    source: input.source,
-    filename,
-    retrievalUri,
-    selfUri,
-    format,
-    raw: text,
-    value,
-    oasVersion,
+    isEntry: d.isEntry,
+    source: d.source,
+    filename: d.filename,
+    retrievalUri: d.retrievalUri,
+    selfUri: d.selfUri,
+    format: d.format,
+    raw: d.raw,
+    value: d.value,
+    kind: d.kind,
+    oasVersion: d.oasVersion,
+    schemaDialect,
     schemaDialectWarning: dialectWarning,
-    root,
+    root: d.root,
   };
 }
 
+/**
+ * Load a single document end to end (detect + finalize), using only its own OAS version. Convenience
+ * for callers handling one document at a time; the multi-document pipeline detects every document
+ * first so a JSON Schema document can borrow the version family from an OpenAPI sibling.
+ */
+export async function loadDocument(input: DocInput): Promise<OadDocument> {
+  const detected = await detectDocument(input);
+  const { family, determined } = determineVersionFamily([detected]);
+  return finalizeDocument(detected, family, determined);
+}
+
 /** A readable multi-line message listing the located schema violations (capped). */
-function schemaErrorMessage(oasVersion: string, violations: SchemaViolation[]): string {
+function schemaErrorMessage(subject: string, violations: SchemaViolation[]): string {
   const MAX = 20;
   const lines = violations
     .slice(0, MAX)
     .map((v) => `  • ${displayPointer(v.pointer)} — ${v.message}`);
   if (violations.length > MAX) lines.push(`  …and ${violations.length - MAX} more`);
   return (
-    `Not a valid OpenAPI ${oasVersion} document: ${violations.length} schema ` +
+    `Not a valid ${subject} document: ${violations.length} schema ` +
     `violation${violations.length === 1 ? "" : "s"}.\n${lines.join("\n")}`
   );
 }
@@ -141,30 +245,47 @@ function assertValidLinks(root: TreeNode, oasVersion: string): void {
   visit(root);
 }
 
-/** Validate that a parsed value is a supported OpenAPI Object; extract version + $self. */
-function validateOpenApi(value: unknown): { oasVersion: string; selfUri?: string } {
+/**
+ * Decide a parsed document's kind. A `$id` and/or `$schema` at the root marks a JSON Schema document
+ * (draft-04's bare `id` is too generic to be a reliable signal — those go unrecognized for now); a
+ * string `openapi` marks a complete OpenAPI document. Anything else is neither.
+ */
+function detectKind(value: unknown): {
+  kind: DocKind;
+  oasVersion?: string;
+  selfUri?: string;
+  rootSchema?: string;
+} {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new NotOpenApiError(
-      "Document root is not a JSON/YAML object, so it cannot be an OpenAPI Object.",
+      "Document root is not a JSON/YAML object, so it is neither an OpenAPI nor a JSON Schema document.",
     );
   }
   const obj = value as Record<string, unknown>;
 
-  const openapi = obj["openapi"];
-  if (typeof openapi !== "string") {
-    throw new NotOpenApiError(
-      "Missing or non-string `openapi` field — this is not an OpenAPI document.",
-    );
-  }
-  if (!/^3\.(1|2)(\.|$)/.test(openapi)) {
-    throw new UnsupportedVersionError(
-      `Unsupported OpenAPI version "${openapi}". This tool supports OAS 3.1 and 3.2.`,
-    );
+  // JSON Schema document — checked first, so a `$schema`/`$id` root is never mistaken for OpenAPI.
+  if ("$id" in obj || "$schema" in obj) {
+    const rootSchema = typeof obj["$schema"] === "string" ? (obj["$schema"] as string) : undefined;
+    return { kind: "schema", rootSchema };
   }
 
-  const self = obj["$self"];
-  const selfUri = typeof self === "string" ? self : undefined;
-  return { oasVersion: openapi, selfUri };
+  // Complete OpenAPI document.
+  const openapi = obj["openapi"];
+  if (typeof openapi === "string") {
+    if (!/^3\.(1|2)(\.|$)/.test(openapi)) {
+      throw new UnsupportedVersionError(
+        `Unsupported OpenAPI version "${openapi}". This tool supports OAS 3.1 and 3.2.`,
+      );
+    }
+    const self = obj["$self"];
+    const selfUri = typeof self === "string" ? self : undefined;
+    return { kind: "openapi", oasVersion: openapi, selfUri };
+  }
+
+  throw new NotOpenApiError(
+    "No `openapi` field and no `$id`/`$schema` — this is neither an OpenAPI document nor a " +
+      "(recognized) JSON Schema document.",
+  );
 }
 
 async function fetchText(url: string): Promise<string> {

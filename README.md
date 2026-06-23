@@ -24,6 +24,11 @@ _Produced by Henry Andrews using Claude Code._
   Schema 2020-12 and 2019-09, and draft-07/06/04 are all checked); a document using an older or
   unknown dialect still renders, with a non-blocking warning that those Schema Objects were not
   validated.
+- Also accepts a **standalone JSON Schema document** — one whose root is a **Schema Object** rather
+  than an OpenAPI Object, detected by a root `$id`/`$schema`. It is rendered as a Schema Object tree
+  and validated against its declared dialect (or, when it omits `$schema`, the OAS dialect of the rest
+  of the OAD — left unvalidated if there is no OpenAPI document to borrow a version from). Its header
+  shows the JSON Schema dialect instead of an OAS version.
 - Builds a tree of JSON-Pointer-addressed nodes and **classifies** each node by its OAS
   type (OpenAPI, Info, Paths, Path Item, Operation, Components, Schema, …), flagging
   Reference (`$ref`) objects. OAS 3.2 additions are recognized (`$self`, `query`,
@@ -85,7 +90,8 @@ Errors are surfaced where they arise — on a document's row, or above the form 
 problems:
 
 - **Parse error** — the document is not valid JSON/YAML (shown on its row).
-- **Not an OpenAPI document** — parses, but has no valid root `openapi` field (shown on its row).
+- **Unrecognized document** — parses, but has neither a root `openapi` field nor a root `$id`/`$schema`,
+  so it is neither an OpenAPI document nor a (recognized) JSON Schema document (shown on its row).
 - **Schema-invalid document** — fails validation against the official OpenAPI JSON Schema, with the
   offending JSON Pointer locations listed (shown on its row).
 - **Version mismatch** — the OAD mixes OAS 3.1 and 3.2 (shown above the form).
@@ -123,8 +129,8 @@ npm run typecheck
 
 ## Not yet implemented
 
-* Standalone JSON Schema documents
-* Fragmentary OpenAPI documents (neither an OpenAPI Object nor Schema Object at the root)
+* Fragmentary OpenAPI documents (neither an OpenAPI Object nor a Schema Object at the root)
+* JSON Schema documents that set neither `$id` nor `$schema` (unrecognized for now)
 * OAS 3.0 support (OAS 2.0 support is not planned)
 * Search/filter
 

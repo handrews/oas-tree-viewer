@@ -6,6 +6,7 @@ import {
   DRAFT_2019_09,
   DRAFT_2020_12,
   annotateDialectSupport,
+  dialectLabel,
   dynamicScopeKeywords,
   idKeyword,
   isOasDialect,
@@ -22,6 +23,28 @@ const DRAFT_07_HASH = "http://json-schema.org/draft-07/schema#";
 const DRAFT_04_HASH = "http://json-schema.org/draft-04/schema#";
 // draft-03 — a too-old numbered draft Hyperjump doesn't register: still resolution-unsupported.
 const DRAFT_03 = "http://json-schema.org/draft-03/schema#";
+
+describe("dialectLabel — header label for a JSON Schema document's dialect", () => {
+  it("labels the OAS dialect (borrowed by a $schema-less schema) per version", () => {
+    expect(dialectLabel("https://spec.openapis.org/oas/3.1/dialect/base")).toBe("OAS 3.1 dialect");
+    expect(dialectLabel("https://spec.openapis.org/oas/3.2/dialect")).toBe("OAS 3.2 dialect");
+  });
+
+  it("labels the registered JSON Schema drafts (with or without a trailing #)", () => {
+    expect(dialectLabel(DRAFT_2020_12)).toBe("JSON Schema 2020-12");
+    expect(dialectLabel(DRAFT_2019_09)).toBe("JSON Schema 2019-09");
+    expect(dialectLabel(DRAFT_07_HASH)).toBe("JSON Schema draft-07");
+    expect(dialectLabel(DRAFT_06)).toBe("JSON Schema draft-06");
+    expect(dialectLabel(DRAFT_04)).toBe("JSON Schema draft-04");
+  });
+
+  it("shows undefined as dialect-unknown and an unknown URI as-is", () => {
+    expect(dialectLabel(undefined)).toBe("JSON Schema (dialect unknown)");
+    expect(dialectLabel("http://json-schema.org/draft-03/schema#")).toBe(
+      "http://json-schema.org/draft-03/schema#",
+    );
+  });
+});
 
 describe("dialect recognition", () => {
   it("identifies OAS dialect URIs per version (base alias and dated)", () => {

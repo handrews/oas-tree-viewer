@@ -1,0 +1,32 @@
+# A standalone JSON Schema document — there is no OpenAPI Object here. The viewer detects it from the
+# root $id/$schema, classifies the root as a Schema Object, validates it against 2020-12, and resolves
+# its references with the 2020-12 model. Three internal references all resolve: a recursive self-ref to
+# the document root (#), a JSON-Pointer ref into $defs, and a plain-name $anchor ref.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://example.com/schemas/node
+title: Tree node
+type: object
+required: [name]
+properties:
+  name:
+    type: string
+  children:
+    type: array
+    items:
+      $ref: '#' # recursive self-reference to the document root
+  metadata:
+    $ref: '#/$defs/metadata' # JSON-Pointer reference into $defs
+  category:
+    $ref: '#meta' # plain-name reference to the $anchor below
+$defs:
+  metadata:
+    $anchor: meta
+    type: object
+    properties:
+      created:
+        type: string
+        format: date-time
+      tags:
+        type: array
+        items:
+          type: string

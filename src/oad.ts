@@ -3,23 +3,18 @@
 // (no 3.1/3.2 mix) and globally-unique Operation `operationId`s.
 
 import type { Oad, OadDocument, TreeNode } from "./types";
-import { DuplicateOperationIdError, VersionMismatchError } from "./errors";
-import { versionFamilyOf } from "./loader";
+import { DuplicateOperationIdError } from "./errors";
+import { determineVersionFamily } from "./loader";
 import { displayPointer } from "./model/jsonPointer";
 
 export function assembleOad(documents: OadDocument[]): Oad {
-  const families = new Set(documents.map((d) => versionFamilyOf(d.oasVersion)));
-  if (families.size > 1) {
-    throw new VersionMismatchError(
-      "This OAD mixes OAS 3.1 and 3.2 documents, which is not supported. Use a single version family.",
-    );
-  }
+  // The OAD's version family comes from its OpenAPI documents (a JSON Schema document has none of its
+  // own); a 3.1/3.2 mix throws here. With only JSON Schema documents it defaults to "3.1".
+  const { family } = determineVersionFamily(documents);
 
   assertUniqueOperationIds(documents);
 
-  // documents[0] is the entry document by construction.
-  const versionFamily = versionFamilyOf(documents[0]!.oasVersion);
-  return { documents, versionFamily };
+  return { documents, versionFamily: family };
 }
 
 /** A site where an `operationId` is declared, for the duplicate-error message. */

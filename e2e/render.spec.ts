@@ -60,7 +60,7 @@ test.describe("error handling", () => {
     await page.locator(".doc-row").first().locator("input.file").setInputFiles(fixture("not-openapi.json"));
     await page.getByRole("button", { name: "Render OAD" }).click();
 
-    await expect(page.locator(".row-error")).toContainText("not an OpenAPI document");
+    await expect(page.locator(".row-error")).toContainText(/neither an OpenAPI document nor/i);
     await expect(page.locator("#viewer")).toBeHidden();
   });
 
@@ -378,6 +378,33 @@ test.describe("$recursiveRef links (2019-09)", () => {
     await expect(page.locator("svg path.ref-edge.status-resolved:not(.dotted)")).toHaveCount(6);
 
     // Everything resolves and every document is reachable — a clean drawer.
+    await expect(page.locator("#issues .issue-count")).toHaveText("0");
+  });
+});
+
+test.describe("standalone JSON Schema document", () => {
+  test("renders a Schema-Object root, a dialect header, and resolves its internal refs", async ({
+    page,
+  }) => {
+    await page.goto("/view?demo=jsonschema");
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
+
+    // The root reads "Schema Object", and the header shows the JSON Schema dialect, not an OAS version.
+    await expect(page.locator("svg.tree-canvas g.row", { hasText: "Schema Object" }).first()).toBeVisible();
+    await expect(page.locator("svg .doc-sub").first()).toContainText("JSON Schema 2020-12");
+
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await page.getByRole("button", { name: "Show all references" }).click();
+
+    // Three internal $ref fields (the recursive #, the $defs pointer, and the $anchor name), all
+    // URI-reference asterisks — none implicit diamonds, and 2020-12 needs no dialect ⚠.
+    await expect(page.locator("svg .marker.asterisk")).toHaveCount(3);
+    await expect(page.locator("svg .marker.diamond")).toHaveCount(0);
+    await expect(page.locator("svg .warnings text.warn-glyph.status-dialect")).toHaveCount(0);
+
+    // All three resolve to solid arcs, and the drawer is clean.
+    await expect(page.locator("svg path.ref-edge.status-resolved:not(.dotted)")).toHaveCount(3);
+    await expect(page.locator("svg path.ref-edge.dotted")).toHaveCount(0);
     await expect(page.locator("#issues .issue-count")).toHaveText("0");
   });
 });

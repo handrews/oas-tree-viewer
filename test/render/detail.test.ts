@@ -3,6 +3,7 @@ import { resolveOad } from "../../src/refs/resolver";
 import {
   docName,
   baseUri,
+  docVersionLabel,
   formatScalar,
   outgoingRefs,
   incomingRefs,
@@ -30,6 +31,19 @@ components:
   schemas:
     S: { type: object }
 `;
+
+describe("docVersionLabel", () => {
+  it("shows the OAS version for an OpenAPI document and the dialect for a schema document", async () => {
+    const openapi = await makeDoc(DOC, { isEntry: true });
+    expect(docVersionLabel(openapi)).toBe("OAS 3.1.0");
+
+    const schema = await makeDoc(
+      "$schema: https://json-schema.org/draft/2020-12/schema\ntype: object\n",
+      { isEntry: true },
+    );
+    expect(docVersionLabel(schema)).toBe("JSON Schema 2020-12");
+  });
+});
 
 function at(root: TreeNode, pointer: string): TreeNode {
   const find = (n: TreeNode): TreeNode | undefined => {

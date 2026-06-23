@@ -8,6 +8,7 @@ import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
 import { categoryClass, categoryShape, resolutionStyles } from "./colors";
+import { docVersionLabel } from "./detail";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -394,7 +395,7 @@ export class DocumentView {
     h.append("text").attr("class", "doc-title").attr("x", 12).attr("y", 19).text(headerTitle(this.doc));
 
     const sub =
-      `OAS ${this.doc.oasVersion} · ${this.doc.format}` +
+      `${docVersionLabel(this.doc)} · ${this.doc.format}` +
       (this.doc.retrievalUri ? ` · ${this.doc.retrievalUri}` : "");
     h.append("text").attr("class", "doc-sub").attr("x", 12).attr("y", 33).text(truncate(sub, 64));
 

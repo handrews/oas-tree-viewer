@@ -91,6 +91,16 @@ for (const theme of ["dark", "light"] as const) {
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
 
+    test("standalone JSON Schema view", async ({ page }) => {
+      // A Schema-Object-root document with its dialect header and resolved internal arcs.
+      await page.goto("/view?demo=jsonschema");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
     // The rendered CHANGELOG page shares the app's palette (see vite/doc-pages.ts) and must
     // clear the same contrast gate — headings, links, and code on the theme bg.
     test("changelog page", async ({ page }) => {

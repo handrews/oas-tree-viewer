@@ -113,8 +113,16 @@ export type VersionFamily = "3.1" | "3.2";
 export type DocSource = "upload" | "url";
 
 /**
- * One validated OpenAPI document within an OAD, together with its parsed value,
- * structural/typed tree, and the metadata needed for (future) reference resolution.
+ * What a loaded document's root is: a complete OpenAPI Object (`openapi` field), or a standalone
+ * JSON Schema (a `$id`/`$schema`-rooted Schema Object). The kind selects how the root is classified,
+ * which dialect validates it, and how its header reads.
+ */
+export type DocKind = "openapi" | "schema";
+
+/**
+ * One validated document within an OAD (a complete OpenAPI document, or a standalone JSON Schema
+ * document), together with its parsed value, structural/typed tree, and the metadata needed for
+ * reference resolution.
  */
 export interface OadDocument {
   /** Stable per-document id, used for the canvas group and future cross-doc edges. */
@@ -130,8 +138,16 @@ export interface OadDocument {
   format: "json" | "yaml";
   raw: string;
   value: unknown;
-  /** The root `openapi` version string, e.g. "3.1.0". Always present (non-OAS = error). */
-  oasVersion: string;
+  /** Whether the root is an OpenAPI Object or a standalone JSON Schema (Schema Object). */
+  kind: DocKind;
+  /** The root `openapi` version string, e.g. "3.1.0". Present for `kind: "openapi"` only. */
+  oasVersion?: string;
+  /**
+   * For `kind: "schema"`: the effective dialect URI the document is validated/resolved against — its
+   * root `$schema`, else the borrowed OAS-version dialect, else `undefined` when no version could be
+   * determined (then it is left unvalidated). Drives the header's dialect label.
+   */
+  schemaDialect?: string;
   /**
    * Set when schema validation could not check this document's Schema Objects because they use a
    * dialect the tool doesn't validate yet — the structure was validated, the Schema Objects were

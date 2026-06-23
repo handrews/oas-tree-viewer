@@ -44,7 +44,7 @@ describe("demos", () => {
     expect(demoInputs("nope")).toBeUndefined();
   });
 
-  it("includes the refs, $self, component-name, operation, operationId, $dynamicRef, $recursiveRef, numbered-drafts, and dialects demos", () => {
+  it("includes the refs, $self, component-name, operation, operationId, $dynamicRef, $recursiveRef, numbered-drafts, dialects, and standalone-JSON-Schema demos", () => {
     expect(demos.map((d) => d.id)).toEqual([
       "refs",
       "self",
@@ -55,6 +55,7 @@ describe("demos", () => {
       "recursiveref",
       "numbered-drafts",
       "dialects",
+      "jsonschema",
     ]);
     expect(demoInputs("self")![0]!).toMatchObject({ url: "/fixtures/oads/openapi.yaml", isEntry: true });
     expect(demoInputs("component-refs")![0]!).toMatchObject({
