@@ -283,12 +283,18 @@ body {
   background: transparent;
   color: var(--link);
 }
-.oad-form .render {
+/* The render action lives in the resolution-options row (outside .oad-form), so it carries the full
+   button styling rather than leaning on the .oad-form button base. */
+.render {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
   background: var(--accent-solid);
-  border-color: var(--accent-solid);
+  border: 1px solid var(--accent-solid);
   color: var(--on-accent);
   font-weight: 600;
-  margin-left: auto;
 }
 .oad-error {
   margin-top: 0.7rem;
@@ -338,14 +344,37 @@ body {
   line-height: 1.45;
 }
 
-/* ── Resolution options (configure page) ──────────────────────────────── */
+/* ── Load behavior + resolution options (configure page) ──────────────── */
 
-.resolution-options {
+/* Load behavior sits above the documents it governs, full-width like the form card. */
+.load-behavior {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+  font-family: var(--font);
+}
+
+/* The box (border + padding) holds the collapsible options and the render action. The action is
+   absolutely positioned onto the header line so it shows whether the box is open or closed, while
+   staying a sibling of <details> (not nested in <summary>). */
+.resolution-box {
+  position: relative;
   margin-top: 1.25rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem 0.9rem;
+}
+.resolution-box .render {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.9rem;
 }
 .resolution-options > summary {
   font-size: 0.95rem;

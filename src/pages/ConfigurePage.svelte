@@ -38,35 +38,42 @@
 </script>
 
 <section id="input-panel" aria-label="OAD input">
-  <OadForm {onRender} />
+  <div class="doc-region">
+    <!-- Load behavior chosen above the documents it governs; no visible label (kept terse), so the
+         select carries its own accessible name. -->
+    <select class="load-behavior" aria-label="Document loading behavior" bind:value={config.fragments}>
+      <option value="none">Complete OpenAPI or JSON Schema documents only</option>
+      <option value="root">Allow fragmentary OpenAPI documents if their root is referenced</option>
+      <option value="any">Allow any fragmentary OpenAPI document</option>
+    </select>
+    <OadForm {onRender} />
+  </div>
 
-  <details class="resolution-options">
-    <summary>Resolution options</summary>
-    <div class="option-body">
-      <label class="option">
-        <span class="option-label">Discriminator <code>mapping</code> values resolve as</span>
-        <select class="option-select" bind:value={config.mappingPrecedence}>
-          <option value="name-first">a component name first (default)</option>
-          <option value="uri-first">a URI-reference first</option>
-        </select>
-      </label>
-      <label class="option">
-        <span class="option-label">Look up component names in</span>
-        <select class="option-select" bind:value={config.componentLookup}>
-          <option value="entry">the entry document (default)</option>
-          <option value="local">the local document</option>
-        </select>
-      </label>
-      <label class="option">
-        <span class="option-label">Load document fragments (unvalidated; type inferred from references)</span>
-        <select class="option-select" bind:value={config.fragments}>
-          <option value="none">no — complete documents only (default)</option>
-          <option value="root">yes, if referenced by the root</option>
-          <option value="any">yes, any fragment (incl. interior-referenced)</option>
-        </select>
-      </label>
-    </div>
-  </details>
+  <div class="resolution-box">
+    <details class="resolution-options">
+      <summary>Resolution options</summary>
+      <div class="option-body">
+        <label class="option">
+          <span class="option-label">Discriminator <code>mapping</code> values resolve as</span>
+          <select class="option-select" bind:value={config.mappingPrecedence}>
+            <option value="name-first">a component name first (default)</option>
+            <option value="uri-first">a URI-reference first</option>
+          </select>
+        </label>
+        <label class="option">
+          <span class="option-label">Look up component names in</span>
+          <select class="option-select" bind:value={config.componentLookup}>
+            <option value="entry">the entry document (default)</option>
+            <option value="local">the local document</option>
+          </select>
+        </label>
+      </div>
+    </details>
+    <!-- Sits inside the options box and on its header line (shown whether the box is open or closed),
+         but is a sibling of <details> rather than nested in <summary> — nesting interactive controls is
+         a serious a11y violation. Submits the OadForm by its id. -->
+    <button type="submit" form="oad-form" class="render">Render OAD</button>
+  </div>
 
   <section class="demos" aria-label="Example documents">
     <h2>Or explore an example</h2>
