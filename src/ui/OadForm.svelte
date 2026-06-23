@@ -140,7 +140,7 @@
   }
 </script>
 
-<form class="oad-form" novalidate onsubmit={submit}>
+<form id="oad-form" class="oad-form" novalidate onsubmit={submit}>
   <div class="rows">
     {#each rows as row, i (row.id)}
       <fieldset class="doc-row" class:has-error={row.error}>
@@ -248,7 +248,6 @@
 
   <div class="form-actions">
     <button type="button" class="add-row" onclick={addRow}>+ Add document</button>
-    <button type="submit" class="render">Render OAD</button>
   </div>
 
   <p class="oad-error" hidden={!oadError}>{oadError}</p>
