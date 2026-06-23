@@ -1,7 +1,8 @@
 // Walk a document's structural tree and assign each node an OAS semantic type,
-// a coloring category, and reference metadata. Starts from the OpenAPI Object root.
+// a coloring category, and reference metadata. Starts from the OpenAPI Object root, or — for a
+// standalone JSON Schema document — from the Schema Object root.
 
-import type { TreeNode, NodeCategory, VersionFamily } from "../types";
+import type { TreeNode, NodeCategory, VersionFamily, DocKind } from "../types";
 import {
   buildDescriptors,
   type Descriptors,
@@ -13,9 +14,17 @@ import {
 
 const REF_KEY = "$ref";
 
-/** Classify a whole document in place. `root` must be the OpenAPI Object. */
-export function classifyDocument(root: TreeNode, version: VersionFamily): void {
-  visitValue(root, "OpenApi", buildDescriptors(version));
+/**
+ * Classify a whole document in place. The root is the OpenAPI Object, or — for a standalone JSON
+ * Schema document (`kind: "schema"`) — a Schema Object. The `Schema` descriptor is version-independent,
+ * so a schema root classifies the same under either version family.
+ */
+export function classifyDocument(
+  root: TreeNode,
+  version: VersionFamily,
+  kind: DocKind = "openapi",
+): void {
+  visitValue(root, kind === "schema" ? "Schema" : "OpenApi", buildDescriptors(version));
 }
 
 /** A node expected to be a single object of `typeRef` (or a Reference Object). */

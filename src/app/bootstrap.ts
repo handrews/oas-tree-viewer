@@ -2,11 +2,11 @@
 // for a set of document inputs, and labels documents for the detail panel. App.svelte
 // owns the reactive state; this module owns the framework-agnostic logic.
 
-import type { DocInput } from "../loader";
-import type { Oad, OadDocument } from "../types";
+import type { DetectedDoc, DocInput } from "../loader";
+import type { Oad, OadDocument, VersionFamily } from "../types";
 import type { ResolvedRefs } from "../refs/types";
 import { type ViewerConfig, defaultConfig } from "./config";
-import { loadDocument } from "../loader";
+import { detectDocument, determineVersionFamily, finalizeDocument } from "../loader";
 import { assembleOad } from "../oad";
 import { resolveOad } from "../refs/resolver";
 import { errorMessage } from "../errors";
@@ -17,19 +17,40 @@ export type PipelineResult =
   | { ok: false; rowErrors?: Record<number, string>; oadError?: string };
 
 /**
- * Load each input document (reporting per-row presence/parse problems), then assemble
- * and resolve the OAD (reporting an OAD-level error such as a version mismatch).
+ * Detect each input document (reporting per-row presence/parse problems), fix the OAD's version
+ * family from its OpenAPI documents (reporting an OAD-level version mismatch), then finalize
+ * (classify + validate) each document and assemble + resolve the OAD. The two phases let a JSON
+ * Schema document borrow the version family from an OpenAPI sibling, which is only known once every
+ * document has been detected.
  */
 export async function runPipeline(
   inputs: DocInput[],
   config: ViewerConfig = defaultConfig,
 ): Promise<PipelineResult> {
-  const docs: OadDocument[] = [];
+  const detected: DetectedDoc[] = [];
   const rowErrors: Record<number, string> = {};
 
   for (let i = 0; i < inputs.length; i++) {
     try {
-      docs.push(await loadDocument(inputs[i]!));
+      detected.push(await detectDocument(inputs[i]!));
+    } catch (e) {
+      rowErrors[i] = errorMessage(e);
+    }
+  }
+  if (Object.keys(rowErrors).length > 0) return { ok: false, rowErrors };
+
+  let family: VersionFamily;
+  let determined: boolean;
+  try {
+    ({ family, determined } = determineVersionFamily(detected));
+  } catch (e) {
+    return { ok: false, oadError: errorMessage(e) };
+  }
+
+  const docs: OadDocument[] = [];
+  for (let i = 0; i < detected.length; i++) {
+    try {
+      docs.push(await finalizeDocument(detected[i]!, family, determined));
     } catch (e) {
       rowErrors[i] = errorMessage(e);
     }

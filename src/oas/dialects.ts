@@ -36,6 +36,25 @@ export function normalizeDialect(uri: string): string {
 }
 
 /**
+ * A short, human label for a dialect URI, for a standalone JSON Schema document's header. The OAS
+ * dialect (when a `$schema`-less document borrows it) reads "OAS 3.1 dialect"; the registered JSON
+ * Schema drafts get friendly names; an unknown URI shows as-is; `undefined` means no dialect could be
+ * determined (the document was left unvalidated).
+ */
+export function dialectLabel(uri: string | undefined): string {
+  if (uri === undefined) return "JSON Schema (dialect unknown)";
+  const oas = uri.match(/^https:\/\/spec\.openapis\.org\/oas\/(\d+\.\d+)\/dialect(?:\/|$)/);
+  if (oas) return `OAS ${oas[1]} dialect`;
+  const n = normalizeDialect(uri);
+  if (n === DRAFT_2020_12) return "JSON Schema 2020-12";
+  if (n === DRAFT_2019_09) return "JSON Schema 2019-09";
+  if (n === DRAFT_07) return "JSON Schema draft-07";
+  if (n === DRAFT_06) return "JSON Schema draft-06";
+  if (n === DRAFT_04) return "JSON Schema draft-04";
+  return uri;
+}
+
+/**
  * The referencing/identification rules a declared dialect uses, as far as this tool resolves them:
  *  - `"2020-12"` — the modern/date-formatted model: `$anchor` named anchors, a fragmentless `$id`,
  *    and `$ref` siblings apply. Covers the OAS dialect, 2020-12, **and 2019-09** — these share the

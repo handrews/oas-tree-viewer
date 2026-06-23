@@ -13,9 +13,9 @@
 //
 // The Hyperjump import is dynamic so the validator + schemas land in a lazily-loaded chunk.
 
-import type { TreeNode, VersionFamily } from "../types";
+import type { DocKind, TreeNode, VersionFamily } from "../types";
 import { displayPointer, valueAtPointer } from "../model/jsonPointer";
-import { isOasDialect, normalizeDialect, oasDialectUri } from "../oas/dialects";
+import { dialectLabel, isOasDialect, normalizeDialect, oasDialectUri } from "../oas/dialects";
 
 /** One schema-validation failure, located by JSON Pointer within the document. */
 export interface SchemaViolation {
@@ -85,10 +85,11 @@ interface BasicOutput {
 }
 
 /**
- * Map Hyperjump's BASIC output into located, de-duplicated violations. `prefix` is the JSON Pointer
- * of the validated subtree within the document ("" for the whole-document envelope pass).
+ * Map Hyperjump's BASIC output into located, de-duplicated violations. `subject` names the schema the
+ * value failed (e.g. "OpenAPI 3.1", or a JSON Schema dialect label); `prefix` is the JSON Pointer of
+ * the validated subtree within the document ("" for the whole-document envelope pass).
  */
-function toViolations(output: BasicOutput, version: VersionFamily, prefix: string): SchemaViolation[] {
+function toViolations(output: BasicOutput, subject: string, prefix: string): SchemaViolation[] {
   const byPointer = new Map<string, Set<string>>();
   for (const unit of output.errors ?? []) {
     if (unit.instanceLocation === undefined) continue;
@@ -98,13 +99,13 @@ function toViolations(output: BasicOutput, version: VersionFamily, prefix: strin
     if (keyword && !NOISE_KEYWORDS.has(keyword) && !/^\d+$/.test(keyword)) set.add(keyword);
   }
   if (byPointer.size === 0) {
-    return [{ pointer: prefix, keywords: [], message: `does not conform to the OpenAPI ${version} schema` }];
+    return [{ pointer: prefix, keywords: [], message: `does not conform to the ${subject} schema` }];
   }
   return [...byPointer].map(([pointer, keywords]) => {
     const names = [...keywords];
     const message = names.length
-      ? `violates the OpenAPI ${version} schema (${names.join(", ")})`
-      : `violates the OpenAPI ${version} schema`;
+      ? `violates the ${subject} schema (${names.join(", ")})`
+      : `violates the ${subject} schema`;
     return { pointer, keywords: names, message };
   });
 }
@@ -143,30 +144,43 @@ export async function validateOad(
   value: unknown,
   root: TreeNode,
   version: VersionFamily,
+  kind: DocKind = "openapi",
+  versionDetermined: boolean = true,
 ): Promise<ValidationResult> {
   const { validate, hasSchema, BASIC } = await loadValidator();
   const docDefault = documentDialect(value);
   const violations: SchemaViolation[] = [];
   const unvalidated: string[] = [];
 
-  // 1. Envelope structure (Schema Objects treated loosely as object/boolean).
-  const envelope = (await validate(
-    `https://spec.openapis.org/oas/${version}/schema`,
-    value,
-    BASIC,
-  )) as BasicOutput;
-  if (!envelope.valid) violations.push(...toViolations(envelope, version, ""));
+  // 1. Envelope structure (Schema Objects treated loosely as object/boolean). OpenAPI documents only:
+  //    a standalone JSON Schema document has no OpenAPI envelope — it is validated entirely in step 2.
+  if (kind === "openapi") {
+    const envelope = (await validate(
+      `https://spec.openapis.org/oas/${version}/schema`,
+      value,
+      BASIC,
+    )) as BasicOutput;
+    if (!envelope.valid) violations.push(...toViolations(envelope, `OpenAPI ${version}`, ""));
+  }
 
-  // 2. Each top-most Schema Object against the dialect it declares.
+  // 2. Each top-most Schema Object against the dialect it declares. For a schema document that is the
+  //    root itself; a `$schema`-less root borrows the OAS dialect, unless no OAS version was
+  //    determinable (no OpenAPI document in the OAD) — then it is left unvalidated rather than guessed.
   for (const node of topSchemaObjects(root)) {
     const declared = declaredDialect(node, docDefault);
+    if (kind === "schema" && declared === undefined && !versionDetermined) {
+      unvalidated.push(`${displayPointer(node.id)} (dialect undetermined)`);
+      continue;
+    }
     const uri = metaSchemaUri(declared, version);
     if (!hasSchema(uri)) {
       unvalidated.push(`${displayPointer(node.id)} (dialect ${declared})`);
       continue;
     }
+    const subject =
+      kind === "schema" ? dialectLabel(declared ?? oasDialectUri(version)) : `OpenAPI ${version}`;
     const out = (await validate(uri, valueAtPointer(value, node.id), BASIC)) as BasicOutput;
-    if (!out.valid) violations.push(...toViolations(out, version, node.id));
+    if (!out.valid) violations.push(...toViolations(out, subject, node.id));
   }
 
   const dialectWarning =
