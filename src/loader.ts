@@ -106,7 +106,7 @@ export function determineVersionFamily(
 }
 
 /** Phase 1: acquire, parse, build the tree, and detect the document kind. */
-export async function detectDocument(input: DocInput): Promise<DetectedDoc> {
+export async function detectDocument(input: DocInput, allowFragments = false): Promise<DetectedDoc> {
   let text: string;
   let filename: string | undefined;
   let retrievalUri: string | undefined;
@@ -126,7 +126,7 @@ export async function detectDocument(input: DocInput): Promise<DetectedDoc> {
   }
 
   const { value, format } = parseDocument(text, filename);
-  const detected = detectKind(value);
+  const detected = detectKind(value, allowFragments);
   const root = buildTree(value);
 
   return {
@@ -156,29 +156,32 @@ export async function finalizeDocument(
   family: VersionFamily,
   versionDetermined: boolean,
 ): Promise<OadDocument> {
-  classifyDocument(d.root, family, d.kind);
-  annotateDialectSupport(d.root, family);
-  if (d.kind === "openapi") assertValidLinks(d.root, d.oasVersion!);
+  let schemaDialect: string | undefined;
+  let dialectWarning: string | undefined;
 
-  // The effective dialect a JSON Schema document validates/resolves against: its own `$schema`, else
-  // the borrowed OAS dialect, else undefined (no version determined ⇒ left unvalidated).
-  const schemaDialect =
-    d.kind === "schema"
-      ? (d.rootSchema ?? (versionDetermined ? oasDialectUri(family) : undefined))
-      : undefined;
+  // A fragment is intentionally left unclassified and unvalidated here — its root type isn't known
+  // until references are resolved, so `typeFragments` classifies it later. OpenAPI / JSON Schema
+  // documents classify and validate now, against the OAD's version family.
+  if (d.kind !== "fragment") {
+    classifyDocument(d.root, family, d.kind);
+    annotateDialectSupport(d.root, family);
+    if (d.kind === "openapi") assertValidLinks(d.root, d.oasVersion!);
 
-  // Validate (offline). A structural failure rejects the document; an unsupported / undetermined
-  // Schema-Object dialect is a non-blocking warning carried on the doc.
-  const { violations, dialectWarning } = await validateOad(
-    d.value,
-    d.root,
-    family,
-    d.kind,
-    versionDetermined,
-  );
-  if (violations.length > 0) {
-    const subject = d.kind === "schema" ? "JSON Schema" : `OpenAPI ${d.oasVersion}`;
-    throw new SchemaValidationError(schemaErrorMessage(subject, violations), violations);
+    // The effective dialect a JSON Schema document validates/resolves against: its own `$schema`, else
+    // the borrowed OAS dialect, else undefined (no version determined ⇒ left unvalidated).
+    schemaDialect =
+      d.kind === "schema"
+        ? (d.rootSchema ?? (versionDetermined ? oasDialectUri(family) : undefined))
+        : undefined;
+
+    // Validate (offline). A structural failure rejects the document; an unsupported / undetermined
+    // Schema-Object dialect is a non-blocking warning carried on the doc.
+    const result = await validateOad(d.value, d.root, family, d.kind, versionDetermined);
+    if (result.violations.length > 0) {
+      const subject = d.kind === "schema" ? "JSON Schema" : `OpenAPI ${d.oasVersion}`;
+      throw new SchemaValidationError(schemaErrorMessage(subject, result.violations), result.violations);
+    }
+    dialectWarning = result.dialectWarning;
   }
 
   return {
@@ -248,9 +251,14 @@ function assertValidLinks(root: TreeNode, oasVersion: string): void {
 /**
  * Decide a parsed document's kind. A `$id` and/or `$schema` at the root marks a JSON Schema document
  * (draft-04's bare `id` is too generic to be a reliable signal — those go unrecognized for now); a
- * string `openapi` marks a complete OpenAPI document. Anything else is neither.
+ * string `openapi` marks a complete OpenAPI document. Anything else is neither — a load error, unless
+ * `allowFragments` is on, when an object-rooted unrecognized document becomes a `"fragment"` (its root
+ * type is inferred later from the references that point at it).
  */
-function detectKind(value: unknown): {
+function detectKind(
+  value: unknown,
+  allowFragments: boolean,
+): {
   kind: DocKind;
   oasVersion?: string;
   selfUri?: string;
@@ -258,7 +266,8 @@ function detectKind(value: unknown): {
 } {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new NotOpenApiError(
-      "Document root is not a JSON/YAML object, so it is neither an OpenAPI nor a JSON Schema document.",
+      "Document root is not a JSON/YAML object, so it is neither an OpenAPI document, a JSON Schema " +
+        "document, nor a supported fragment.",
     );
   }
   const obj = value as Record<string, unknown>;
@@ -282,9 +291,12 @@ function detectKind(value: unknown): {
     return { kind: "openapi", oasVersion: openapi, selfUri };
   }
 
+  // A document fragment — accepted only when fragments are enabled; typed later from incoming references.
+  if (allowFragments) return { kind: "fragment" };
+
   throw new NotOpenApiError(
     "No `openapi` field and no `$id`/`$schema` — this is neither an OpenAPI document nor a " +
-      "(recognized) JSON Schema document.",
+      "(recognized) JSON Schema document. Enable document fragments to load it anyway.",
   );
 }
 

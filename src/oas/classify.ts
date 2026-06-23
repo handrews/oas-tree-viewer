@@ -15,16 +15,27 @@ import {
 const REF_KEY = "$ref";
 
 /**
- * Classify a whole document in place. The root is the OpenAPI Object, or — for a standalone JSON
- * Schema document (`kind: "schema"`) — a Schema Object. The `Schema` descriptor is version-independent,
- * so a schema root classifies the same under either version family.
+ * Classify a whole document in place. The root is the OpenAPI Object, or a Schema Object (`kind:
+ * "schema"`), or — for a document fragment — whatever `rootType` is passed (the type inferred from the
+ * references that target it, e.g. `"PathItem"`). `rootType` overrides the kind-derived default.
  */
 export function classifyDocument(
   root: TreeNode,
   version: VersionFamily,
   kind: DocKind = "openapi",
+  rootType?: TypeRef,
 ): void {
-  visitValue(root, kind === "schema" ? "Schema" : "OpenApi", buildDescriptors(version));
+  const typeRef = rootType ?? (kind === "schema" ? "Schema" : "OpenApi");
+  visitValue(root, typeRef, buildDescriptors(version));
+}
+
+/**
+ * Classify a whole document as generic objects / arrays / scalars (no OAS types) — used for a fragment
+ * whose root type is undetermined (no reference points at it) or ambiguous (references disagree).
+ */
+export function classifyAsGeneric(root: TreeNode): void {
+  assignStructural(root);
+  classifyGeneric(root);
 }
 
 /** A node expected to be a single object of `typeRef` (or a Reference Object). */

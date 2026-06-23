@@ -113,11 +113,12 @@ export type VersionFamily = "3.1" | "3.2";
 export type DocSource = "upload" | "url";
 
 /**
- * What a loaded document's root is: a complete OpenAPI Object (`openapi` field), or a standalone
- * JSON Schema (a `$id`/`$schema`-rooted Schema Object). The kind selects how the root is classified,
- * which dialect validates it, and how its header reads.
+ * What a loaded document's root is: a complete OpenAPI Object (`openapi` field), a standalone JSON
+ * Schema (a `$id`/`$schema`-rooted Schema Object), or — only when fragments are enabled — a
+ * **fragment** (neither of those), whose root type is inferred from the references that target it.
+ * The kind selects how the root is classified, which dialect validates it, and how its header reads.
  */
-export type DocKind = "openapi" | "schema";
+export type DocKind = "openapi" | "schema" | "fragment";
 
 /**
  * One validated document within an OAD (a complete OpenAPI document, or a standalone JSON Schema
@@ -148,6 +149,12 @@ export interface OadDocument {
    * determined (then it is left unvalidated). Drives the header's dialect label.
    */
   schemaDialect?: string;
+  /**
+   * For `kind: "fragment"`: true when two references targeted the root expecting different types, so
+   * the root type is ambiguous — every object node is generic and references to/within it are errors.
+   * (A typed fragment leaves this unset and carries its inferred type on `root.oasType`.)
+   */
+  fragmentAmbiguous?: boolean;
   /**
    * Set when schema validation could not check this document's Schema Objects because they use a
    * dialect the tool doesn't validate yet — the structure was validated, the Schema Objects were
