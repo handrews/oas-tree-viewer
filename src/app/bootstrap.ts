@@ -9,6 +9,7 @@ import { type ViewerConfig, defaultConfig } from "./config";
 import { detectDocument, determineVersionFamily, finalizeDocument } from "../loader";
 import { assembleOad } from "../oad";
 import { resolveOad } from "../refs/resolver";
+import { typeFragments, markFragmentEdges } from "../refs/fragments";
 import { errorMessage } from "../errors";
 
 /** Outcome of running the pipeline: a rendered OAD, or per-row / OAD-level errors. */
@@ -32,7 +33,7 @@ export async function runPipeline(
 
   for (let i = 0; i < inputs.length; i++) {
     try {
-      detected.push(await detectDocument(inputs[i]!));
+      detected.push(await detectDocument(inputs[i]!, config.allowFragments));
     } catch (e) {
       rowErrors[i] = errorMessage(e);
     }
@@ -59,7 +60,13 @@ export async function runPipeline(
 
   try {
     const oad = assembleOad(docs);
+    // Fragments (if any) are classified from the references that target them; an untyped entry
+    // fragment is an OAD-level error. Then a final resolve over the now-classified trees, with the
+    // ambiguous-fragment edges marked as type errors.
+    const fragmentError = typeFragments(oad, config);
+    if (fragmentError) return { ok: false, oadError: fragmentError };
     const refs = resolveOad(oad, config);
+    markFragmentEdges(oad, refs);
     return { ok: true, oad, refs };
   } catch (e) {
     return { ok: false, oadError: errorMessage(e) };

@@ -23,8 +23,16 @@ export function baseUri(doc: OadDocument): string | undefined {
   return doc.selfUri ?? doc.retrievalUri;
 }
 
-/** The version/dialect line for a document header: the OAS version, or a JSON Schema dialect label. */
+/**
+ * The version/dialect line for a document header: the OAS version, a JSON Schema dialect, or — for a
+ * fragment — its inferred root type ("Fragment · Path Item Object"), or "ambiguous root" / "type
+ * undetermined" when it could not be typed.
+ */
 export function docVersionLabel(doc: OadDocument): string {
+  if (doc.kind === "fragment") {
+    if (doc.fragmentAmbiguous) return "Fragment · ambiguous root";
+    return doc.root.oasType ? `Fragment · ${doc.root.oasType}` : "Fragment · type undetermined";
+  }
   return doc.kind === "schema" ? dialectLabel(doc.schemaDialect) : `OAS ${doc.oasVersion}`;
 }
 

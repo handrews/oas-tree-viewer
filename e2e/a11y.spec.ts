@@ -101,6 +101,16 @@ for (const theme of ["dark", "light"] as const) {
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
     });
 
+    test("document fragment view", async ({ page }) => {
+      // A fragment typed from a reference, with its "Fragment · …" header and resolved arcs.
+      await page.goto("/view?demo=fragment&fragments=on");
+      await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+      await page.getByRole("button", { name: "Show all references" }).click();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
     // The rendered CHANGELOG page shares the app's palette (see vite/doc-pages.ts) and must
     // clear the same contrast gate — headings, links, and code on the theme bg.
     test("changelog page", async ({ page }) => {

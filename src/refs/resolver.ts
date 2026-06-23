@@ -441,7 +441,18 @@ function walkDoc(
     }
   };
 
+  // Clear resolver-set advisories first, so a re-walk (the fragment-typing fixpoint calls resolveOad
+  // repeatedly) recomputes them instead of accumulating duplicates. Done as a full pass *before* the
+  // visit, since a node's advisory can be placed on a child (e.g. an `$id` field) before that child
+  // is itself visited.
+  clearAdvisories(doc.root);
   visit(doc.root, docBase(doc), false, docDialect, doc.root.id);
+}
+
+/** Recursively clear the resolver-set advisories on a document's tree (idempotent re-walk support). */
+function clearAdvisories(node: TreeNode): void {
+  node.resolutionAdvisories = undefined;
+  for (const child of node.children) clearAdvisories(child);
 }
 
 /** Keys whose subtree holds schemas that are *defined* (reached only by a reference), not applied. */

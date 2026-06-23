@@ -29,6 +29,13 @@ _Produced by Henry Andrews using Claude Code._
   and validated against its declared dialect (or, when it omits `$schema`, the OAS dialect of the rest
   of the OAD — left unvalidated if there is no OpenAPI document to borrow a version from). Its header
   shows the JSON Schema dialect instead of an OAS version.
+- With **document fragments** enabled (a resolution option, **off by default**), also loads a document
+  that is neither of those — for example a bare **Path Item Object** at the root. A fragment isn't
+  validated; its root type is **inferred from the references that point at it** (e.g. a Path Item `$ref`
+  makes the root a Path Item, which types the whole tree). Two references that disagree make the root
+  **ambiguous** — both, and any reference into the fragment, become type errors, and its objects stay
+  generic. Its header reads "Fragment · <type>". An unreferenced fragment is undetermined (generic, and
+  a load error if it is the entry document).
 - Builds a tree of JSON-Pointer-addressed nodes and **classifies** each node by its OAS
   type (OpenAPI, Info, Paths, Path Item, Operation, Components, Schema, …), flagging
   Reference (`$ref`) objects. OAS 3.2 additions are recognized (`$self`, `query`,
@@ -92,6 +99,7 @@ problems:
 - **Parse error** — the document is not valid JSON/YAML (shown on its row).
 - **Unrecognized document** — parses, but has neither a root `openapi` field nor a root `$id`/`$schema`,
   so it is neither an OpenAPI document nor a (recognized) JSON Schema document (shown on its row).
+  Enabling **document fragments** loads it anyway, typing its root from the references that target it.
 - **Schema-invalid document** — fails validation against the official OpenAPI JSON Schema, with the
   offending JSON Pointer locations listed (shown on its row).
 - **Version mismatch** — the OAD mixes OAS 3.1 and 3.2 (shown above the form).
@@ -129,8 +137,8 @@ npm run typecheck
 
 ## Not yet implemented
 
-* Fragmentary OpenAPI documents (neither an OpenAPI Object nor a Schema Object at the root)
-* JSON Schema documents that set neither `$id` nor `$schema` (unrecognized for now)
+* Typing a fragment from references to its *non-root* locations (only references to the root are used);
+  a fragment no reference reaches stays generic
 * OAS 3.0 support (OAS 2.0 support is not planned)
 * Search/filter
 
