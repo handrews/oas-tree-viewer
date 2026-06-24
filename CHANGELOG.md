@@ -5,6 +5,14 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-06-24
+
+### Changed
+
+- **Document processing now runs off the main thread.** Loading, parsing, classification, reference
+  resolution, and validation run in a Web Worker, so the page stays responsive while a large or
+  heavily referenced document is processed. A **Cancel** control stops an in-progress load.
+
 ## [0.6.0] — 2026-06-23
 
 ### Added
