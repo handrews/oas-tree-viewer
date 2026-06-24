@@ -3,7 +3,7 @@ import { buildTree } from "../src/model/treeBuilder";
 import { detectDocument, type DocInput } from "../src/loader";
 import { runPipeline } from "../src/app/bootstrap";
 import { ResourceLimitError } from "../src/errors";
-import { formatBytes, type Limits } from "../src/limits";
+import { defaultLimits, formatBytes, type Limits } from "../src/limits";
 import { makeInput } from "./helpers";
 
 // Resource guards refuse an oversized / over-deep document up front, but stay liftable so a determined
@@ -145,5 +145,15 @@ describe("runPipeline limit enforcement and 'Load anyway' override", () => {
     const ok = `openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths: {}\n`;
     const result = await runPipeline([makeInput(ok, { isEntry: true })]);
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("defaultLimits", () => {
+  it("enforces only nesting depth by default; byte and node counts are unbounded", () => {
+    // The off-thread pipeline + windowed renderer handle large documents, so a "too large" refusal by
+    // bytes/nodes is gone; the depth cap stays because it guards a real stack-overflow crash.
+    expect(defaultLimits.maxBytes).toBe(Infinity);
+    expect(defaultLimits.maxNodes).toBe(Infinity);
+    expect(defaultLimits.maxDepth).toBe(128);
   });
 });

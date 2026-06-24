@@ -1,14 +1,8 @@
-// Resource guards: refuse a document that is too large or too deeply nested *before* the pipeline
-// (parse → buildTree → classify → validate → resolve → render) spends time or memory on it. Everything
-// downstream walks the tree recursively with no depth bound, so a single depth+node guard at build time
-// keeps every later stage safe from a frozen tab or an uncaught stack overflow.
-//
-// The caps deliberately sit below GitHub-scale single-file descriptions: such a document is cleanly
-// refused (with an explicit "Load anyway" override) rather than hung on. They are plain constants so
-// they are easy to find, test, and retune as the renderer gains the ability to handle bigger inputs.
-
-/** ~8 MB of source text per document — a cheap early gate before parsing. */
-export const MAX_DOC_BYTES = 8 * 1024 * 1024;
+// Resource guards run *before* the pipeline (parse → buildTree → classify → validate → resolve → render)
+// spends time or memory on a document. The pipeline now runs in a Web Worker (so it can't freeze the tab)
+// and the renderer windows the tree (so size no longer hangs it), which is why the byte and node caps are
+// lifted by default below — GitHub- and Stripe-scale single-file descriptions load without a prompt. Only
+// the *depth* cap is still enforced by default, because it guards a real crash, not just slowness.
 
 /**
  * Maximum nesting depth. Real OADs nest well under ~40 levels (deep schema recursion is expressed with
@@ -19,10 +13,6 @@ export const MAX_DOC_BYTES = 8 * 1024 * 1024;
  */
 export const MAX_TREE_DEPTH = 128;
 
-/** Maximum total nodes in one document's structural tree — the decisive backstop against a huge but
- *  shallow document (every key and array element is a node). */
-export const MAX_TREE_NODES = 150_000;
-
 // Render-interaction guard. "Expand all" is windowed (only the rows near the viewport are ever mounted, the
 // rest tracked analytically), so it no longer needs a guard. "Show all references" still draws every
 // reference arc at once, so it stays gated — independent of the load caps above, so it remains active even
@@ -31,18 +21,22 @@ export const MAX_TREE_NODES = 150_000;
 /** Above this many reference arcs, "Show all references" confirms before drawing them all at once. */
 export const MAX_RENDER_EDGES = 2_000;
 
-/** The three caps, grouped so they can be passed as a unit and lifted together for "Load anyway". */
+/** The three caps, grouped so they can be passed as a unit and lifted together for "Load anyway". The byte
+ *  and node fields are still honored by `buildTree` / `fetchText` when a finite value is supplied (used in
+ *  tests), but are unbounded by default — see {@link defaultLimits}. */
 export interface Limits {
   maxBytes: number;
   maxDepth: number;
   maxNodes: number;
 }
 
-/** The caps enforced by default. */
+/** The caps enforced by default: only nesting depth (the crash guard). Byte and node counts are unbounded —
+ *  the off-thread pipeline and the windowed renderer handle large documents, so they no longer warrant a
+ *  "too large" refusal. */
 export const defaultLimits: Limits = {
-  maxBytes: MAX_DOC_BYTES,
+  maxBytes: Infinity,
   maxDepth: MAX_TREE_DEPTH,
-  maxNodes: MAX_TREE_NODES,
+  maxNodes: Infinity,
 };
 
 /** All caps lifted — used by the "Load anyway" override, where the user accepts the risk of a slow or
