@@ -71,13 +71,17 @@ export default defineConfig({
         "src/refs/types.ts", // type declarations (+ trivial refKey)
         "src/vite-env.d.ts",
       ],
-      // Floors sit just under the measured baseline so the gate blocks
-      // regressions without being flaky.
+      // Statement/branch/line floors sit ~1 point under the measured coverage (98.2 / 92.1 / 99.4) so
+      // the gate blocks regressions without flaking on a defensive arm or hard-to-trigger catch.
+      // Functions is held at 100: every function should be exercised, an uncovered one means dead code
+      // or a missing test, and the coverage-included files are all node-tested (so it's deterministic).
+      // The d3/SVG islands (canvas.ts, treeView.ts) are excluded above; the tree's keyboard model lives
+      // in the node-tested treeKeys.ts instead.
       thresholds: {
-        statements: 93,
-        branches: 80,
-        functions: 95,
-        lines: 94,
+        statements: 97,
+        branches: 91,
+        functions: 100,
+        lines: 98,
       },
     },
   },

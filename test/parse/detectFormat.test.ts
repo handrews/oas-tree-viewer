@@ -19,6 +19,11 @@ describe("parseDocument", () => {
     expect(parseDocument('{"a":1}').format).toBe("json");
   });
 
+  it("auto-detects when the filename has no extension", () => {
+    // A dot-less filename gives no extension hint, so detection falls back to content sniffing.
+    expect(parseDocument('{"a":1}', "noext").format).toBe("json");
+  });
+
   it("falls back to YAML when not JSON", () => {
     expect(parseDocument("a: 1").format).toBe("yaml");
   });

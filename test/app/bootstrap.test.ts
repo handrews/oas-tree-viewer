@@ -33,6 +33,27 @@ describe("runPipeline", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.oadError).toMatch(/mixes OAS versions/i);
   });
+
+  it("reports a per-row error when a detected document fails finalize (schema-invalid)", () => {
+    // Detects as OpenAPI (has `openapi`), but `info` is missing required title/version, so the
+    // finalize-phase schema validation throws — surfaced as that row's error.
+    return runPipeline([
+      { source: "upload", filename: "a.yaml", text: "openapi: 3.1.0\ninfo: {}\npaths: {}\n", isEntry: true },
+    ]).then((r) => {
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.rowErrors?.[0]).toMatch(/schema/i);
+    });
+  });
+
+  it("reports an OAD-level error when assembly throws (duplicate operationId)", async () => {
+    const text =
+      "openapi: 3.1.0\ninfo: { title: A, version: '1' }\npaths:\n" +
+      "  /a: { get: { operationId: dup, responses: { '200': { description: ok } } } }\n" +
+      "  /b: { get: { operationId: dup, responses: { '200': { description: ok } } } }\n";
+    const r = await runPipeline([{ source: "upload", filename: "a.yaml", text, isEntry: true }]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.oadError).toMatch(/operationId/i);
+  });
 });
 
 describe("docLabel", () => {

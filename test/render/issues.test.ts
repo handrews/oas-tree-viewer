@@ -224,3 +224,61 @@ describe("issues", () => {
     expect(text).toContain("common.yaml — not reachable from the entry document");
   });
 });
+
+describe("issues — advisories, document warnings, and every reference label", () => {
+  it("collects edge advisories, an unvalidated-schema warning, and node advisories", () => {
+    const advisoryEdge: Partial<ReferenceEdge> = {
+      status: "resolved", // resolves, so not a ref issue — but still carries an advisory
+      kind: "operationRef",
+      sourceDocId: "a",
+      sourceObjectId: "/links/L",
+      refString: "#/paths/~1p/get",
+      requiredType: "Operation",
+      diagnostics: [{ severity: "warning", code: "operation-target-webhook", detail: "points at a webhook" }],
+    };
+    const warned = {
+      id: "c",
+      filename: "warn.yaml",
+      source: "upload",
+      schemaDialectWarning: "draft-03 Schema Objects were not validated",
+      root: node("", {
+        children: [node("/x", { resolutionAdvisories: [{ code: "ignored-ref-siblings", detail: "siblings ignored" }] })],
+      }),
+    } as OadDocument;
+    const oad2: Oad = { documents: [entry, warned], versionFamily: "3.1" };
+
+    const report = collectIssues(oad2, refsOf([advisoryEdge]), []);
+
+    expect(report.advisories).toHaveLength(1);
+    expect(report.advisories[0]).toMatchObject({ code: "operation-target-webhook", kind: "operationRef" });
+    expect(report.docIssues.some((d) => d.kind === "unvalidated-schema")).toBe(true);
+    expect(report.nodeAdvisories.map((a) => a.code)).toContain("ignored-ref-siblings");
+    expect(report.total).toBe(3);
+  });
+
+  it("details a broken operationId and an unknown-target mismatch, and labels each reference kind", () => {
+    const refs = refsOf([
+      { status: "broken", resolution: "operation-id", kind: "operationId", sourceDocId: "a", sourceObjectId: "/l1", refString: "getThing", requiredType: "Operation" },
+      { status: "type-mismatch", kind: "$ref", sourceDocId: "a", sourceObjectId: "/t", refString: "#/x", requiredType: "Schema" }, // no targetType -> "found ?"
+      { status: "broken", kind: "operationRef", sourceDocId: "a", sourceObjectId: "/r1", refString: "x.yaml#/op", requiredType: "Operation" },
+      { status: "broken", kind: "$dynamicRef", sourceDocId: "a", sourceObjectId: "/d1", refString: "#meta", requiredType: "Schema" },
+      { status: "broken", kind: "$recursiveRef", sourceDocId: "a", sourceObjectId: "/d2", refString: "#", requiredType: "Schema" },
+      { status: "broken", kind: "discriminatorMapping", sourceDocId: "a", sourceObjectId: "/m1", refString: "Cat", requiredType: "Schema" },
+    ]);
+    const report = collectIssues(oad, refs, []);
+
+    expect(report.refIssues.find((i) => i.kind === "operationId")!.detail).toBe('no Operation declares operationId "getThing"');
+    expect(report.refIssues.find((i) => i.status === "type-mismatch")!.detail).toBe("expected Schema, found ?");
+
+    const text = formatIssueReport(report);
+    expect(text).toContain("operationRef: x.yaml#/op");
+    expect(text).toContain("$dynamicRef: #meta");
+    expect(text).toContain("$recursiveRef: #");
+    expect(text).toContain("mapping value: Cat");
+  });
+
+  it("labels the entry as (none) when the OAD has no documents", () => {
+    const report = collectIssues({ documents: [], versionFamily: "3.1" }, refsOf([]), []);
+    expect(report.entry).toBe("(none)");
+  });
+});
