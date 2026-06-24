@@ -534,30 +534,34 @@ export class Canvas {
       });
   }
 
-  private recenter(x: number, y: number): void {
+  /** Center the viewport on a content point. `animate` pans there over a short transition (good for a
+   *  short hop like an edge click); without it the move is instant — used for the long top/bottom jumps,
+   *  where animating sweeps the whole tree past at once (rebuilding the window every frame) and just looks
+   *  like the canvas froze. */
+  private recenter(x: number, y: number, animate = true): void {
     const svgNode = this.svg.node();
     if (!svgNode) return;
     const k = zoomTransform(svgNode).k;
     const sw = svgNode.clientWidth || 900;
     const sh = svgNode.clientHeight || 600;
-    this.svg
-      .transition()
-      .duration(400)
-      .call(
-        this.zoomBehavior.transform,
-        zoomIdentity.translate(sw / 2 - k * x, sh / 2 - k * y).scale(k),
-      );
+    const target = zoomIdentity.translate(sw / 2 - k * x, sh / 2 - k * y).scale(k);
+    if (animate) {
+      this.svg.transition().duration(400).call(this.zoomBehavior.transform, target);
+    } else {
+      this.svg.call(this.zoomBehavior.transform, target);
+    }
   }
 
   /** Recenter on the first / last node of the entry document — for jumping a tall tree whose ends the
-   *  current zoom can't show at once. The target may be off-window; its position is known analytically. */
+   *  current zoom can't show at once. The target may be off-window; its position is known analytically.
+   *  The jump is instant (not animated) so a long sweep doesn't look like a stuck/blank canvas. */
   private jumpTo(end: "top" | "bottom"): void {
     const view = this.views[0];
     if (!view) return;
     const id = end === "top" ? view.firstVisibleId : view.lastVisibleId;
     if (id == null) return;
     const anchor = view.anchorViewport(id);
-    if (anchor) this.recenter(anchor.x, anchor.y);
+    if (anchor) this.recenter(anchor.x, anchor.y, false);
   }
 
   private onToolbar(e: MouseEvent): void {
@@ -577,11 +581,7 @@ export class Canvas {
     } else if (act === "showall") {
       // Same hazard when drawing every reference arc at once; gate turning it on, not off.
       const edges = this.resolved?.edges.length ?? 0;
-      if (
-        !this.showAll &&
-        edges > MAX_RENDER_EDGES &&
-        !this.confirmHeavyRender(edges, "references")
-      ) {
+      if (!this.showAll && edges > MAX_RENDER_EDGES && !this.confirmHeavyRender(edges)) {
         return;
       }
       this.showAll = !this.showAll;
@@ -593,11 +593,14 @@ export class Canvas {
     }
   }
 
-  /** Ask before a bulk render that could hang the tab. Returns true to proceed. */
-  private confirmHeavyRender(count: number, noun: string): boolean {
+  /** Ask before drawing every reference arc at once: a perf hazard on a big graph, and — on a large or
+   *  very tall document — a rendering one (the arcs become long near-vertical lines that the browser
+   *  re-rasterizes each pan frame, with arrowheads that angle oddly). Returns true to proceed. */
+  private confirmHeavyRender(count: number): boolean {
     return window.confirm(
-      `This will render ${count.toLocaleString()} ${noun} at once, which may make the page slow ` +
-        `or unresponsive. Continue?`,
+      `This will draw ${count.toLocaleString()} reference arcs at once, which may make the page slow or ` +
+        `unresponsive. On a large or very tall document the arcs may also render imperfectly — misangled ` +
+        `arrowheads, or lines that flicker while panning. Continue?`,
     );
   }
 }
