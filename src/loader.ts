@@ -79,7 +79,16 @@ export interface DetectedDoc {
 
 let nextDocId = 1;
 
-/** Map a full version string ("3.2.0") to its family ("3.2"). Assumes 3.0/3.1/3.2. */
+/**
+ * Map a full `openapi` version string ("3.2.0") to its minor-release family ("3.2"). Assumes
+ * 3.0/3.1/3.2.
+ *
+ * The patch component is dropped deliberately: OAS publishes a schema (and dialect) per *minor*
+ * release, and the patch-release process forbids any schema-impacting change, so every patch of a
+ * minor version shares one schema. (The dates in published schema URLs are schema revision dates,
+ * not patch releases.) This is why schema/dialect selection throughout this tool keys off the
+ * minor version alone. See the OAS publication policy at https://spec.openapis.org/oas/.
+ */
 export function versionFamilyOf(version: string): VersionFamily {
   if (version.startsWith("3.0")) return "3.0";
   return version.startsWith("3.2") ? "3.2" : "3.1";

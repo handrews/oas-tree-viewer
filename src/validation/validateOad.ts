@@ -177,6 +177,9 @@ export async function validateOad(
   //    Schema Objects are not JSON Schema — the single 3.0 schema validates them fully here, so step 2
   //    is skipped for it.
   if (kind === "openapi") {
+    // `version` is the minor-release family (e.g. "3.1"); one schema validates every patch of a
+    // minor version. `versionFamilyOf` in loader.ts explains why the patch level is dropped (and
+    // why the dated revisions in schema URLs are not patch releases).
     const envelope = (await validate(
       `https://spec.openapis.org/oas/${version}/schema`,
       value,

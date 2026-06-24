@@ -101,7 +101,12 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-/** The OAS version families this tool understands. */
+/**
+ * The OAS version families this tool understands — major.minor releases, with no patch component.
+ * Classification, validation, and resolution all key off this minor-version granularity.
+ * `versionFamilyOf` in loader.ts explains why the patch level is dropped — and why the dated
+ * revisions in schema URLs are not patch releases.
+ */
 export type VersionFamily = "3.0" | "3.1" | "3.2";
 
 export type DocSource = "upload" | "url";
