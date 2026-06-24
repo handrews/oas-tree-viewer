@@ -1,0 +1,24 @@
+openapi: 3.2.0
+$self: https://example.com/oad/schemas
+info:
+  title: Shared Schemas
+  version: 1.0.0
+components:
+  schemas:
+    OrderId:
+      type: string
+      format: uuid
+    Order:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          $ref: '#/components/schemas/OrderId'
+        status:
+          type: string
+          enum: [pending, completed, cancelled]
+        totalPrice:
+          type: number
+          minimum: 0

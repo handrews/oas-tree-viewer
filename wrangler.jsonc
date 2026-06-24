@@ -1,0 +1,22 @@
+// Cloudflare config for the oas.henryandrews.net deployment, built directly from this repo.
+//
+// An assets-only Worker (no `main` / no worker code) that serves the Vite build output in ./dist.
+// The deploy is run from CI (see .github/workflows/deploy.yml) on a version tag:
+//
+//   npx wrangler deploy            (CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID from the environment)
+//
+// The `name` must stay "oas-tree-viewer" so the deploy updates the existing Worker that the
+// oas.henryandrews.net custom domain is attached to (the domain/zone live in the Cloudflare account that
+// holds it — no domain change is needed, only switching the deployer from the henry-web vendoring to this).
+//
+// `not_found_handling: "single-page-application"` serves index.html for unmatched paths, so the
+// History-API routes (/configure, /view?...) reload correctly. The app uses an absolute asset base
+// (vite.config.ts `base: "/"`), so assets resolve at any path depth under that SPA fallback.
+{
+  "name": "oas-tree-viewer",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
