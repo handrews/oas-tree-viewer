@@ -10,6 +10,7 @@ import type { OadDocument, TreeNode } from "../types";
 import { categoryClass, categoryShape, resolutionStyles } from "./colors";
 import { docVersionLabel } from "./detail";
 import { treeKeyAction } from "./treeKeys";
+import { COUNT_DX, SECONDARY_DX, SECONDARY_MAX, estimateLabelWidth } from "./treeLayout";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -312,14 +313,28 @@ export class DocumentView {
 
     const colWidth = Math.max(MIN_COL_W, maxDepth * INDENT + LABEL_BUDGET);
 
-    // Record each visible row's local dot position for edge anchoring.
+    // Record each visible row's local dot position and label end for edge/marker anchoring. Both are
+    // analytic (no DOM): the label end is estimated rather than measured, which keeps this off the
+    // synchronous-reflow path and stays valid for rows that aren't currently mounted.
     this.visiblePos = new Map();
     this.labelEndById = new Map();
     rows.forEach((r, i) => {
-      this.visiblePos.set(r.node.data.id, {
+      const data = r.node.data;
+      this.visiblePos.set(data.id, {
         x: PAD + r.depth * INDENT + DOT_DX,
         y: this.headerH + PAD + ROW_H / 2 + i * ROW_H,
       });
+      this.labelEndById.set(
+        data.id,
+        PAD +
+          r.depth * INDENT +
+          LABEL_DX +
+          estimateLabelWidth(
+            primaryLabel(data),
+            secondaryLabel(data),
+            r.node._children?.length ?? 0,
+          ),
+      );
     });
 
     this.treeG.selectAll("*").remove();
@@ -456,22 +471,25 @@ export class DocumentView {
       .attr("dy", "0.32em")
       .attr("text-anchor", "start");
 
-    const labelEndById = this.labelEndById;
     label.each(function (this: SVGTextElement, d: RowDatum) {
       const sel = select(this);
       sel.append("tspan").attr("class", "k").text(primaryLabel(d.node.data));
       const hidden = d.node._children?.length;
       if (hidden) {
-        sel.append("tspan").attr("class", "count").attr("dx", "6").text(`(+${hidden})`);
+        sel
+          .append("tspan")
+          .attr("class", "count")
+          .attr("dx", String(COUNT_DX))
+          .text(`(+${hidden})`);
       }
       const secondary = secondaryLabel(d.node.data);
       if (secondary) {
-        sel.append("tspan").attr("class", "t").attr("dx", "8").text(truncate(secondary, 48));
+        sel
+          .append("tspan")
+          .attr("class", "t")
+          .attr("dx", String(SECONDARY_DX))
+          .text(truncate(secondary, SECONDARY_MAX));
       }
-      // Right edge of the rendered label, in the tree group's space (PAD-offset),
-      // so right-gutter status markers can sit just past the text.
-      const bb = this.getBBox();
-      labelEndById.set(d.node.data.id, PAD + bb.x + bb.width);
     });
 
     this.rowSel = rowSel;
