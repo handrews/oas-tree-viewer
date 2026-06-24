@@ -44,6 +44,52 @@ A clean **model layer** (plain TypeScript) decoupled from rendering. The UI is *
 with **History-API routing** splitting a Configure page from an Explore page; the d3/SVG
 canvas is an imperative island wrapped by a Svelte component.
 
+Inputs are collected on the Configure page, the whole load pipeline runs off-thread in a Web
+Worker, and the resolved model drives the render layer (GitHub renders this Mermaid diagram):
+
+```mermaid
+flowchart TD
+    subgraph mainIn["Main thread (UI / orchestration)"]
+        direction TB
+        cfg["Configure page<br/>OadForm · fileDrop<br/>(upload · URL · folder · demo)"]
+        client["pipelineClient"]
+        routing["App / routing<br/>router · session · viewUrl<br/>bootstrap · config · demos"]
+    end
+
+    subgraph wk["pipeline.worker — Web Worker (off-thread, cancellable)"]
+        direction TB
+        subgraph load["loadDocument — per document (loader)"]
+            direction TB
+            parse["Parse — detectFormat"]
+            model["Model — treeBuilder · jsonPointer"]
+            classify["Classify — descriptor · classify · dialects"]
+            validate["Validate — validateOad"]
+            parse --> model --> classify --> validate
+        end
+        assemble["assembleOad — oad"]
+        refs["resolveOad — references<br/>resolver · baseUri · dynamicScope<br/>fragments · reachability"]
+        load --> assemble --> refs
+    end
+
+    subgraph mainOut["Main thread (render, model-decoupled)"]
+        direction TB
+        view["Explore page — ViewPage"]
+        canvas["Canvas / tree view<br/>canvas · treeView<br/>treeLayout (windowed) · treeKeys"]
+        panels["DetailPanel · Legend · IssueReport<br/>colors · issues · detail · reachability"]
+        view --> canvas
+        view --> panels
+    end
+
+    limits["Resource caps<br/>limits (depth) · errors · types"]
+
+    cfg -->|inputs| client
+    client -->|postMessage| load
+    refs -->|resolved Oad| view
+    routing -. bookmarkable URL .-> view
+    routing -.-> cfg
+    limits -. guards .-> load
+```
+
 | Layer | Files |
 | --- | --- |
 | Types | `src/types.ts`, `src/errors.ts`, `src/limits.ts` (resource caps) |
