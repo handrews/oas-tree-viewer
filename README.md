@@ -56,7 +56,10 @@ _Produced by Henry Andrews using Claude Code._
   children indented under their parent), with the documents laid out **side by side** on a
   shared zoom/pan canvas (entry document leftmost). Click a row's **disclosure triangle**
   (or double-click the row) to expand/collapse; click a row to inspect it in the detail
-  panel (JSON Pointer, OAS type, value, reference target, base URI).
+  panel (JSON Pointer, OAS type, value, reference target, base URI). The trees are
+  **keyboard-navigable and screen-reader-accessible** (a WAI-ARIA tree): arrow keys move
+  between nodes and expand/collapse them, Home/End jump to the first/last, and Enter or Space
+  selects the focused node.
 
 ### References
 
@@ -115,10 +118,14 @@ problems:
   (or, with *any fragment*, its interior nodes).
 - **Schema-invalid document** — fails validation against the official OpenAPI JSON Schema, with the
   offending JSON Pointer locations listed (shown on its row).
-- **Version mismatch** — the OAD mixes OAS 3.1 and 3.2 (shown above the form).
+- **Version mismatch** — the OAD mixes OAS versions (shown above the form).
 - **Invalid Link** — a Link Object sets both `operationRef` and `operationId` (shown on its row).
 - **Duplicate `operationId`** — two Operations share an `operationId` anywhere in the OAD
   (shown above the form).
+- **Too large / too deeply nested** — a document past the size, node-count, or nesting limits is
+  refused up front rather than hanging the page, with a **Load anyway** override that retries with the
+  limits lifted (shown on its row). A very large tree also confirms before **Expand all** / **Show all
+  references** renders everything at once.
 
 The entry document is always the first one, so there are no "missing/duplicate entry" errors.
 
