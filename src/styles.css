@@ -413,10 +413,31 @@ body {
   border-radius: 10px;
   padding: 0.7rem 0.9rem;
 }
-.resolution-box .render {
+.resolution-box .render-actions {
   position: absolute;
   top: 0.3rem;
   right: 0.9rem;
+  display: flex;
+  gap: 0.4rem;
+}
+.render:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+/* Cancel beside a running render — secondary (outlined), matching "Load anyway". */
+.render-cancel {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--accent-solid);
+  color: var(--accent-solid);
+}
+.render-cancel:hover {
+  background: var(--surface2);
 }
 .resolution-options > summary {
   font-size: 0.95rem;
@@ -460,7 +481,7 @@ body {
 }
 
 /* Loading / empty / error states fill the viewer area, centered. */
-.view-status,
+.view-loading,
 .view-empty,
 .view-error {
   margin: auto;
@@ -470,6 +491,22 @@ body {
 }
 .view-status {
   color: var(--text-dim);
+}
+/* Cancel under the "Loading documents…" line — secondary (outlined), aborts the worker. */
+.view-cancel {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--accent-solid);
+  color: var(--accent-solid);
+  margin-top: 0.8rem;
+}
+.view-cancel:hover {
+  background: var(--surface2);
 }
 .view-error-msg {
   color: var(--error);

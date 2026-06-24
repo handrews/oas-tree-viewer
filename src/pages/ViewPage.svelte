@@ -11,7 +11,9 @@
   import type { DetailContext } from "../render/detail";
   import { unreachableDocs } from "../render/reachability";
   import { collectIssues, type IssueReport as IssueReportData } from "../render/issues";
-  import { runPipeline, docLabel, type PipelineOptions } from "../app/bootstrap";
+  import { docLabel, type PipelineOptions } from "../app/bootstrap";
+  import { pipelineClient, PipelineCancelled } from "../app/pipelineClient";
+  import { errorMessage } from "../errors";
   import { demoInputs } from "../app/demos";
   import { session } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
@@ -74,7 +76,18 @@
     lastInputs = inputs;
     limited = false;
     status = "loading";
-    const result = await runPipeline(inputs, config, opts);
+    // Run off-thread so the page stays responsive and the load can be cancelled. `inputs` (when reused
+    // from `lastInputs`) and `config` are reactive ($state proxies), so snapshot them to plain objects —
+    // a proxy can't be structured-cloned across the worker boundary.
+    let result;
+    try {
+      result = await pipelineClient.run($state.snapshot(inputs), $state.snapshot(config), opts);
+    } catch (e) {
+      if (token !== loadToken) return; // superseded or cancelled — newer state already applied
+      if (e instanceof PipelineCancelled) return; // cancelLoad set the next state
+      fail(errorMessage(e));
+      return;
+    }
     if (token !== loadToken) return; // a newer request superseded this one
     if (!result.ok) {
       limited = result.limited ?? false;
@@ -91,6 +104,13 @@
   // "Load anyway": re-run the same documents with the resource limits lifted.
   function loadAnyway(): void {
     void loadInputs(lastInputs, { enforceLimits: false });
+  }
+
+  // Cancel an in-flight load: terminate the worker and leave the explorer for the Configure page.
+  function cancelLoad(): void {
+    loadToken++; // invalidate the in-flight load so a late result is ignored
+    pipelineClient.cancel();
+    navigate("/configure");
   }
 
   function resolve(req: ViewRequest): void {
@@ -139,7 +159,10 @@
       <DetailPanel {selected} ctx={detailCtx} />
     </aside>
   {:else if status === "loading"}
-    <p class="view-status" role="status">Loading documents…</p>
+    <div class="view-loading">
+      <p class="view-status" role="status">Loading documents…</p>
+      <button type="button" class="view-cancel" onclick={cancelLoad}>Cancel</button>
+    </div>
   {:else if status === "empty"}
     <div class="view-empty">
       <p>This view was built from uploaded files, so there's nothing to reload.</p>

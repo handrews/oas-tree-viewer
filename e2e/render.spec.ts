@@ -195,6 +195,34 @@ test.describe("demos, online URLs & bookmarking", () => {
   });
 });
 
+test.describe("cancelling a load", () => {
+  test("Cancel aborts an in-flight load and returns to Configure", async ({ page }) => {
+    // Hold the demo's first fixture fetch (made by the pipeline worker) open so the load stays in its
+    // loading state long enough to cancel it — proving the load runs off-thread and is interruptible.
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/fixtures/refs-3.1.yaml", async (route) => {
+      await held;
+      await route.continue().catch(() => {});
+    });
+
+    await page.goto("/view?demo=refs");
+
+    // The loading state offers a Cancel control, and no tree has rendered.
+    const cancel = page.getByRole("button", { name: "Cancel" });
+    await expect(cancel).toBeVisible();
+    await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(0);
+
+    await cancel.click();
+
+    // Cancelling terminates the worker and leaves the explorer for the Configure page; nothing rendered.
+    await expect(page).toHaveURL(/\/configure/);
+    await expect(page.locator(".oad-form")).toBeVisible();
+
+    release(); // release the held request (now ignored — the worker was terminated)
+  });
+});
+
 test.describe("component-name references", () => {
   test("distinguishes component-name (diamond) from URI (asterisk) markers", async ({ page }) => {
     await page.goto("/view?demo=component-refs");
