@@ -4,6 +4,7 @@ import {
   SECONDARY_DX,
   SECONDARY_MAX,
   estimateLabelWidth,
+  windowRange,
 } from "../../src/render/treeLayout";
 
 describe("estimateLabelWidth", () => {
@@ -48,5 +49,43 @@ describe("estimateLabelWidth", () => {
     // A 20-char key at 12px proportional text is well under ~160px in any real font; the estimate sits
     // above that so a right-gutter marker placed just past the label never lands on top of it.
     expect(estimateLabelWidth("x".repeat(20), "", 0)).toBeGreaterThan(120);
+  });
+});
+
+describe("windowRange", () => {
+  // headerOffsetY 0 + rowH 10 makes the index math read directly: row i centers at y = 10*i.
+  test("an empty tree yields an empty range", () => {
+    expect(windowRange(0, 0, 100, 10, 0, 0)).toEqual({ start: 0, end: 0 });
+  });
+
+  test("a viewport over the middle selects that band (+1 exclusive end)", () => {
+    expect(windowRange(100, 200, 300, 10, 0, 0)).toEqual({ start: 20, end: 31 });
+  });
+
+  test("overscan widens the band on both sides", () => {
+    expect(windowRange(100, 200, 300, 10, 0, 5)).toEqual({ start: 15, end: 36 });
+  });
+
+  test("clamps to the top of the tree", () => {
+    expect(windowRange(100, 0, 50, 10, 0, 5)).toEqual({ start: 0, end: 11 });
+  });
+
+  test("clamps to the bottom of the tree", () => {
+    const { end } = windowRange(100, 900, 1100, 10, 0, 5);
+    expect(end).toBe(100);
+  });
+
+  test("a viewport entirely above the tree is empty", () => {
+    expect(windowRange(100, -500, -400, 10, 0, 0)).toEqual({ start: 0, end: 0 });
+  });
+
+  test("a viewport entirely below the tree is empty", () => {
+    const { start, end } = windowRange(100, 5000, 6000, 10, 0, 0);
+    expect(start).toBe(end);
+  });
+
+  test("honors a non-zero header offset", () => {
+    // With the first row pushed down by 100px, a [100,200] viewport starts at row 0.
+    expect(windowRange(100, 100, 200, 10, 100, 0)).toEqual({ start: 0, end: 11 });
   });
 });

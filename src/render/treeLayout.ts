@@ -45,3 +45,33 @@ export function estimateLabelWidth(
   }
   return Math.ceil(width);
 }
+
+/** Above this many rows a document's tree is windowed (only the rows near the viewport are mounted).
+ *  Below it the whole tree renders, exactly as before — comfortably above any ordinary document. */
+export const VIRTUALIZE_ABOVE = 2000;
+
+/** Rows of slack rendered above and below the viewport, so a small scroll reveals already-mounted rows
+ *  rather than blank space while the next window is painted. */
+export const OVERSCAN_ROWS = 10;
+
+/**
+ * The half-open range of row indices `[start, end)` to mount for a tree of `total` rows whose viewport, in
+ * the tree's own vertical coordinates, spans `[viewTop, viewBottom]`. Row `i`'s center sits at
+ * `headerOffsetY + i*rowH`; `overscanRows` of slack is added on each side and the result is clamped to
+ * `[0, total]`. A viewport entirely above or below the tree yields an empty (start === end) range.
+ */
+export function windowRange(
+  total: number,
+  viewTop: number,
+  viewBottom: number,
+  rowH: number,
+  headerOffsetY: number,
+  overscanRows: number,
+): { start: number; end: number } {
+  if (total <= 0) return { start: 0, end: 0 };
+  const firstVisible = Math.floor((viewTop - headerOffsetY) / rowH) - overscanRows;
+  const lastVisible = Math.ceil((viewBottom - headerOffsetY) / rowH) + overscanRows;
+  const start = Math.min(total, Math.max(0, firstVisible));
+  const end = Math.max(start, Math.min(total, lastVisible + 1));
+  return { start, end };
+}
