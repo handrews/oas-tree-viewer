@@ -9,6 +9,7 @@ import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
 import { categoryClass, categoryShape, resolutionStyles } from "./colors";
 import { docVersionLabel } from "./detail";
+import { treeKeyAction } from "./treeKeys";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -246,55 +247,39 @@ export class DocumentView {
     }
   }
 
-  /** Focus the visible row at index `i` (no-op if out of range). */
-  private focusRowAt(i: number): void {
-    const row = this.visibleRows[i];
-    if (row) this.setActive(row.node.data.id, true);
-  }
-
-  /** WAI-ARIA Tree View keyboard model, handled on the focused treeitem. */
+  /**
+   * WAI-ARIA Tree View keyboard handling on the focused treeitem. The decision — which node to focus,
+   * toggle, or select for this key — lives in the pure {@link treeKeyAction}; this method only carries it
+   * out against the d3 hierarchy. For `toggle`/`select` the action targets the focused node itself, so it
+   * uses `node` directly; `focus` targets another visible row, addressed by id.
+   */
   private onKeydown(event: KeyboardEvent, d: RowDatum): void {
     const node = d.node;
-    const i = this.visibleRows.findIndex((r) => r.node.data.id === node.data.id);
-    switch (event.key) {
-      case "ArrowDown":
-        event.preventDefault();
-        this.focusRowAt(i + 1);
+    const action = treeKeyAction({
+      key: event.key,
+      visibleIds: this.visibleRows.map((r) => r.node.data.id),
+      focusedId: node.data.id,
+      node: {
+        collapsed: Boolean(node._children),
+        expanded: Boolean(node.children),
+        firstChildId: node.children?.[0]?.data.id ?? null,
+        parentId: (node.parent as CNode | null)?.data.id ?? null,
+      },
+    });
+    if (!action) return; // a key the tree doesn't handle — leave the event alone
+    event.preventDefault();
+    switch (action.type) {
+      case "focus":
+        this.setActive(action.id, true);
         break;
-      case "ArrowUp":
-        event.preventDefault();
-        this.focusRowAt(i - 1);
+      case "toggle":
+        this.toggle(node); // expand/collapse, keeping focus here
+        this.setActive(node.data.id, true);
         break;
-      case "ArrowRight":
-        event.preventDefault();
-        if (node._children) {
-          this.toggle(node); // expand, keeping focus here (a second Right then enters the first child)
-          this.setActive(node.data.id, true);
-        } else if (node.children?.length) {
-          this.setActive(node.children[0]!.data.id, true); // already expanded → move to first child
-        }
-        break;
-      case "ArrowLeft":
-        event.preventDefault();
-        if (node.children) {
-          this.toggle(node); // collapse, keeping focus here
-          this.setActive(node.data.id, true);
-        } else if (node.parent) {
-          this.setActive((node.parent as CNode).data.id, true); // leaf/collapsed → move to parent
-        }
-        break;
-      case "Home":
-        event.preventDefault();
-        this.focusRowAt(0);
-        break;
-      case "End":
-        event.preventDefault();
-        this.focusRowAt(this.visibleRows.length - 1);
-        break;
-      case "Enter":
-      case " ":
-        event.preventDefault();
+      case "select":
         this.select(node.data); // selection is explicit (Enter/Space), distinct from focus
+        break;
+      case "none":
         break;
     }
   }
