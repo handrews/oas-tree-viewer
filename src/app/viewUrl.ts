@@ -45,6 +45,17 @@ export function parseRoute(pathname: string, search: string): Route {
 }
 
 /**
+ * The canonical path a raw location should be rewritten to, or null if it is already canonical. The app
+ * renders the configure page for every path except `/view`, so an unrecognized or nested path (`/`,
+ * `/foo`, `/configure/foo`, `/configure/`) is normalized to `/configure` — keeping the address bar in
+ * step with the page shown. A `/view` request (which carries its own canonical query) is left untouched.
+ */
+export function canonicalRedirect(pathname: string): string | null {
+  if (isViewPath(pathname)) return null;
+  return pathname === "/configure" ? null : "/configure";
+}
+
+/**
  * Build the `path[?query]` for a view request + config (the configure page navigates to
  * this). The entry document is encoded first; only non-default config is appended.
  */

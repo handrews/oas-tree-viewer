@@ -6,9 +6,11 @@ import { docPages } from "./vite/doc-pages";
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
 
 export default defineConfig({
-  // Relative base so the built assets resolve wherever the app is served from —
-  // a domain root, a subdirectory, or a vendored copy in another site.
-  base: "./",
+  // Absolute base so built assets always resolve as /assets/… regardless of the URL path depth.
+  // The app is served from a domain root (oas.henryandrews.net), and the SPA fallback serves
+  // index.html for any path — with a relative base, a nested path like /configure/foo would request
+  // ./assets/… → /configure/assets/… (404, blank page).
+  base: "/",
   // Bake the package version in at build time so the header can show the running
   // version and link it to that release's changelog entry.
   define: {

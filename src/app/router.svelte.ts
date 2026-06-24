@@ -1,9 +1,7 @@
 // Live History-API routing for the two-page app. All URL parsing lives in the pure
-// `viewUrl` module; this thin wrapper owns the reactive `location`/`history` state. Routes
-// are single-segment (`/configure`, `/view`) so the relative asset base keeps resolving
-// `./assets/…` correctly under the SPA fallback.
+// `viewUrl` module; this thin wrapper owns the reactive `location`/`history` state.
 
-import { parseRoute, type Route } from "./viewUrl";
+import { canonicalRedirect, parseRoute, type Route } from "./viewUrl";
 
 function currentRoute(): Route {
   return parseRoute(window.location.pathname, window.location.search);
@@ -26,6 +24,8 @@ if (typeof window !== "undefined") {
   window.addEventListener("popstate", () => {
     router.route = currentRoute();
   });
-  // Tidy the bare root into the canonical configure path.
-  if (window.location.pathname === "/") navigate("/configure", { replace: true });
+  // Normalize any unrecognized or nested path to the page it actually renders, so the address bar
+  // matches it (e.g. /, /foo, /configure/foo all become /configure); a valid /view request is untouched.
+  const redirect = canonicalRedirect(window.location.pathname);
+  if (redirect) navigate(redirect, { replace: true });
 }

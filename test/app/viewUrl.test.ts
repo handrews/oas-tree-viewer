@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseRoute, viewPath, type ViewRequest } from "../../src/app/viewUrl";
+import { canonicalRedirect, parseRoute, viewPath, type ViewRequest } from "../../src/app/viewUrl";
 import { defaultConfig, type ViewerConfig } from "../../src/app/config";
 
 /** Split a `viewPath` result back into (pathname, search) the way the router would. */
@@ -118,5 +118,18 @@ describe("viewUrl", () => {
       parsePath(path) as { request: { kind: "urls"; docs: { url: string; isEntry: boolean }[] } }
     ).request.docs;
     expect(docs[0]).toEqual({ url: "https://a/main.yaml", isEntry: true });
+  });
+
+  it("canonicalRedirect normalizes unrecognized and nested paths to /configure", () => {
+    // Already-canonical paths: no redirect.
+    expect(canonicalRedirect("/configure")).toBeNull();
+    expect(canonicalRedirect("/view")).toBeNull();
+    expect(canonicalRedirect("/view/")).toBeNull();
+    // Everything the app renders as configure but whose URL isn't /configure → rewrite.
+    expect(canonicalRedirect("/")).toBe("/configure");
+    expect(canonicalRedirect("/foo")).toBe("/configure");
+    expect(canonicalRedirect("/configure/")).toBe("/configure");
+    expect(canonicalRedirect("/configure/foo")).toBe("/configure");
+    expect(canonicalRedirect("/view/foo")).toBe("/configure"); // not a real /view path
   });
 });
