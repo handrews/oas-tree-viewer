@@ -2,7 +2,8 @@
   import type { DocInput } from "../loader";
   import OadForm from "../ui/OadForm.svelte";
   import type { RenderOutcome, RenderOptions } from "../ui/oadForm";
-  import { runPipeline } from "../app/bootstrap";
+  import { pipelineClient, PipelineCancelled } from "../app/pipelineClient";
+  import { errorMessage } from "../errors";
   import { demos, type Demo } from "../app/demos";
   import { session } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
@@ -14,6 +15,8 @@
   // encode fully into the view URL (bookmarkable); upload renders are resolved here and
   // handed off in memory. The resolution config is applied at render and carried in the URL.
   let config = $state<ViewerConfig>({ ...defaultConfig });
+  // True while an upload render is running in the worker; flips the Render button to Cancel.
+  let busy = $state(false);
 
   async function onRender(inputs: DocInput[], opts: RenderOptions = {}): Promise<RenderOutcome> {
     if (inputs.every((i) => i.source === "url")) {
@@ -22,13 +25,30 @@
       return { ok: true };
     }
     // Anything with an uploaded file can't live in a URL, so resolve it here — keeping
-    // per-row / OAD errors inline on the form — and hand the result to a bare /view.
-    const result = await runPipeline(inputs, config, opts);
-    if (!result.ok)
-      return { ok: false, rowErrors: result.rowErrors, oadError: result.oadError, limited: result.limited };
-    session.result = { oad: result.oad, refs: result.refs };
-    navigate(viewPath({ kind: "session" }, config));
-    return { ok: true };
+    // per-row / OAD errors inline on the form — and hand the result to a bare /view. The
+    // pipeline runs in a worker so the page stays responsive and the load can be cancelled.
+    busy = true;
+    try {
+      // `inputs` (the form may hand back its reactive `lastInputs` on a "Load anyway" retry) and
+      // `config` are reactive ($state proxies); snapshot them to plain objects so they can be
+      // structured-cloned across the worker boundary (a proxy can't).
+      const result = await pipelineClient.run($state.snapshot(inputs), $state.snapshot(config), opts);
+      if (!result.ok)
+        return { ok: false, rowErrors: result.rowErrors, oadError: result.oadError, limited: result.limited };
+      session.result = { oad: result.oad, refs: result.refs };
+      navigate(viewPath({ kind: "session" }, config));
+      return { ok: true };
+    } catch (e) {
+      if (e instanceof PipelineCancelled) return { ok: false, cancelled: true };
+      return { ok: false, oadError: errorMessage(e) };
+    } finally {
+      busy = false;
+    }
+  }
+
+  /** Abort an in-flight upload render (terminates the worker). */
+  function cancelRender(): void {
+    pipelineClient.cancel();
   }
 
   // A demo may carry a config override (e.g. enabling fragments), merged over the current options so
@@ -72,8 +92,16 @@
     </details>
     <!-- Sits inside the options box and on its header line (shown whether the box is open or closed),
          but is a sibling of <details> rather than nested in <summary> — nesting interactive controls is
-         a serious a11y violation. Submits the OadForm by its id. -->
-    <button type="submit" form="oad-form" class="render">Render OAD</button>
+         a serious a11y violation. Submits the OadForm by its id. While a render is running it is
+         disabled and a Cancel button (aborting the worker) sits beside it. -->
+    <div class="render-actions">
+      <button type="submit" form="oad-form" class="render" disabled={busy}>
+        {busy ? "Loading…" : "Render OAD"}
+      </button>
+      {#if busy}
+        <button type="button" class="render-cancel" onclick={cancelRender}>Cancel</button>
+      {/if}
+    </div>
   </div>
 
   <section class="demos" aria-label="Example documents">

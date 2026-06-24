@@ -15,6 +15,12 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
   plugins: [svelte(), docPages()],
+  // The pipeline runs in a module worker (src/app/pipeline.worker.ts) whose validator pulls in
+  // Hyperjump via dynamic import; build the worker as ES so those nested imports resolve as chunks
+  // (the default "iife" worker format can't host top-level or dynamic ESM).
+  worker: {
+    format: "es",
+  },
   // Keep the dev server simple; the app is fully client-side.
   server: {
     port: 5173,

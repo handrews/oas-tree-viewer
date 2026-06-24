@@ -13,6 +13,9 @@ export interface RenderOutcome {
   /** True when the failure was a resource guard (too large / deep / many nodes), so the form can
    *  offer a "Load anyway" retry that lifts the limits. */
   limited?: boolean;
+  /** True when the user cancelled the load before it finished — neither success nor an error, so the
+   *  form should just clear its busy state and show nothing. */
+  cancelled?: boolean;
 }
 
 /** Options for a render request. `enforceLimits: false` is the "Load anyway" override. */

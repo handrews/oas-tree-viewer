@@ -116,7 +116,7 @@
 
   /** Apply a failed outcome's errors back onto the rows / form, mapping each input index to its row. */
   function applyOutcome(outcome: RenderOutcome, owners: number[]): void {
-    if (outcome.ok) return;
+    if (outcome.ok || outcome.cancelled) return;
     if (outcome.rowErrors) {
       const byRow = new Map<number, string[]>();
       for (const [idx, message] of Object.entries(outcome.rowErrors)) {

@@ -347,7 +347,9 @@ function assertWithinByteCap(size: number, limits: Limits): void {
 
 function filenameFromUrl(url: string): string | undefined {
   try {
-    const path = new URL(url, window.location.href).pathname;
+    // `self.location` so this resolves a relative fetch URL in a Web Worker too (where `window`
+    // is undefined); on the main thread `self === window`, so the base URI is unchanged.
+    const path = new URL(url, self.location.href).pathname;
     const segment = path.split("/").filter(Boolean).pop();
     return segment || undefined;
   } catch {
