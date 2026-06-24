@@ -130,7 +130,9 @@ describe("classifyDocument — fallbacks for off-grammar shapes", () => {
 
   it("falls back to structural when a Schema slot holds a non-object", () => {
     // `additionalProperties` expects a Schema; a boolean is valid JSON Schema but not an object.
-    const root = buildTree(oapi({ components: { schemas: { X: { additionalProperties: false } } } }));
+    const root = buildTree(
+      oapi({ components: { schemas: { X: { additionalProperties: false } } } }),
+    );
     classifyDocument(root, "3.1");
     const node = find(root, "/components/schemas/X/additionalProperties")!;
     expect(node.valueKind).toBe("boolean");
@@ -174,7 +176,11 @@ describe("classifyDocument — fallbacks for off-grammar shapes", () => {
 
     // An object mapping: string values become component refs; a non-string value is skipped (generic).
     const ok = find(root, "/components/schemas/Mixed/discriminator/mapping/ok")!;
-    expect(ok.componentRef).toMatchObject({ refString: "#/c/Cat", expectedType: "Schema", field: "mapping" });
+    expect(ok.componentRef).toMatchObject({
+      refString: "#/c/Cat",
+      expectedType: "Schema",
+      field: "mapping",
+    });
     const nonString = find(root, "/components/schemas/Mixed/discriminator/mapping/bad")!;
     expect(nonString.componentRef).toBeUndefined();
     expect(nonString.category).toBe("scalar");

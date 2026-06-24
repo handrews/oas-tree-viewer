@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",

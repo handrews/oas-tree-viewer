@@ -141,12 +141,20 @@ export function collectIssues(
 /** Walk a document tree, lifting every node's `resolutionAdvisories` into located report entries. */
 function collectNodeAdvisories(node: TreeNode, doc: string, out: NodeAdvisory[]): void {
   for (const a of node.resolutionAdvisories ?? []) {
-    out.push({ severity: "warning", code: a.code, doc, pointer: displayPointer(node.id), detail: a.detail });
+    out.push({
+      severity: "warning",
+      code: a.code,
+      doc,
+      pointer: displayPointer(node.id),
+      detail: a.detail,
+    });
   }
   for (const child of node.children) collectNodeAdvisories(child, doc, out);
 }
 
-function refDetail(e: Pick<ReferenceEdge, "status" | "resolution" | "requiredType" | "targetType" | "refString">): string {
+function refDetail(
+  e: Pick<ReferenceEdge, "status" | "resolution" | "requiredType" | "targetType" | "refString">,
+): string {
   switch (e.status) {
     case "broken":
       if (e.resolution === "component-name") {
@@ -192,7 +200,10 @@ function refLabel(kind: RefKind | undefined): string {
 
 /** Render the report as plain text suitable for copy-paste to a maintainer. */
 export function formatIssueReport(report: IssueReport): string {
-  const lines: string[] = ["OAS Structure Viewer — issue report", `Entry document: ${report.entry}`];
+  const lines: string[] = [
+    "OAS Structure Viewer — issue report",
+    `Entry document: ${report.entry}`,
+  ];
 
   if (report.total === 0) {
     lines.push("", "No issues found.");

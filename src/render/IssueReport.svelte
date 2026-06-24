@@ -36,8 +36,7 @@
     <div class="issue-body">
       {#if report.total === 0}
         <p class="hint">
-          No issues found — every reference resolved and every document is reachable from the
-          entry.
+          No issues found — every reference resolved and every document is reachable from the entry.
         </p>
       {:else}
         <div class="issue-actions">

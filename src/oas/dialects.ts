@@ -71,7 +71,10 @@ export function dialectLabel(uri: string | undefined): string {
  */
 export type ReferenceModel = "2020-12" | "numbered-draft" | "unsupported";
 
-export function referenceModel(dialect: string | undefined, version: VersionFamily): ReferenceModel {
+export function referenceModel(
+  dialect: string | undefined,
+  version: VersionFamily,
+): ReferenceModel {
   if (dialect === undefined || isOasDialect(dialect, version)) return "2020-12";
   const normalized = normalizeDialect(dialect);
   if (normalized === DRAFT_2020_12 || normalized === DRAFT_2019_09) return "2020-12";
@@ -90,7 +93,9 @@ export function dynamicScopeKeywords(
   dialect: string | undefined,
   _version: VersionFamily,
 ): "dynamic" | "recursive" {
-  return dialect !== undefined && normalizeDialect(dialect) === DRAFT_2019_09 ? "recursive" : "dynamic";
+  return dialect !== undefined && normalizeDialect(dialect) === DRAFT_2019_09
+    ? "recursive"
+    : "dynamic";
 }
 
 /**
@@ -106,7 +111,10 @@ export function idKeyword(dialect: string | undefined, _version: VersionFamily):
  * fallback + a ⚠). True for the OAS dialect, 2020-12, and draft-06/07; false otherwise. A
  * `$schema` / `jsonSchemaDialect` that is false here gets the resolution-warning marker.
  */
-export function isResolutionSupported(dialect: string | undefined, version: VersionFamily): boolean {
+export function isResolutionSupported(
+  dialect: string | undefined,
+  version: VersionFamily,
+): boolean {
   return referenceModel(dialect, version) !== "unsupported";
 }
 
@@ -134,7 +142,8 @@ export function annotateDialectSupport(root: TreeNode, version: VersionFamily): 
       const field = node.children.find((c) => c.key === key);
       if (field && field.valueKind === "string") {
         const uri = field.scalarValue as string;
-        if (!isResolutionSupported(uri, version)) field.dialectResolutionWarning = resolutionNote(uri);
+        if (!isResolutionSupported(uri, version))
+          field.dialectResolutionWarning = resolutionNote(uri);
       }
     }
     for (const child of node.children) visit(child);

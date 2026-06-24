@@ -59,7 +59,10 @@ describe("demos", () => {
       "fragment",
       "fragment-interior",
     ]);
-    expect(demoInputs("self")![0]!).toMatchObject({ url: "/fixtures/oads/openapi.yaml", isEntry: true });
+    expect(demoInputs("self")![0]!).toMatchObject({
+      url: "/fixtures/oads/openapi.yaml",
+      isEntry: true,
+    });
     expect(demoInputs("component-refs")![0]!).toMatchObject({
       url: "/fixtures/component-refs-3.2.yaml",
       isEntry: true,

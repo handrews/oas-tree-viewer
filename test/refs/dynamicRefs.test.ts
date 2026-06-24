@@ -271,7 +271,10 @@ components:
     expect(edges).toHaveLength(2);
     const targets = edges.map((e) => e.targetNodeId).sort();
     expect(targets).toEqual(
-      ["/components/schemas/GenericList/$defs/defaultItem", "/components/schemas/StrictList"].sort(),
+      [
+        "/components/schemas/GenericList/$defs/defaultItem",
+        "/components/schemas/StrictList",
+      ].sort(),
     );
   });
 });

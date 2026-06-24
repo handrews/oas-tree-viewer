@@ -51,7 +51,8 @@ export function treeKeyAction(ctx: TreeKeyContext): TreeKeyAction | null {
       // Collapsed branch → expand it (focus stays, so a second Right enters the first child).
       // Already-expanded branch → step into its first child. Leaf → nothing.
       if (node.collapsed) return { type: "toggle", id: focusedId };
-      if (node.expanded && node.firstChildId !== null) return { type: "focus", id: node.firstChildId };
+      if (node.expanded && node.firstChildId !== null)
+        return { type: "focus", id: node.firstChildId };
       return { type: "none" };
     case "ArrowLeft":
       // Expanded branch → collapse it (focus stays). Leaf/collapsed → step out to the parent.

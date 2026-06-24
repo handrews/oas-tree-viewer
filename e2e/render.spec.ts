@@ -57,7 +57,11 @@ test.describe("references", () => {
 test.describe("error handling", () => {
   test("a non-OpenAPI document is reported on its row", async ({ page }) => {
     await page.goto("/");
-    await page.locator(".doc-row").first().locator("input.file").setInputFiles(fixture("not-openapi.json"));
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.file")
+      .setInputFiles(fixture("not-openapi.json"));
     await page.getByRole("button", { name: "Render OAD" }).click();
 
     await expect(page.locator(".row-error")).toContainText(/neither an OpenAPI document nor/i);
@@ -66,7 +70,11 @@ test.describe("error handling", () => {
 
   test("an unparseable document is reported on its row", async ({ page }) => {
     await page.goto("/");
-    await page.locator(".doc-row").first().locator("input.file").setInputFiles(fixture("invalid.yaml"));
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.file")
+      .setInputFiles(fixture("invalid.yaml"));
     await page.getByRole("button", { name: "Render OAD" }).click();
 
     await expect(page.locator(".row-error")).toContainText(/Invalid YAML|Could not parse/i);
@@ -74,9 +82,17 @@ test.describe("error handling", () => {
 
   test("mixing OAS 3.1 and 3.2 is reported above the form", async ({ page }) => {
     await page.goto("/");
-    await page.locator(".doc-row").first().locator("input.file").setInputFiles(fixture("petstore-3.1.yaml"));
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.file")
+      .setInputFiles(fixture("petstore-3.1.yaml"));
     await page.getByRole("button", { name: "+ Add document" }).click();
-    await page.locator(".doc-row").nth(1).locator("input.file").setInputFiles(fixture("tictactoe-3.2.yaml"));
+    await page
+      .locator(".doc-row")
+      .nth(1)
+      .locator("input.file")
+      .setInputFiles(fixture("tictactoe-3.2.yaml"));
     await page.getByRole("button", { name: "Render OAD" }).click();
 
     await expect(page.locator(".oad-error")).toContainText(/mixes OAS versions/i);
@@ -183,7 +199,11 @@ test.describe("demos, online URLs & bookmarking", () => {
 
   test("a reloaded upload view shows the empty state", async ({ page }) => {
     await page.goto("/configure");
-    await page.locator(".doc-row").first().locator("input.file").setInputFiles(fixture("petstore-3.1.yaml"));
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.file")
+      .setInputFiles(fixture("petstore-3.1.yaml"));
     await page.getByRole("button", { name: "Render OAD" }).click();
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
 
@@ -248,14 +268,18 @@ test.describe("component-name references", () => {
     await expect(page.locator("svg .ref-edge.dbl-line").first()).toBeVisible();
   });
 
-  test("the uri-first config flips the ambiguous mapping from a component name to a URI", async ({ page }) => {
+  test("the uri-first config flips the ambiguous mapping from a component name to a URI", async ({
+    page,
+  }) => {
     await page.goto("/view?demo=component-refs&disc=uri-first");
     await page.getByRole("button", { name: "Expand all" }).click();
     // "dual" becomes a URI-reference, so one fewer diamond than the name-first default (6 -> 5).
     await expect(page.locator("svg .marker.diamond")).toHaveCount(5);
   });
 
-  test("the entry-vs-local lookup changes resolution in a referenced document", async ({ page }) => {
+  test("the entry-vs-local lookup changes resolution in a referenced document", async ({
+    page,
+  }) => {
     // Default (entry lookup): the referenced doc's names resolve in the entry; 2 issues.
     await page.goto("/view?demo=component-refs");
     await expect(page.locator("#issues .issue-count")).toHaveText("2");
@@ -418,7 +442,9 @@ test.describe("standalone JSON Schema document", () => {
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
 
     // The root reads "Schema Object", and the header shows the JSON Schema dialect, not an OAS version.
-    await expect(page.locator("svg.tree-canvas g.row", { hasText: "Schema Object" }).first()).toBeVisible();
+    await expect(
+      page.locator("svg.tree-canvas g.row", { hasText: "Schema Object" }).first(),
+    ).toBeVisible();
     await expect(page.locator("svg .doc-sub").first()).toContainText("JSON Schema 2020-12");
 
     await page.getByRole("button", { name: "Expand all" }).click();
@@ -449,9 +475,9 @@ test.describe("document fragments", () => {
     await expect(
       page.locator("svg .doc-sub", { hasText: "Fragment · Path Item Object" }),
     ).toHaveCount(1);
-    await expect(
-      page.locator("svg .doc-sub", { hasText: "Fragment · Schema Object" }),
-    ).toHaveCount(1);
+    await expect(page.locator("svg .doc-sub", { hasText: "Fragment · Schema Object" })).toHaveCount(
+      1,
+    );
     await expect(
       page.locator("svg.tree-canvas g.row", { hasText: "Path Item Object" }).first(),
     ).toBeVisible();
@@ -468,7 +494,9 @@ test.describe("document fragments", () => {
 
   test("the fragment demo opens with fragments enabled in the URL", async ({ page }) => {
     await page.goto("/configure");
-    await page.getByRole("button", { name: "Document fragments — Path Item & Schema (3.0)" }).click();
+    await page
+      .getByRole("button", { name: "Document fragments — Path Item & Schema (3.0)" })
+      .click();
     await expect(page).toHaveURL(/\/view\?demo=fragment.*fragments=root/);
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(3);
   });

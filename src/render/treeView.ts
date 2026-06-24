@@ -69,7 +69,12 @@ export class DocumentView {
   /** True when no loaded reference reaches this document from the entry document. */
   private readonly unreachable: boolean;
 
-  constructor(parent: SVGGElement, doc: OadDocument, cb: DocumentViewCallbacks, unreachable = false) {
+  constructor(
+    parent: SVGGElement,
+    doc: OadDocument,
+    cb: DocumentViewCallbacks,
+    unreachable = false,
+  ) {
     this.doc = doc;
     this.cb = cb;
     this.unreachable = unreachable;
@@ -300,7 +305,9 @@ export class DocumentView {
     this.visibleRows = rows;
     const visibleIds = new Set(rows.map((r) => r.node.data.id));
     const tabbableId =
-      this.activeId && visibleIds.has(this.activeId) ? this.activeId : (rows[0]?.node.data.id ?? null);
+      this.activeId && visibleIds.has(this.activeId)
+        ? this.activeId
+        : (rows[0]?.node.data.id ?? null);
     this.activeId = tabbableId;
 
     const colWidth = Math.max(MIN_COL_W, maxDepth * INDENT + LABEL_BUDGET);
@@ -493,7 +500,11 @@ export class DocumentView {
       .attr("height", this.headerH - 10)
       .attr("rx", 6);
 
-    h.append("text").attr("class", "doc-title").attr("x", 12).attr("y", 19).text(headerTitle(this.doc));
+    h.append("text")
+      .attr("class", "doc-title")
+      .attr("x", 12)
+      .attr("y", 19)
+      .text(headerTitle(this.doc));
 
     const sub =
       `${docVersionLabel(this.doc)} · ${this.doc.format}` +
@@ -501,18 +512,33 @@ export class DocumentView {
     h.append("text").attr("class", "doc-sub").attr("x", 12).attr("y", 33).text(truncate(sub, 64));
 
     if (showBase) {
-      h.append("text").attr("class", "doc-base").attr("x", 12).attr("y", 47).text(truncate(`base: ${base}`, 62));
+      h.append("text")
+        .attr("class", "doc-base")
+        .attr("x", 12)
+        .attr("y", 47)
+        .text(truncate(`base: ${base}`, 62));
     }
 
     if (this.doc.isEntry) {
-      const badge = h.append("g").attr("class", "entry-badge").attr("transform", "translate(320, 7)");
+      const badge = h
+        .append("g")
+        .attr("class", "entry-badge")
+        .attr("transform", "translate(320, 7)");
       badge.append("rect").attr("width", 52).attr("height", 16).attr("rx", 8);
       badge.append("text").attr("x", 26).attr("y", 12).attr("text-anchor", "middle").text("ENTRY");
     } else if (this.unreachable) {
       // The entry is reachable by definition, so this never collides with the entry badge.
-      const badge = h.append("g").attr("class", "warn-badge").attr("transform", "translate(286, 7)");
+      const badge = h
+        .append("g")
+        .attr("class", "warn-badge")
+        .attr("transform", "translate(286, 7)");
       badge.append("rect").attr("width", 86).attr("height", 16).attr("rx", 8);
-      badge.append("text").attr("x", 43).attr("y", 12).attr("text-anchor", "middle").text("UNREACHABLE");
+      badge
+        .append("text")
+        .attr("x", 43)
+        .attr("y", 12)
+        .attr("text-anchor", "middle")
+        .text("UNREACHABLE");
     }
   }
 }
@@ -543,11 +569,11 @@ function siblingIndex(node: CNode): number {
  *  more naturally than the visual label (e.g. "references …"/"is …" instead of the "→"/":" glyphs). */
 function ariaName(node: CNode): string {
   const data = node.data;
-  const secondary = secondaryLabel(data)
-    .replace(/^→\s*/, "references ")
-    .replace(/^:\s*/, "is ");
+  const secondary = secondaryLabel(data).replace(/^→\s*/, "references ").replace(/^:\s*/, "is ");
   const hidden = node._children?.length;
-  return [primaryLabel(data), secondary, hidden ? `${hidden} hidden` : ""].filter(Boolean).join(", ");
+  return [primaryLabel(data), secondary, hidden ? `${hidden} hidden` : ""]
+    .filter(Boolean)
+    .join(", ");
 }
 
 function headerTitle(doc: OadDocument): string {
@@ -563,7 +589,7 @@ function primaryLabel(node: TreeNode): string {
 function secondaryLabel(node: TreeNode): string {
   if (node.isReference && node.refTarget) return `→ ${node.refTarget}`;
   if (node.valueKind === "object" || node.valueKind === "array") {
-    return node.keyKind === "root" ? "" : node.oasType ?? "";
+    return node.keyKind === "root" ? "" : (node.oasType ?? "");
   }
   return `: ${scalarPreview(node.scalarValue)}`;
 }

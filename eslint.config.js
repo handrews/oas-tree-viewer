@@ -16,7 +16,14 @@ import svelteConfig from "./svelte.config.js";
 
 export default tseslint.config(
   {
-    ignores: ["dist/", "coverage/", "node_modules/", "public/", "playwright-report/", "test-results/"],
+    ignores: [
+      "dist/",
+      "coverage/",
+      "node_modules/",
+      "public/",
+      "playwright-report/",
+      "test-results/",
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommended,

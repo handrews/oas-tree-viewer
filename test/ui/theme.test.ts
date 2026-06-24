@@ -24,7 +24,9 @@ describe("initialTheme", () => {
   });
 
   it("falls back to the OS preference when nothing is stored", () => {
-    (window as unknown as { matchMedia: (q: string) => { matches: boolean } }).matchMedia = (q) => ({
+    (window as unknown as { matchMedia: (q: string) => { matches: boolean } }).matchMedia = (
+      q,
+    ) => ({
       matches: q.includes("light"),
     });
     expect(initialTheme()).toBe("light");

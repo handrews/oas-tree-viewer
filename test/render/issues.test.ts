@@ -20,7 +20,13 @@ const oad: Oad = { documents: [entry, other], versionFamily: "3.1" };
 describe("issues", () => {
   it("excludes resolved edges and reports nothing when clean", () => {
     const refs = refsOf([
-      { status: "resolved", sourceDocId: "a", sourceObjectId: "/x", refString: "#/y", requiredType: "Schema" },
+      {
+        status: "resolved",
+        sourceDocId: "a",
+        sourceObjectId: "/x",
+        refString: "#/y",
+        requiredType: "Schema",
+      },
     ]);
     const report = collectIssues(oad, refs, []);
     expect(report.total).toBe(0);
@@ -32,9 +38,28 @@ describe("issues", () => {
 
   it("collects broken, external, and type-mismatch references with details", () => {
     const refs = refsOf([
-      { status: "broken", sourceDocId: "a", sourceObjectId: "/paths/p", refString: "#/missing", requiredType: "Response" },
-      { status: "external", sourceDocId: "a", sourceObjectId: "/c", refString: "ext.yaml#/X", requiredType: "Schema" },
-      { status: "type-mismatch", sourceDocId: "b", sourceObjectId: "/d", refString: "#/e", requiredType: "Operation", targetType: "Schema" },
+      {
+        status: "broken",
+        sourceDocId: "a",
+        sourceObjectId: "/paths/p",
+        refString: "#/missing",
+        requiredType: "Response",
+      },
+      {
+        status: "external",
+        sourceDocId: "a",
+        sourceObjectId: "/c",
+        refString: "ext.yaml#/X",
+        requiredType: "Schema",
+      },
+      {
+        status: "type-mismatch",
+        sourceDocId: "b",
+        sourceObjectId: "/d",
+        refString: "#/e",
+        requiredType: "Operation",
+        targetType: "Schema",
+      },
     ]);
     const report = collectIssues(oad, refs, []);
     expect(report.refIssues).toHaveLength(3);
@@ -175,13 +200,19 @@ describe("issues", () => {
         node("/components/schemas/X/$ref", {
           key: "$ref",
           resolutionAdvisories: [
-            { code: "ignored-ref-siblings", detail: "In draft-06/07, keywords beside $ref are ignored: type." },
+            {
+              code: "ignored-ref-siblings",
+              detail: "In draft-06/07, keywords beside $ref are ignored: type.",
+            },
           ],
         }),
         node("/components/schemas/Y/$id", {
           key: "$id",
           resolutionAdvisories: [
-            { code: "invalid-id-fragment", detail: 'The $id JSON-Pointer fragment "#/nope" names nothing.' },
+            {
+              code: "invalid-id-fragment",
+              detail: 'The $id JSON-Pointer fragment "#/nope" names nothing.',
+            },
           ],
         }),
       ],
@@ -194,7 +225,11 @@ describe("issues", () => {
       root,
     } as OadDocument;
 
-    const report = collectIssues({ documents: [withAdvisories], versionFamily: "3.1" }, refsOf([]), []);
+    const report = collectIssues(
+      { documents: [withAdvisories], versionFamily: "3.1" },
+      refsOf([]),
+      [],
+    );
     expect(report.nodeAdvisories.map((a) => a.code)).toEqual([
       "ignored-ref-siblings",
       "invalid-id-fragment",
@@ -213,7 +248,13 @@ describe("issues", () => {
 
   it("formats a self-describing plain-text report (root pointer renders as #)", () => {
     const refs = refsOf([
-      { status: "broken", sourceDocId: "a", sourceObjectId: "", refString: "#/missing", requiredType: "Schema" },
+      {
+        status: "broken",
+        sourceDocId: "a",
+        sourceObjectId: "",
+        refString: "#/missing",
+        requiredType: "Schema",
+      },
     ]);
     const text = formatIssueReport(collectIssues(oad, refs, [other]));
     expect(text).toContain("OAS Structure Viewer — issue report");
@@ -234,7 +275,9 @@ describe("issues — advisories, document warnings, and every reference label", 
       sourceObjectId: "/links/L",
       refString: "#/paths/~1p/get",
       requiredType: "Operation",
-      diagnostics: [{ severity: "warning", code: "operation-target-webhook", detail: "points at a webhook" }],
+      diagnostics: [
+        { severity: "warning", code: "operation-target-webhook", detail: "points at a webhook" },
+      ],
     };
     const warned = {
       id: "c",
@@ -242,7 +285,11 @@ describe("issues — advisories, document warnings, and every reference label", 
       source: "upload",
       schemaDialectWarning: "draft-03 Schema Objects were not validated",
       root: node("", {
-        children: [node("/x", { resolutionAdvisories: [{ code: "ignored-ref-siblings", detail: "siblings ignored" }] })],
+        children: [
+          node("/x", {
+            resolutionAdvisories: [{ code: "ignored-ref-siblings", detail: "siblings ignored" }],
+          }),
+        ],
       }),
     } as OadDocument;
     const oad2: Oad = { documents: [entry, warned], versionFamily: "3.1" };
@@ -250,7 +297,10 @@ describe("issues — advisories, document warnings, and every reference label", 
     const report = collectIssues(oad2, refsOf([advisoryEdge]), []);
 
     expect(report.advisories).toHaveLength(1);
-    expect(report.advisories[0]).toMatchObject({ code: "operation-target-webhook", kind: "operationRef" });
+    expect(report.advisories[0]).toMatchObject({
+      code: "operation-target-webhook",
+      kind: "operationRef",
+    });
     expect(report.docIssues.some((d) => d.kind === "unvalidated-schema")).toBe(true);
     expect(report.nodeAdvisories.map((a) => a.code)).toContain("ignored-ref-siblings");
     expect(report.total).toBe(3);
@@ -258,17 +308,64 @@ describe("issues — advisories, document warnings, and every reference label", 
 
   it("details a broken operationId and an unknown-target mismatch, and labels each reference kind", () => {
     const refs = refsOf([
-      { status: "broken", resolution: "operation-id", kind: "operationId", sourceDocId: "a", sourceObjectId: "/l1", refString: "getThing", requiredType: "Operation" },
-      { status: "type-mismatch", kind: "$ref", sourceDocId: "a", sourceObjectId: "/t", refString: "#/x", requiredType: "Schema" }, // no targetType -> "found ?"
-      { status: "broken", kind: "operationRef", sourceDocId: "a", sourceObjectId: "/r1", refString: "x.yaml#/op", requiredType: "Operation" },
-      { status: "broken", kind: "$dynamicRef", sourceDocId: "a", sourceObjectId: "/d1", refString: "#meta", requiredType: "Schema" },
-      { status: "broken", kind: "$recursiveRef", sourceDocId: "a", sourceObjectId: "/d2", refString: "#", requiredType: "Schema" },
-      { status: "broken", kind: "discriminatorMapping", sourceDocId: "a", sourceObjectId: "/m1", refString: "Cat", requiredType: "Schema" },
+      {
+        status: "broken",
+        resolution: "operation-id",
+        kind: "operationId",
+        sourceDocId: "a",
+        sourceObjectId: "/l1",
+        refString: "getThing",
+        requiredType: "Operation",
+      },
+      {
+        status: "type-mismatch",
+        kind: "$ref",
+        sourceDocId: "a",
+        sourceObjectId: "/t",
+        refString: "#/x",
+        requiredType: "Schema",
+      }, // no targetType -> "found ?"
+      {
+        status: "broken",
+        kind: "operationRef",
+        sourceDocId: "a",
+        sourceObjectId: "/r1",
+        refString: "x.yaml#/op",
+        requiredType: "Operation",
+      },
+      {
+        status: "broken",
+        kind: "$dynamicRef",
+        sourceDocId: "a",
+        sourceObjectId: "/d1",
+        refString: "#meta",
+        requiredType: "Schema",
+      },
+      {
+        status: "broken",
+        kind: "$recursiveRef",
+        sourceDocId: "a",
+        sourceObjectId: "/d2",
+        refString: "#",
+        requiredType: "Schema",
+      },
+      {
+        status: "broken",
+        kind: "discriminatorMapping",
+        sourceDocId: "a",
+        sourceObjectId: "/m1",
+        refString: "Cat",
+        requiredType: "Schema",
+      },
     ]);
     const report = collectIssues(oad, refs, []);
 
-    expect(report.refIssues.find((i) => i.kind === "operationId")!.detail).toBe('no Operation declares operationId "getThing"');
-    expect(report.refIssues.find((i) => i.status === "type-mismatch")!.detail).toBe("expected Schema, found ?");
+    expect(report.refIssues.find((i) => i.kind === "operationId")!.detail).toBe(
+      'no Operation declares operationId "getThing"',
+    );
+    expect(report.refIssues.find((i) => i.status === "type-mismatch")!.detail).toBe(
+      "expected Schema, found ?",
+    );
 
     const text = formatIssueReport(report);
     expect(text).toContain("operationRef: x.yaml#/op");

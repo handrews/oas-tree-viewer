@@ -43,7 +43,11 @@ describe("rebaseFolderUri", () => {
 describe("pickEntryIndex", () => {
   it("prefers a conventionally-named openapi file", () => {
     expect(
-      pickEntryIndex([doc("oad/schemas/pet.yaml"), doc("oad/openapi.yaml"), doc("oad/schemas/error.yaml")]),
+      pickEntryIndex([
+        doc("oad/schemas/pet.yaml"),
+        doc("oad/openapi.yaml"),
+        doc("oad/schemas/error.yaml"),
+      ]),
     ).toBe(1);
   });
 
@@ -80,7 +84,10 @@ describe("dirLocalSource", () => {
     ]);
     expect(src.kind).toBe("dir");
     expect(src.folderName).toBe("oad");
-    expect(src.docs.map((d) => d.relativePath)).toEqual(["oad/schemas/pet.yaml", "oad/openapi.yaml"]);
+    expect(src.docs.map((d) => d.relativePath)).toEqual([
+      "oad/schemas/pet.yaml",
+      "oad/openapi.yaml",
+    ]);
     expect(src.entryIndex).toBe(1); // the conventional openapi.yaml
   });
 
@@ -112,9 +119,17 @@ describe("rowToInputs", () => {
   });
 
   it("file → an upload, using a trimmed URL as the retrieval URI", () => {
-    expect(rowToInputs({ kind: "file", filename: "e.yaml", text: "T" }, " https://x/e.yaml ", true)).toEqual({
+    expect(
+      rowToInputs({ kind: "file", filename: "e.yaml", text: "T" }, " https://x/e.yaml ", true),
+    ).toEqual({
       inputs: [
-        { source: "upload", filename: "e.yaml", text: "T", retrievalUri: "https://x/e.yaml", isEntry: true },
+        {
+          source: "upload",
+          filename: "e.yaml",
+          text: "T",
+          retrievalUri: "https://x/e.yaml",
+          isEntry: true,
+        },
       ],
     });
   });
@@ -122,7 +137,15 @@ describe("rowToInputs", () => {
   it("file with no URL → an upload with an undefined retrieval URI", () => {
     const res = rowToInputs({ kind: "file", filename: "e.yaml", text: "T" }, "", false);
     expect(res).toEqual({
-      inputs: [{ source: "upload", filename: "e.yaml", text: "T", retrievalUri: undefined, isEntry: false }],
+      inputs: [
+        {
+          source: "upload",
+          filename: "e.yaml",
+          text: "T",
+          retrievalUri: undefined,
+          isEntry: false,
+        },
+      ],
     });
   });
 
@@ -134,7 +157,10 @@ describe("rowToInputs", () => {
       entryIndex: 1,
     };
     const res = rowToInputs(local, "", true);
-    expect("inputs" in res && res.inputs.map((i) => [i.source, (i as { relativePath?: string }).relativePath, i.isEntry])).toEqual([
+    expect(
+      "inputs" in res &&
+        res.inputs.map((i) => [i.source, (i as { relativePath?: string }).relativePath, i.isEntry]),
+    ).toEqual([
       ["upload", "oad/openapi.yaml", true],
       ["upload", "oad/schemas/pet.yaml", false],
     ]);

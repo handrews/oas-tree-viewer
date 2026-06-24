@@ -127,7 +127,17 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
     indexes.pointerIndex.set(doc.id, pidx);
     indexes.resourceOf.set(doc.id, new Map());
     indexDocResource(doc, indexes);
-    walkDoc(doc, pidx, indexes, sources, opIdSources, dynRefSources, recursiveRefSources, descentEdges, oad.versionFamily);
+    walkDoc(
+      doc,
+      pidx,
+      indexes,
+      sources,
+      opIdSources,
+      dynRefSources,
+      recursiveRefSources,
+      descentEdges,
+      oad.versionFamily,
+    );
   }
 
   const entry = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
@@ -150,7 +160,8 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
   const reachableNodeSet = reachableNodes(entry, edges, indexes.pointerIndex);
   const resourceEdges = buildResourceEdges(edges, indexes.resourceOf, reachableNodeSet);
   for (const d of descentEdges) {
-    if (reachableNodeSet.has(nodeKey(d.docId, d.nodeId))) resourceEdges.push({ from: d.from, to: d.to });
+    if (reachableNodeSet.has(nodeKey(d.docId, d.nodeId)))
+      resourceEdges.push({ from: d.from, to: d.to });
   }
   const anchorsByName = buildAnchorsByName(indexes.dynamicAnchorsByName, indexes.resourceOf);
   const dynamicRefDescriptors: Array<{ resourceUri: string; name: string }> = [];
@@ -277,9 +288,11 @@ function walkDoc(
         // plain-name anchor (like a 2020-12 `$anchor`) or a JSON-Pointer that must be this schema's
         // own location. `$anchor`/`$dynamicAnchor`/`$dynamicRef` don't exist in this model.
         const { uriPart, fragment } = splitFragment(id);
-        const newBase = (uriPart === "" ? currentBase : resolveUri(uriPart, currentBase)) ?? currentBase;
+        const newBase =
+          (uriPart === "" ? currentBase : resolveUri(uriPart, currentBase)) ?? currentBase;
         if (newBase !== currentBase) {
-          if (!inDefs) descentEdges.push({ from: currentBase, to: newBase, docId: doc.id, nodeId: node.id });
+          if (!inDefs)
+            descentEdges.push({ from: currentBase, to: newBase, docId: doc.id, nodeId: node.id });
           childrenInDefs = false;
           indexes.resourceByUri.set(newBase, { rootNode: node, doc });
           base = newBase;
@@ -465,7 +478,12 @@ function isDefsBoundary(node: TreeNode): boolean {
 
 // ── resolution ───────────────────────────────────────────────────────────────
 
-function resolveSource(src: RefSource, indexes: Indexes, i: number, ctx: ResolveCtx): ReferenceEdge {
+function resolveSource(
+  src: RefSource,
+  indexes: Indexes,
+  i: number,
+  ctx: ResolveCtx,
+): ReferenceEdge {
   const base: ReferenceEdge = {
     id: `edge-${i}`,
     sourceDocId: src.doc.id,
@@ -497,7 +515,8 @@ function buildOperationIdIndex(
     for (const node of pidx.values()) {
       if (node.oasType !== "Operation Object") continue;
       const operationId = childString(node, "operationId");
-      if (operationId !== undefined && !index.has(operationId)) index.set(operationId, { docId, node });
+      if (operationId !== undefined && !index.has(operationId))
+        index.set(operationId, { docId, node });
     }
   }
   return index;
@@ -616,7 +635,9 @@ function classifyRecursiveRef(
   const { uriPart, fragment } = splitFragment(refString);
   const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
   const atResourceRoot = fragment === null || fragment === "";
-  return { recursive: !!resourceUri && atResourceRoot && recursiveAnchorResources.has(resourceUri) };
+  return {
+    recursive: !!resourceUri && atResourceRoot && recursiveAnchorResources.has(resourceUri),
+  };
 }
 
 /**
@@ -686,7 +707,10 @@ function reachableNodes(
   for (const e of edges) {
     if (e.targetDocId == null || e.targetNodeId == null) continue;
     const k = nodeKey(e.sourceDocId, e.sourceObjectId);
-    (refAdj.get(k) ?? refAdj.set(k, []).get(k)!).push({ docId: e.targetDocId, nodeId: e.targetNodeId });
+    (refAdj.get(k) ?? refAdj.set(k, []).get(k)!).push({
+      docId: e.targetDocId,
+      nodeId: e.targetNodeId,
+    });
   }
   const queue: Array<{ docId: string; node: TreeNode }> = [{ docId: entry.id, node: entry.root }];
   reachable.add(nodeKey(entry.id, entry.root.id));
@@ -775,7 +799,9 @@ function resolveUriRef(
   if (!target) return { status: "broken", targetDocId: resource.doc.id, resolvedUri };
 
   const typeOk =
-    target.expectedType === undefined || requiredType === "" || target.expectedType === requiredType;
+    target.expectedType === undefined ||
+    requiredType === "" ||
+    target.expectedType === requiredType;
   return {
     status: typeOk ? "resolved" : "type-mismatch",
     targetDocId: resource.doc.id,

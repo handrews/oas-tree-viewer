@@ -90,7 +90,10 @@ describe("draft-04/06/07 reference & identification semantics", () => {
     refs.edges.find((e) => e.refString === refString)!;
 
   beforeAll(async () => {
-    doc = await makeDoc(DOC, { isEntry: true, retrievalUri: "https://example.com/draft/entry.yaml" });
+    doc = await makeDoc(DOC, {
+      isEntry: true,
+      retrievalUri: "https://example.com/draft/entry.yaml",
+    });
     refs = resolveOad(makeOad(doc));
   });
 

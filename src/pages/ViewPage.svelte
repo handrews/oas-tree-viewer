@@ -174,9 +174,7 @@
     <div class="view-error" role="alert">
       <p class="view-error-msg">{loadError}</p>
       {#if limited}
-        <p class="view-error-note">
-          Loading it anyway may make the page slow or unresponsive.
-        </p>
+        <p class="view-error-note">Loading it anyway may make the page slow or unresponsive.</p>
         <button type="button" class="load-anyway" onclick={loadAnyway}>Load anyway</button>
       {/if}
       <button type="button" class="view-back" onclick={() => navigate("/configure")}>

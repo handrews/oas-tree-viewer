@@ -91,9 +91,10 @@ export function versionFamilyOf(version: string): VersionFamily {
  * of "3.1" is returned for machinery that needs a value, but a `$schema`-less JSON Schema document is
  * left unvalidated rather than validated against a guessed dialect. Throws when versions are mixed.
  */
-export function determineVersionFamily(
-  docs: { kind: DocKind; oasVersion?: string }[],
-): { family: VersionFamily; determined: boolean } {
+export function determineVersionFamily(docs: { kind: DocKind; oasVersion?: string }[]): {
+  family: VersionFamily;
+  determined: boolean;
+} {
   const families = new Set(
     docs
       .filter((d) => d.kind === "openapi" && d.oasVersion !== undefined)
@@ -186,7 +187,8 @@ export async function finalizeDocument(
     // Schema dialect to borrow ⇒ left unvalidated).
     schemaDialect =
       d.kind === "schema"
-        ? (d.rootSchema ?? (versionDetermined && family !== "3.0" ? oasDialectUri(family) : undefined))
+        ? (d.rootSchema ??
+          (versionDetermined && family !== "3.0" ? oasDialectUri(family) : undefined))
         : undefined;
 
     // Validate (offline). A structural failure rejects the document; an unsupported / undetermined
@@ -194,7 +196,10 @@ export async function finalizeDocument(
     const result = await validateOad(d.value, d.root, family, d.kind, versionDetermined);
     if (result.violations.length > 0) {
       const subject = d.kind === "schema" ? "JSON Schema" : `OpenAPI ${d.oasVersion}`;
-      throw new SchemaValidationError(schemaErrorMessage(subject, result.violations), result.violations);
+      throw new SchemaValidationError(
+        schemaErrorMessage(subject, result.violations),
+        result.violations,
+      );
     }
     dialectWarning = result.dialectWarning;
   }

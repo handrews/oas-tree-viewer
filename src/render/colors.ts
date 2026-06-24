@@ -37,13 +37,7 @@ export const categoryLabel: Record<NodeCategory, string> = {
 };
 
 /** The five semantic object groups, in legend display order (each a colored circle). */
-export const legendGroups: NodeCategory[] = [
-  "structural",
-  "metadata",
-  "http",
-  "data",
-  "security",
-];
+export const legendGroups: NodeCategory[] = ["structural", "metadata", "http", "data", "security"];
 
 /** Marker shapes. circle/square are node shapes; asterisk/diamond mark reference pointers
  *  (which one is used depends on how the reference resolved — see {@link resolutionStyles}). */
@@ -93,12 +87,13 @@ export const resolutionStyles: Record<ResolutionKind, ResolutionStyle> = {
   // A `$dynamicRef` that engages dynamic scope: tentative, since its real target depends on the
   // evaluation path. Same asterisk marker as a URI-reference (it is one syntactically), but drawn
   // with a dotted line to all possible `$dynamicAnchor`s.
-  "dynamic": {
+  dynamic: {
     marker: "asterisk",
     line: "single",
     arrowhead: "open",
     dash: "dotted",
-    label: "Tentative — a $dynamicRef to a possible $dynamicAnchor (actual target is path-dependent)",
+    label:
+      "Tentative — a $dynamicRef to a possible $dynamicAnchor (actual target is path-dependent)",
   },
 };
 
@@ -118,10 +113,11 @@ export const referenceLegend: ReadonlyArray<{ kind: ResolutionKind } & Resolutio
 /** Arc styles that aren't a resolution kind, for the legend's "Connection lines" section:
  *  the collapsed/off-screen-endpoint state, and the type-mismatch arc (drawn dashed in the
  *  error color — the reference located a node, but of the wrong type). */
-export const lineLegend: ReadonlyArray<{ variant: "collapsed" | "type-mismatch"; label: string }> = [
-  { variant: "collapsed", label: "An endpoint is collapsed or off-screen" },
-  { variant: "type-mismatch", label: "Type mismatch — the reference resolved to the wrong type" },
-];
+export const lineLegend: ReadonlyArray<{ variant: "collapsed" | "type-mismatch"; label: string }> =
+  [
+    { variant: "collapsed", label: "An endpoint is collapsed or off-screen" },
+    { variant: "type-mismatch", label: "Type mismatch — the reference resolved to the wrong type" },
+  ];
 
 /** Error-icon (⚠) colors, for the legend's "Error icons" section. Mirrors the on-tree glyph
  *  statuses (`broken`, `external`, `dialect`); `type-mismatch` is shown only in the detail panel. */

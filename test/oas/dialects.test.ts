@@ -81,7 +81,9 @@ describe("dialect recognition", () => {
   it("picks the dynamic-scope keyword family (2019-09 recursive, the rest dynamic)", () => {
     expect(dynamicScopeKeywords(DRAFT_2019_09, "3.1")).toBe("recursive");
     expect(dynamicScopeKeywords(DRAFT_2020_12, "3.1")).toBe("dynamic");
-    expect(dynamicScopeKeywords("https://spec.openapis.org/oas/3.1/dialect/base", "3.1")).toBe("dynamic");
+    expect(dynamicScopeKeywords("https://spec.openapis.org/oas/3.1/dialect/base", "3.1")).toBe(
+      "dynamic",
+    );
     expect(dynamicScopeKeywords(undefined, "3.1")).toBe("dynamic"); // OAS default
     expect(dynamicScopeKeywords(DRAFT_03, "3.1")).toBe("dynamic"); // unsupported best-effort fallback
   });
@@ -98,7 +100,9 @@ describe("dialect recognition", () => {
 
   it("resolves the OAS dialect, 2020-12, 2019-09, and draft-04/06/07; not draft-03 or unknown", () => {
     expect(isResolutionSupported(undefined, "3.1")).toBe(true); // default = OAS
-    expect(isResolutionSupported("https://spec.openapis.org/oas/3.1/dialect/base", "3.1")).toBe(true);
+    expect(isResolutionSupported("https://spec.openapis.org/oas/3.1/dialect/base", "3.1")).toBe(
+      true,
+    );
     expect(isResolutionSupported(DRAFT_2020_12, "3.1")).toBe(true);
     expect(isResolutionSupported(`${DRAFT_2020_12}#`, "3.1")).toBe(true);
     expect(isResolutionSupported(DRAFT_2019_09, "3.1")).toBe(true); // now supported (recursive refs)
@@ -141,9 +145,17 @@ describe("annotateDialectSupport", () => {
     annotateDialectSupport(root, "3.1");
 
     expect(findById(root, "/jsonSchemaDialect")?.dialectResolutionWarning).toMatch(/draft-03/);
-    expect(findById(root, "/components/schemas/A/$schema")?.dialectResolutionWarning).toBeUndefined();
-    expect(findById(root, "/components/schemas/B/$schema")?.dialectResolutionWarning).toMatch(/draft-03/);
-    expect(findById(root, "/components/schemas/D/$schema")?.dialectResolutionWarning).toBeUndefined();
-    expect(findById(root, "/components/schemas/E/$schema")?.dialectResolutionWarning).toBeUndefined();
+    expect(
+      findById(root, "/components/schemas/A/$schema")?.dialectResolutionWarning,
+    ).toBeUndefined();
+    expect(findById(root, "/components/schemas/B/$schema")?.dialectResolutionWarning).toMatch(
+      /draft-03/,
+    );
+    expect(
+      findById(root, "/components/schemas/D/$schema")?.dialectResolutionWarning,
+    ).toBeUndefined();
+    expect(
+      findById(root, "/components/schemas/E/$schema")?.dialectResolutionWarning,
+    ).toBeUndefined();
   });
 });

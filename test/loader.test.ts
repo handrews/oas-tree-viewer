@@ -60,7 +60,12 @@ components: { schemas: { Pet: { type: strang } } }
 
   it("rejects an unsupported version", async () => {
     await expect(
-      loadDocument({ source: "upload", filename: "d.yaml", text: "openapi: 4.0.0\ninfo: {}\n", isEntry: true }),
+      loadDocument({
+        source: "upload",
+        filename: "d.yaml",
+        text: "openapi: 4.0.0\ninfo: {}\n",
+        isEntry: true,
+      }),
     ).rejects.toBeInstanceOf(UnsupportedVersionError);
   });
 
@@ -127,7 +132,10 @@ describe("loadDocument (url)", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("fetches and parses, recording the URL as the retrieval URI", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(valid(), { status: 200 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(valid(), { status: 200 })),
+    );
     const doc = await loadDocument({ source: "url", url: "https://e.com/api.yaml", isEntry: true });
     expect(doc.retrievalUri).toBe("https://e.com/api.yaml");
     expect(doc.oasVersion).toBe("3.1.0");
@@ -144,7 +152,12 @@ describe("loadDocument (url)", () => {
   });
 
   it("throws RetrievalError when fetch rejects", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      }),
+    );
     await expect(
       loadDocument({ source: "url", url: "https://e.com/x", isEntry: true }),
     ).rejects.toBeInstanceOf(RetrievalError);

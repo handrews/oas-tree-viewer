@@ -38,7 +38,12 @@ describe("runPipeline", () => {
     // Detects as OpenAPI (has `openapi`), but `info` is missing required title/version, so the
     // finalize-phase schema validation throws — surfaced as that row's error.
     return runPipeline([
-      { source: "upload", filename: "a.yaml", text: "openapi: 3.1.0\ninfo: {}\npaths: {}\n", isEntry: true },
+      {
+        source: "upload",
+        filename: "a.yaml",
+        text: "openapi: 3.1.0\ninfo: {}\npaths: {}\n",
+        isEntry: true,
+      },
     ]).then((r) => {
       expect(r.ok).toBe(false);
       if (!r.ok) expect(r.rowErrors?.[0]).toMatch(/schema/i);

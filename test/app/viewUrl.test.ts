@@ -40,8 +40,9 @@ describe("viewUrl", () => {
 
   it("honors an explicit, in-range entry index and ignores a bad one", () => {
     const reqOf = (search: string) =>
-      (parseRoute("/view", search) as { request: { kind: "urls"; docs: { isEntry: boolean }[] } })
-        .request.docs.findIndex((d) => d.isEntry);
+      (
+        parseRoute("/view", search) as { request: { kind: "urls"; docs: { isEntry: boolean }[] } }
+      ).request.docs.findIndex((d) => d.isEntry);
     expect(reqOf("?doc=a&doc=b&entry=1")).toBe(1);
     expect(reqOf("?doc=a&doc=b&entry=9")).toBe(0); // out of range -> first
     expect(reqOf("?doc=a&doc=b&entry=x")).toBe(0); // non-numeric -> first
@@ -85,7 +86,13 @@ describe("viewUrl", () => {
   it("round-trips request + config through viewPath -> parseRoute", () => {
     const requests: ViewRequest[] = [
       { kind: "demo", demoId: "self" },
-      { kind: "urls", docs: [{ url: "https://a/x.yaml", isEntry: true }, { url: "https://a/y.yaml", isEntry: false }] },
+      {
+        kind: "urls",
+        docs: [
+          { url: "https://a/x.yaml", isEntry: true },
+          { url: "https://a/y.yaml", isEntry: false },
+        ],
+      },
       { kind: "session" },
     ];
     const configs: ViewerConfig[] = [
@@ -107,8 +114,9 @@ describe("viewUrl", () => {
         { url: "https://a/main.yaml", isEntry: true },
       ],
     });
-    const docs = (parsePath(path) as { request: { kind: "urls"; docs: { url: string; isEntry: boolean }[] } })
-      .request.docs;
+    const docs = (
+      parsePath(path) as { request: { kind: "urls"; docs: { url: string; isEntry: boolean }[] } }
+    ).request.docs;
     expect(docs[0]).toEqual({ url: "https://a/main.yaml", isEntry: true });
   });
 });

@@ -61,7 +61,9 @@ export function viewPath(request: ViewRequest, config: ViewerConfig = defaultCon
 }
 
 /** Put the entry document first so URL order is meaningful and `entry=` stays unneeded. */
-function entryFirst(docs: { url: string; isEntry: boolean }[]): { url: string; isEntry: boolean }[] {
+function entryFirst(
+  docs: { url: string; isEntry: boolean }[],
+): { url: string; isEntry: boolean }[] {
   const entry = docs.findIndex((d) => d.isEntry);
   if (entry <= 0) return docs;
   return [docs[entry]!, ...docs.filter((_, i) => i !== entry)];

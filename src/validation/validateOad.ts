@@ -69,9 +69,25 @@ function metaSchemaUri(declared: string | undefined, version: VersionFamily): st
 
 // Applicator / structural keywords carry no useful "what's wrong here" signal in a message.
 const NOISE_KEYWORDS = new Set([
-  "ref", "dynamicRef", "anyOf", "allOf", "oneOf", "not", "if", "then", "else",
-  "properties", "additionalProperties", "patternProperties", "items", "prefixItems",
-  "contains", "dependentSchemas", "propertyNames", "unevaluatedProperties", "unevaluatedItems",
+  "ref",
+  "dynamicRef",
+  "anyOf",
+  "allOf",
+  "oneOf",
+  "not",
+  "if",
+  "then",
+  "else",
+  "properties",
+  "additionalProperties",
+  "patternProperties",
+  "items",
+  "prefixItems",
+  "contains",
+  "dependentSchemas",
+  "propertyNames",
+  "unevaluatedProperties",
+  "unevaluatedItems",
 ]);
 
 interface BasicErrorUnit {
@@ -99,7 +115,9 @@ function toViolations(output: BasicOutput, subject: string, prefix: string): Sch
     if (keyword && !NOISE_KEYWORDS.has(keyword) && !/^\d+$/.test(keyword)) set.add(keyword);
   }
   if (byPointer.size === 0) {
-    return [{ pointer: prefix, keywords: [], message: `does not conform to the ${subject} schema` }];
+    return [
+      { pointer: prefix, keywords: [], message: `does not conform to the ${subject} schema` },
+    ];
   }
   return [...byPointer].map(([pointer, keywords]) => {
     const names = [...keywords];
@@ -176,7 +194,11 @@ export async function validateOad(
       const declared = declaredDialect(node, docDefault);
       // A standalone JSON Schema document with no own `$schema` borrows the OAS dialect — but only when
       // one exists: not when the version is undetermined, and not for 3.0 (3.0 has no JSON Schema dialect).
-      if (kind === "schema" && declared === undefined && (!versionDetermined || version === "3.0")) {
+      if (
+        kind === "schema" &&
+        declared === undefined &&
+        (!versionDetermined || version === "3.0")
+      ) {
         unvalidated.push(`${displayPointer(node.id)} (dialect undetermined)`);
         continue;
       }
