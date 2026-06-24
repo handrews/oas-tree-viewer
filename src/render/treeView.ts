@@ -10,6 +10,15 @@ import type { OadDocument, TreeNode } from "../types";
 import { categoryClass, categoryShape, resolutionStyles } from "./colors";
 import { docVersionLabel } from "./detail";
 import { treeKeyAction } from "./treeKeys";
+import {
+  COUNT_DX,
+  OVERSCAN_ROWS,
+  SECONDARY_DX,
+  SECONDARY_MAX,
+  VIRTUALIZE_ABOVE,
+  estimateLabelWidth,
+  windowRange,
+} from "./treeLayout";
 
 /** A hierarchy node augmented with collapsed-children storage. */
 type CNode = HierarchyNode<TreeNode> & {
@@ -20,6 +29,8 @@ type CNode = HierarchyNode<TreeNode> & {
 interface RowDatum {
   node: CNode;
   depth: number;
+  /** Absolute position in the full flattened row list — drives the row's y, independent of windowing. */
+  index: number;
 }
 
 const ROW_H = 22; // vertical space per row
@@ -54,8 +65,21 @@ export class DocumentView {
   private selectedId: string | null = null;
   /** The currently-focused (roving-tabindex) row's node id — distinct from selection. */
   private activeId: string | null = null;
-  /** The flat list of currently-visible rows, in keyboard (visual top-to-bottom) order. */
+  /** The flat list of currently-visible rows, in keyboard (visual top-to-bottom) order. Above
+   *  {@link VIRTUALIZE_ABOVE} rows only the windowed slice of this list is mounted in the DOM. */
   private visibleRows: RowDatum[] = [];
+  /** Each visible row's absolute index by node id, for force-mounting the focused row. */
+  private indexById = new Map<string, number>();
+  /** The persistent `role="tree"` group; rows are (re)painted into it per window. */
+  private treeRoot: Selection<SVGGElement, unknown, null, undefined> | null = null;
+  /** Column width, computed once per structural render and reused by each window paint. */
+  private colWidth = MIN_COL_W;
+  /** Current viewport span in this tree's vertical coordinates (set by the canvas on zoom/resize). */
+  private viewTop = 0;
+  private viewBottom = Number.POSITIVE_INFINITY;
+  /** The row slice currently mounted, so a window update can skip an unchanged paint. */
+  private mountedStart = -1;
+  private mountedEnd = -1;
   /** Current horizontal offset of this document's group within the viewport. */
   private offsetX = 0;
   /** Every node by id (incl. collapsed), for anchor/reveal lookups. */
@@ -97,6 +121,14 @@ export class DocumentView {
   /** Total nodes in this document's tree — every row a full "Expand all" would make visible. */
   get nodeCount(): number {
     return this.nodeIndex.size;
+  }
+
+  /** The first / last currently-visible row's node id (the tree's top / bottom), for jump-to controls. */
+  get firstVisibleId(): string | null {
+    return this.visibleRows[0]?.node.data.id ?? null;
+  }
+  get lastVisibleId(): string | null {
+    return this.visibleRows[this.visibleRows.length - 1]?.node.data.id ?? null;
   }
 
   /** Position this document's group at the given x offset (entry first => x 0). */
@@ -238,14 +270,20 @@ export class DocumentView {
     this.cb.onSelect(this.doc, node);
   }
 
-  /** Make `id` the roving tab stop. With `focus`, move DOM focus there and scroll it into view. */
+  /** Make `id` the roving tab stop. With `focus`, move DOM focus there and scroll it into view. If the
+   *  target row had scrolled out of a windowed tree it is repainted into view first (focus-follows-window);
+   *  otherwise the roving tab stop just moves on the existing rows, preserving their DOM identity. */
   private setActive(id: string, focus: boolean): void {
     this.activeId = id;
-    if (!this.rowSel) return;
-    this.rowSel.attr("tabindex", (d) => (d.node.data.id === id ? 0 : -1));
+    const mounted = this.rowSel?.filter((d) => d.node.data.id === id).node();
+    if (mounted) {
+      this.rowSel?.attr("tabindex", (d) => (d.node.data.id === id ? 0 : -1));
+    } else {
+      this.paintWindow();
+    }
     if (focus) {
       this.rowSel
-        .filter((d) => d.node.data.id === id)
+        ?.filter((d) => d.node.data.id === id)
         .node()
         ?.focus();
       this.cb.onFocusNode(id);
@@ -289,58 +327,114 @@ export class DocumentView {
     }
   }
 
+  /**
+   * Structural pass: flatten the visible nodes into the full row list and compute everything that depends
+   * on the tree shape (analytic positions, label ends, keyboard order, extent), then paint the current
+   * window. Cheap regardless of size — no DOM is touched per row here; {@link paintWindow} mounts only the
+   * rows near the viewport.
+   */
   private render(): void {
-    // Flatten visible nodes depth-first into rows.
     const rows: RowDatum[] = [];
     let maxDepth = 0;
     const visit = (node: CNode, depth: number): void => {
-      rows.push({ node, depth });
+      rows.push({ node, depth, index: rows.length });
       if (depth > maxDepth) maxDepth = depth;
       node.children?.forEach((child) => visit(child, depth + 1));
     };
     visit(this.rootHier, 0);
-
-    // Keyboard order is the visible top-to-bottom list. Keep exactly one roving tab stop: the active
-    // node if it is still visible, else the root row.
     this.visibleRows = rows;
+    this.indexById = new Map(rows.map((r) => [r.node.data.id, r.index]));
+
+    // Keep exactly one roving tab stop: the active node if still visible, else the root row.
     const visibleIds = new Set(rows.map((r) => r.node.data.id));
-    const tabbableId =
+    this.activeId =
       this.activeId && visibleIds.has(this.activeId)
         ? this.activeId
         : (rows[0]?.node.data.id ?? null);
-    this.activeId = tabbableId;
 
-    const colWidth = Math.max(MIN_COL_W, maxDepth * INDENT + LABEL_BUDGET);
+    this.colWidth = Math.max(MIN_COL_W, maxDepth * INDENT + LABEL_BUDGET);
 
-    // Record each visible row's local dot position for edge anchoring.
+    // Each row's dot position and label end, analytic (no DOM): the label end is estimated rather than
+    // measured, which keeps this off the synchronous-reflow path and stays valid for unmounted rows.
     this.visiblePos = new Map();
     this.labelEndById = new Map();
-    rows.forEach((r, i) => {
-      this.visiblePos.set(r.node.data.id, {
+    for (const r of rows) {
+      const data = r.node.data;
+      this.visiblePos.set(data.id, {
         x: PAD + r.depth * INDENT + DOT_DX,
-        y: this.headerH + PAD + ROW_H / 2 + i * ROW_H,
+        y: this.headerH + PAD + ROW_H / 2 + r.index * ROW_H,
       });
-    });
+      this.labelEndById.set(
+        data.id,
+        PAD +
+          r.depth * INDENT +
+          LABEL_DX +
+          estimateLabelWidth(
+            primaryLabel(data),
+            secondaryLabel(data),
+            r.node._children?.length ?? 0,
+          ),
+      );
+    }
 
+    // Rebuild the persistent accessible tree group. Its name carries the document identity (the visual
+    // header is aria-hidden), and the shared keyboard hint describes the controls.
     this.treeG.selectAll("*").remove();
-
-    // The rows group is the accessible tree; each row a treeitem. Its name carries the document
-    // identity (the visual header is aria-hidden), and the shared keyboard hint describes the controls.
     const entryFlag = this.doc.isEntry
       ? " (entry document)"
       : this.unreachable
         ? " (unreachable)"
         : "";
-    const treeRoot = this.treeG
+    this.treeRoot = this.treeG
       .append("g")
       .attr("class", "rows")
       .attr("role", "tree")
       .attr("aria-label", `${headerTitle(this.doc)} · ${docVersionLabel(this.doc)}${entryFlag}`)
       .attr("aria-describedby", "tree-help");
 
-    const rowSel = treeRoot
+    this.height = this.headerH + PAD + rows.length * ROW_H + PAD;
+    this.width = this.colWidth + PAD;
+
+    this.mountedStart = -1; // force a paint; the fresh treeRoot has no rows yet
+    this.mountedEnd = -1;
+    this.paintWindow();
+  }
+
+  /** The half-open row range to mount for the current viewport — the whole tree below the threshold. */
+  private windowSlice(): { start: number; end: number } {
+    const total = this.visibleRows.length;
+    if (total <= VIRTUALIZE_ABOVE) return { start: 0, end: total };
+    return windowRange(
+      total,
+      this.viewTop,
+      this.viewBottom,
+      ROW_H,
+      this.headerH + PAD + ROW_H / 2,
+      OVERSCAN_ROWS,
+    );
+  }
+
+  /**
+   * Mount only the rows in the current window, plus the active row so the roving tab stop is always present.
+   * Rows are cleared and rebuilt within one frame (no intermediate paint, so no flicker); the slice is
+   * bounded by the viewport, not the tree, so this stays cheap as the tree grows.
+   */
+  private paintWindow(): void {
+    if (!this.treeRoot) return;
+    const { start, end } = this.windowSlice();
+    this.mountedStart = start;
+    this.mountedEnd = end;
+
+    const slice = this.visibleRows.slice(start, end);
+    const activeIdx = this.activeId != null ? this.indexById.get(this.activeId) : undefined;
+    if (activeIdx !== undefined && (activeIdx < start || activeIdx >= end)) {
+      slice.push(this.visibleRows[activeIdx]!);
+    }
+
+    this.treeRoot.selectAll("g.row").remove();
+    const rowSel = this.treeRoot
       .selectAll<SVGGElement, RowDatum>("g.row")
-      .data(rows)
+      .data(slice)
       .join("g")
       .attr("class", "row")
       .attr("role", "treeitem")
@@ -351,9 +445,9 @@ export class DocumentView {
       // Expandable rows announce their state; leaves omit aria-expanded entirely.
       .attr("aria-expanded", (d) => (hasChildren(d.node) ? String(Boolean(d.node.children)) : null))
       .attr("aria-label", (d) => ariaName(d.node))
-      .attr("tabindex", (d) => (d.node.data.id === tabbableId ? 0 : -1))
+      .attr("tabindex", (d) => (d.node.data.id === this.activeId ? 0 : -1))
       .classed("selected", (d) => d.node.data.id === this.selectedId)
-      .attr("transform", (_d, i) => `translate(0, ${i * ROW_H})`)
+      .attr("transform", (d) => `translate(0, ${d.index * ROW_H})`)
       .on("click", (event: MouseEvent, d) => {
         event.stopPropagation();
         this.select(d.node.data);
@@ -373,7 +467,7 @@ export class DocumentView {
       .attr("class", "row-bg")
       .attr("x", -PAD / 2)
       .attr("y", -ROW_H / 2)
-      .attr("width", colWidth)
+      .attr("width", this.colWidth)
       .attr("height", ROW_H);
 
     // Disclosure triangle for expandable nodes.
@@ -388,33 +482,7 @@ export class DocumentView {
         this.toggle(d.node);
       });
 
-    // Colored category marker. A reference-pointer row ($ref / operationRef, or a discriminator
-    // `mapping` value / Security Requirement key) is drawn in the Structural (reference) color
-    // with a shape that reflects how it resolved: an asterisk for a URI-reference, a diamond for
-    // a component name. Every other node uses its category color, shaped as a square
-    // (object/array/scalar) or a circle. Collapsed nodes read as hollow.
-    const isRefField = (d: RowDatum): boolean => {
-      const n = d.node.data;
-      if (n.componentRef) return true;
-      if (n.valueKind !== "string") return false;
-      if (n.key === "$ref") return Boolean(d.node.parent?.data.isReference);
-      if (n.key === "operationRef") return true;
-      if (n.key === "$dynamicRef") return true; // a Schema's $dynamicRef pointer
-      if (n.key === "$recursiveRef") return true; // a 2019-09 Schema's $recursiveRef pointer
-      // A Link's operationId is a reference pointer; an Operation's own operationId
-      // declaration (same key, different parent) is a plain field, not a pointer.
-      return n.key === "operationId" && d.node.parent?.data.oasType === "Link Object";
-    };
-    const refMarker = (d: RowDatum) =>
-      resolutionStyles[d.node.data.resolvedAs ?? "uri-reference"].marker;
-    const markerClass = (d: RowDatum): string => {
-      const parts = ["marker", categoryClass(d.node.data.category)];
-      if (d.node._children) parts.push("collapsed");
-      return parts.join(" ");
-    };
-    const markerX = (d: RowDatum): number => d.depth * INDENT + DOT_DX;
-
-    // Reference pointer resolved as a URI-reference: a six-armed asterisk (Structural color).
+    // Colored category / reference markers (see the module-level marker helpers below).
     rowSel
       .filter((d) => isRefField(d) && refMarker(d) === "asterisk")
       .append("path")
@@ -422,7 +490,6 @@ export class DocumentView {
       .attr("d", "M0,-5 L0,5 M-4.33,-2.5 L4.33,2.5 M-4.33,2.5 L4.33,-2.5")
       .attr("transform", (d) => `translate(${markerX(d)}, 0)`);
 
-    // Reference pointer resolved by component name: a filled diamond (Structural color).
     rowSel
       .filter((d) => isRefField(d) && refMarker(d) === "diamond")
       .append("path")
@@ -456,28 +523,42 @@ export class DocumentView {
       .attr("dy", "0.32em")
       .attr("text-anchor", "start");
 
-    const labelEndById = this.labelEndById;
     label.each(function (this: SVGTextElement, d: RowDatum) {
       const sel = select(this);
       sel.append("tspan").attr("class", "k").text(primaryLabel(d.node.data));
       const hidden = d.node._children?.length;
       if (hidden) {
-        sel.append("tspan").attr("class", "count").attr("dx", "6").text(`(+${hidden})`);
+        sel
+          .append("tspan")
+          .attr("class", "count")
+          .attr("dx", String(COUNT_DX))
+          .text(`(+${hidden})`);
       }
       const secondary = secondaryLabel(d.node.data);
       if (secondary) {
-        sel.append("tspan").attr("class", "t").attr("dx", "8").text(truncate(secondary, 48));
+        sel
+          .append("tspan")
+          .attr("class", "t")
+          .attr("dx", String(SECONDARY_DX))
+          .text(truncate(secondary, SECONDARY_MAX));
       }
-      // Right edge of the rendered label, in the tree group's space (PAD-offset),
-      // so right-gutter status markers can sit just past the text.
-      const bb = this.getBBox();
-      labelEndById.set(d.node.data.id, PAD + bb.x + bb.width);
     });
 
     this.rowSel = rowSel;
+  }
 
-    this.height = this.headerH + PAD + rows.length * ROW_H + PAD;
-    this.width = colWidth + PAD;
+  /**
+   * Set the viewport span (in this tree's vertical coordinates) the canvas currently shows, so a large tree
+   * only mounts the rows near it. Repaints only when the windowed slice actually changes; a no-op for a tree
+   * small enough to render whole.
+   */
+  setViewport(top: number, bottom: number): void {
+    this.viewTop = top;
+    this.viewBottom = bottom;
+    if (this.visibleRows.length <= VIRTUALIZE_ABOVE) return;
+    const { start, end } = this.windowSlice();
+    if (start === this.mountedStart && end === this.mountedEnd) return;
+    this.paintWindow();
   }
 
   private renderHeader(): void {
@@ -549,6 +630,37 @@ function walk(node: CNode, fn: (n: CNode) => void): void {
   fn(node);
   const kids = node.children ?? node._children;
   kids?.forEach((k) => walk(k, fn));
+}
+
+// Row marker helpers. A reference-pointer row ($ref / operationRef, a Discriminator `mapping` value or a
+// Security Requirement key) is drawn in the Structural color with a shape that reflects how it resolved
+// (asterisk for a URI-reference, diamond for a component name); every other node uses its category color,
+// shaped as a square (object/array/scalar) or a circle, drawn hollow when collapsed.
+function isRefField(d: RowDatum): boolean {
+  const n = d.node.data;
+  if (n.componentRef) return true;
+  if (n.valueKind !== "string") return false;
+  if (n.key === "$ref") return Boolean(d.node.parent?.data.isReference);
+  if (n.key === "operationRef") return true;
+  if (n.key === "$dynamicRef") return true; // a Schema's $dynamicRef pointer
+  if (n.key === "$recursiveRef") return true; // a 2019-09 Schema's $recursiveRef pointer
+  // A Link's operationId is a reference pointer; an Operation's own operationId
+  // declaration (same key, different parent) is a plain field, not a pointer.
+  return n.key === "operationId" && d.node.parent?.data.oasType === "Link Object";
+}
+
+function refMarker(d: RowDatum): string {
+  return resolutionStyles[d.node.data.resolvedAs ?? "uri-reference"].marker;
+}
+
+function markerClass(d: RowDatum): string {
+  const parts = ["marker", categoryClass(d.node.data.category)];
+  if (d.node._children) parts.push("collapsed");
+  return parts.join(" ");
+}
+
+function markerX(d: RowDatum): number {
+  return d.depth * INDENT + DOT_DX;
 }
 
 function hasChildren(node: CNode): boolean {

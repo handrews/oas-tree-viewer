@@ -8,10 +8,18 @@ import type { Oad, OadDocument, TreeNode } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
 import { resolutionStyles } from "./colors";
-import { MAX_RENDER_EDGES, MAX_RENDER_ROWS } from "../limits";
+import { MAX_RENDER_EDGES } from "../limits";
 import { DocumentView } from "./treeView";
 
 const DOC_GAP = 56;
+// Zoom limits. The minimum also bounds windowing: the viewport can never show more than ~`viewport
+// height / (MIN_SCALE * row height)` rows, so even "Fit" on a huge tree mounts a bounded slice (it frames
+// the top and the user pans) rather than zooming out until every row is on screen at once.
+const MIN_SCALE = 0.08;
+const MAX_SCALE = 3;
+// Mount this fraction of the visible band as extra rows above and below it, so a fast pan or zoom doesn't
+// outrun the window before the next frame repaints (the band is hundreds of rows when zoomed out).
+const WINDOW_MARGIN = 0.6;
 // Reference arcs leave the source past its label (where ⚠ markers sit) and enter the
 // target from the left, with the arrowhead sitting clear to the left of the target's
 // disclosure triangle (which starts ~16px left of the node marker) rather than on top.
@@ -52,6 +60,8 @@ export class Canvas {
   private resolved: ResolvedRefs | null = null;
   private focusKey: string | null = null;
   private showAll = false;
+  /** Pending requestAnimationFrame handle that coalesces a burst of zoom/pan events into one window pass. */
+  private windowRaf = 0;
 
   constructor(container: HTMLElement, cb: CanvasCallbacks) {
     this.cb = cb;
@@ -61,6 +71,8 @@ export class Canvas {
     toolbar.className = "canvas-toolbar";
     toolbar.innerHTML = `
       <button type="button" data-act="fit">Fit</button>
+      <button type="button" data-act="top" title="Jump to the top of the tree">Top</button>
+      <button type="button" data-act="bottom" title="Jump to the bottom of the tree">Bottom</button>
       <button type="button" data-act="expand">Expand all</button>
       <button type="button" data-act="collapse">Collapse all</button>
       <button type="button" data-act="showall">Show all references</button>
@@ -123,8 +135,11 @@ export class Canvas {
     this.viewport = this.svg.append("g").attr("class", "viewport");
 
     this.zoomBehavior = zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.08, 3])
-      .on("zoom", (event) => this.viewport.attr("transform", event.transform.toString()));
+      .scaleExtent([MIN_SCALE, MAX_SCALE])
+      .on("zoom", (event) => {
+        this.viewport.attr("transform", event.transform.toString());
+        this.scheduleWindowUpdate(); // re-window the trees as the visible area changes
+      });
     this.svg.call(this.zoomBehavior);
 
     this.svg.on("click", () => {
@@ -176,6 +191,9 @@ export class Canvas {
     this.arcsDouble = edgeLayer.append("g").attr("class", "arcs-double");
 
     this.retile();
+    // Seed each view's viewport from the current transform before the fit transition runs, so a large tree
+    // expanded right away (e.g. "Load anyway" then "Expand all") only ever mounts the rows in view.
+    this.updateWindows();
     this.fit();
   }
 
@@ -205,26 +223,25 @@ export class Canvas {
   }
 
   fit(): void {
-    const node = this.viewport.node();
     const svgNode = this.svg.node();
-    if (!node || !svgNode) return;
+    if (!svgNode) return;
 
-    let bbox: DOMRect;
-    try {
-      bbox = node.getBBox();
-    } catch {
-      return;
-    }
-    if (bbox.width === 0 || bbox.height === 0) return;
+    // Analytic content extent (sum of view widths, tallest view) rather than getBBox — which would now
+    // measure only the *mounted* rows of a windowed tree, not its full height.
+    const { width: bw, height: bh } = this.contentExtent();
+    if (bw === 0 || bh === 0) return;
 
     const sw = svgNode.clientWidth || 900;
     const sh = svgNode.clientHeight || 600;
     const margin = 48;
-    const k = Math.min((sw - margin) / bbox.width, (sh - margin) / bbox.height, 1.2);
-    const scaledW = bbox.width * k;
-    const scaledH = bbox.height * k;
-    const tx = (scaledW < sw ? (sw - scaledW) / 2 : 24) - bbox.x * k;
-    const ty = (scaledH < sh ? (sh - scaledH) / 2 : 24) - bbox.y * k;
+    // Never zoom out past the interactive minimum: a tree taller than the viewport at MIN_SCALE is framed
+    // from the top (and panned), so the mounted window stays bounded instead of covering every row.
+    const k = Math.max(MIN_SCALE, Math.min((sw - margin) / bw, (sh - margin) / bh, 1.2));
+    const scaledW = bw * k;
+    const scaledH = bh * k;
+    // Content starts at the origin (header rect at 0,0), so no bbox offset to subtract.
+    const tx = scaledW < sw ? (sw - scaledW) / 2 : 24;
+    const ty = scaledH < sh ? (sh - scaledH) / 2 : 24;
 
     this.svg
       .transition()
@@ -233,6 +250,45 @@ export class Canvas {
   }
 
   // ── internals ────────────────────────────────────────────────────────────
+
+  /** Whole-canvas content size from the views' analytic extents (entry first, tiled left to right). */
+  private contentExtent(): { width: number; height: number } {
+    let width = 0;
+    let height = 0;
+    for (const view of this.views) {
+      width += view.width + DOC_GAP;
+      height = Math.max(height, view.height);
+    }
+    return { width: Math.max(0, width - DOC_GAP), height };
+  }
+
+  /** The visible viewport in the shared content (viewport-group) coordinate space, inverting the zoom. */
+  private currentViewBounds(): { top: number; bottom: number } | null {
+    const svgNode = this.svg.node();
+    if (!svgNode) return null;
+    const t = zoomTransform(svgNode);
+    const sh = svgNode.clientHeight || 600;
+    const top = (0 - t.y) / t.k;
+    const bottom = (sh - t.y) / t.k;
+    const margin = (bottom - top) * WINDOW_MARGIN;
+    return { top: top - margin, bottom: bottom + margin };
+  }
+
+  /** Push the current visible y-range to every view, so each mounts only the rows near it. */
+  private updateWindows(): void {
+    const bounds = this.currentViewBounds();
+    if (!bounds) return;
+    for (const view of this.views) view.setViewport(bounds.top, bounds.bottom);
+  }
+
+  /** Coalesce a burst of zoom/pan events into a single window pass on the next frame. */
+  private scheduleWindowUpdate(): void {
+    if (this.windowRaf) return;
+    this.windowRaf = requestAnimationFrame(() => {
+      this.windowRaf = 0;
+      this.updateWindows();
+    });
+  }
 
   private onSelectInternal(doc: OadDocument, node: TreeNode): void {
     this.views.forEach((v) => {
@@ -478,30 +534,45 @@ export class Canvas {
       });
   }
 
-  private recenter(x: number, y: number): void {
+  /** Center the viewport on a content point. `animate` pans there over a short transition (good for a
+   *  short hop like an edge click); without it the move is instant — used for the long top/bottom jumps,
+   *  where animating sweeps the whole tree past at once (rebuilding the window every frame) and just looks
+   *  like the canvas froze. */
+  private recenter(x: number, y: number, animate = true): void {
     const svgNode = this.svg.node();
     if (!svgNode) return;
     const k = zoomTransform(svgNode).k;
     const sw = svgNode.clientWidth || 900;
     const sh = svgNode.clientHeight || 600;
-    this.svg
-      .transition()
-      .duration(400)
-      .call(
-        this.zoomBehavior.transform,
-        zoomIdentity.translate(sw / 2 - k * x, sh / 2 - k * y).scale(k),
-      );
+    const target = zoomIdentity.translate(sw / 2 - k * x, sh / 2 - k * y).scale(k);
+    if (animate) {
+      this.svg.transition().duration(400).call(this.zoomBehavior.transform, target);
+    } else {
+      this.svg.call(this.zoomBehavior.transform, target);
+    }
+  }
+
+  /** Recenter on the first / last node of the entry document — for jumping a tall tree whose ends the
+   *  current zoom can't show at once. The target may be off-window; its position is known analytically.
+   *  The jump is instant (not animated) so a long sweep doesn't look like a stuck/blank canvas. */
+  private jumpTo(end: "top" | "bottom"): void {
+    const view = this.views[0];
+    if (!view) return;
+    const id = end === "top" ? view.firstVisibleId : view.lastVisibleId;
+    if (id == null) return;
+    const anchor = view.anchorViewport(id);
+    if (anchor) this.recenter(anchor.x, anchor.y, false);
   }
 
   private onToolbar(e: MouseEvent): void {
     const act = (e.target as HTMLElement).getAttribute("data-act");
     if (act === "fit") {
       this.fit();
+    } else if (act === "top" || act === "bottom") {
+      this.jumpTo(act);
     } else if (act === "expand") {
-      // Expanding builds every row's SVG synchronously; on a very large tree (e.g. one admitted via
-      // "Load anyway") that can hang the tab, so confirm past a threshold before committing to it.
-      const rows = this.views.reduce((n, v) => n + v.nodeCount, 0);
-      if (rows > MAX_RENDER_ROWS && !this.confirmHeavyRender(rows, "rows")) return;
+      // Expanding is cheap regardless of size: the tree is windowed, so only the rows near the viewport
+      // are ever mounted (the rest are tracked analytically). No confirmation needed.
       this.views.forEach((v) => v.expandAll());
       this.fit();
     } else if (act === "collapse") {
@@ -510,11 +581,7 @@ export class Canvas {
     } else if (act === "showall") {
       // Same hazard when drawing every reference arc at once; gate turning it on, not off.
       const edges = this.resolved?.edges.length ?? 0;
-      if (
-        !this.showAll &&
-        edges > MAX_RENDER_EDGES &&
-        !this.confirmHeavyRender(edges, "references")
-      ) {
+      if (!this.showAll && edges > MAX_RENDER_EDGES && !this.confirmHeavyRender(edges)) {
         return;
       }
       this.showAll = !this.showAll;
@@ -526,11 +593,14 @@ export class Canvas {
     }
   }
 
-  /** Ask before a bulk render that could hang the tab. Returns true to proceed. */
-  private confirmHeavyRender(count: number, noun: string): boolean {
+  /** Ask before drawing every reference arc at once: a perf hazard on a big graph, and — on a large or
+   *  very tall document — a rendering one (the arcs become long near-vertical lines that the browser
+   *  re-rasterizes each pan frame, with arrowheads that angle oddly). Returns true to proceed. */
+  private confirmHeavyRender(count: number): boolean {
     return window.confirm(
-      `This will render ${count.toLocaleString()} ${noun} at once, which may make the page slow ` +
-        `or unresponsive. Continue?`,
+      `This will draw ${count.toLocaleString()} reference arcs at once, which may make the page slow or ` +
+        `unresponsive. On a large or very tall document the arcs may also render imperfectly — misangled ` +
+        `arrowheads, or lines that flicker while panning. Continue?`,
     );
   }
 }
