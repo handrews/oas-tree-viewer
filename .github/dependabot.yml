@@ -1,0 +1,29 @@
+# Dependency-update automation.
+#
+# Security fixes arrive as immediate, individual PRs via Dependabot *security updates* — a separate,
+# event-driven flow that is NOT governed by the schedule below and is left ungrouped on purpose. (That flow
+# must be enabled once in the repo settings: Settings -> Code security -> "Dependabot security updates".)
+#
+# Everything else is a *version update*: run weekly and collapsed into a single catch-all group per ecosystem,
+# so routine bumps land as at most one PR per ecosystem per week (npm and GitHub Actions can't share a PR).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm-all:
+        applies-to: version-updates
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions-all:
+        applies-to: version-updates
+        patterns:
+          - "*"
