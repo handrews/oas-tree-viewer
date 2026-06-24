@@ -3,7 +3,7 @@ import { tick } from "svelte";
 import { render } from "vitest-browser-svelte";
 import OadForm from "../../src/ui/OadForm.svelte";
 import type { DocInput } from "../../src/loader";
-import type { RenderOutcome } from "../../src/ui/oadForm";
+import type { RenderOutcome, RenderOptions } from "../../src/ui/oadForm";
 
 type OnRender = ReturnType<typeof vi.fn<(inputs: DocInput[]) => Promise<RenderOutcome>>>;
 const okRender = (): OnRender => vi.fn<(inputs: DocInput[]) => Promise<RenderOutcome>>(async () => ({ ok: true }));
@@ -216,6 +216,33 @@ test("displays an OAD-level error returned by onRender", async () => {
     expect(err.hidden).toBe(false);
     expect(err.textContent).toBe("boom");
   });
+});
+
+test("offers 'Load anyway' on a limited failure and retries with the limits lifted", async () => {
+  const onRender = vi
+    .fn<(inputs: DocInput[], opts?: RenderOptions) => Promise<RenderOutcome>>()
+    .mockResolvedValueOnce({ ok: false, rowErrors: { 0: "Document is too large (~14 MB; limit is 8 MB)." }, limited: true })
+    .mockResolvedValueOnce({ ok: true });
+  render(OadForm, { onRender });
+  fill(url(rows()[0]!), "https://a/big.yaml");
+  await tick();
+  await submit();
+
+  // The resource-limit failure surfaces the row error and the override affordance.
+  const btn = await vi.waitFor(() => {
+    const b = document.querySelector(".load-anyway") as HTMLButtonElement | null;
+    expect(b).not.toBeNull();
+    return b!;
+  });
+  expect((rows()[0]!.querySelector(".row-error") as HTMLElement).textContent).toMatch(/too large/);
+
+  // Clicking it retries the same inputs with enforceLimits: false.
+  btn.click();
+  await vi.waitFor(() => expect(onRender).toHaveBeenCalledTimes(2));
+  expect(onRender.mock.calls[1]![0]).toEqual([{ source: "url", url: "https://a/big.yaml", isEntry: true }]);
+  expect(onRender.mock.calls[1]![1]).toEqual({ enforceLimits: false });
+  // On the successful retry the override clears.
+  await vi.waitFor(() => expect(document.querySelector(".load-anyway")).toBeNull());
 });
 
 test("clears a chosen file back to the picker", async () => {

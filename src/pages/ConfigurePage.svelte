@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DocInput } from "../loader";
   import OadForm from "../ui/OadForm.svelte";
-  import type { RenderOutcome } from "../ui/oadForm";
+  import type { RenderOutcome, RenderOptions } from "../ui/oadForm";
   import { runPipeline } from "../app/bootstrap";
   import { demos, type Demo } from "../app/demos";
   import { session } from "../app/session.svelte";
@@ -15,7 +15,7 @@
   // handed off in memory. The resolution config is applied at render and carried in the URL.
   let config = $state<ViewerConfig>({ ...defaultConfig });
 
-  async function onRender(inputs: DocInput[]): Promise<RenderOutcome> {
+  async function onRender(inputs: DocInput[], opts: RenderOptions = {}): Promise<RenderOutcome> {
     if (inputs.every((i) => i.source === "url")) {
       const docs = inputs.flatMap((i) => (i.source === "url" ? [{ url: i.url, isEntry: i.isEntry }] : []));
       navigate(viewPath({ kind: "urls", docs }, config));
@@ -23,8 +23,9 @@
     }
     // Anything with an uploaded file can't live in a URL, so resolve it here — keeping
     // per-row / OAD errors inline on the form — and hand the result to a bare /view.
-    const result = await runPipeline(inputs, config);
-    if (!result.ok) return { ok: false, rowErrors: result.rowErrors, oadError: result.oadError };
+    const result = await runPipeline(inputs, config, opts);
+    if (!result.ok)
+      return { ok: false, rowErrors: result.rowErrors, oadError: result.oadError, limited: result.limited };
     session.result = { oad: result.oad, refs: result.refs };
     navigate(viewPath({ kind: "session" }, config));
     return { ok: true };

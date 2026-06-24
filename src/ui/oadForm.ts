@@ -10,6 +10,14 @@ export interface RenderOutcome {
   rowErrors?: Record<number, string>;
   /** An OAD-level error (currently only version mismatch). */
   oadError?: string;
+  /** True when the failure was a resource guard (too large / deep / many nodes), so the form can
+   *  offer a "Load anyway" retry that lifts the limits. */
+  limited?: boolean;
+}
+
+/** Options for a render request. `enforceLimits: false` is the "Load anyway" override. */
+export interface RenderOptions {
+  enforceLimits?: boolean;
 }
 
 /** A file read from a directory upload, carrying its path relative to the folder. */

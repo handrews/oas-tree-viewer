@@ -10,12 +10,20 @@ import { detectDocument, determineVersionFamily, finalizeDocument } from "../loa
 import { assembleOad } from "../oad";
 import { resolveOad } from "../refs/resolver";
 import { typeFragments, markFragmentEdges } from "../refs/fragments";
-import { errorMessage } from "../errors";
+import { ResourceLimitError, errorMessage } from "../errors";
+import { defaultLimits, noLimits } from "../limits";
 
-/** Outcome of running the pipeline: a rendered OAD, or per-row / OAD-level errors. */
+/** Optional pipeline overrides. `enforceLimits: false` lifts the size/depth/node guards (the "Load
+ *  anyway" override); it is transient and deliberately not encoded in the bookmarkable view URL. */
+export interface PipelineOptions {
+  enforceLimits?: boolean;
+}
+
+/** Outcome of running the pipeline: a rendered OAD, or per-row / OAD-level errors. `limited` flags a
+ *  failure caused by a resource guard, so the UI can offer a "Load anyway" retry. */
 export type PipelineResult =
   | { ok: true; oad: Oad; refs: ResolvedRefs }
-  | { ok: false; rowErrors?: Record<number, string>; oadError?: string };
+  | { ok: false; rowErrors?: Record<number, string>; oadError?: string; limited?: boolean };
 
 /**
  * Detect each input document (reporting per-row presence/parse problems), fix the OAD's version
@@ -27,18 +35,22 @@ export type PipelineResult =
 export async function runPipeline(
   inputs: DocInput[],
   config: ViewerConfig = defaultConfig,
+  opts: PipelineOptions = {},
 ): Promise<PipelineResult> {
+  const limits = opts.enforceLimits === false ? noLimits : defaultLimits;
   const detected: DetectedDoc[] = [];
   const rowErrors: Record<number, string> = {};
+  let limited = false;
 
   for (let i = 0; i < inputs.length; i++) {
     try {
-      detected.push(await detectDocument(inputs[i]!, config.fragments !== "none"));
+      detected.push(await detectDocument(inputs[i]!, config.fragments !== "none", limits));
     } catch (e) {
       rowErrors[i] = errorMessage(e);
+      if (e instanceof ResourceLimitError) limited = true;
     }
   }
-  if (Object.keys(rowErrors).length > 0) return { ok: false, rowErrors };
+  if (Object.keys(rowErrors).length > 0) return { ok: false, rowErrors, limited };
 
   let family: VersionFamily;
   let determined: boolean;
