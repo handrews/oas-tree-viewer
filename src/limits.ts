@@ -23,6 +23,18 @@ export const MAX_TREE_DEPTH = 128;
  *  shallow document (every key and array element is a node). */
 export const MAX_TREE_NODES = 150_000;
 
+// Render-interaction guards. The tree always loads and renders collapsed (cheap); these gate the two
+// *bulk* canvas actions that build a large amount of SVG synchronously and can hang the tab. They are
+// independent of the load caps above — so they stay active even after a "Load anyway" override, which is
+// exactly when an unbounded "Expand all" is most dangerous.
+
+/** Above this many rows, "Expand all" confirms before rendering every node at once (each row is several
+ *  SVG elements built synchronously, with a per-row layout measurement). */
+export const MAX_RENDER_ROWS = 5_000;
+
+/** Above this many reference arcs, "Show all references" confirms before drawing them all at once. */
+export const MAX_RENDER_EDGES = 2_000;
+
 /** The three caps, grouped so they can be passed as a unit and lifted together for "Load anyway". */
 export interface Limits {
   maxBytes: number;
