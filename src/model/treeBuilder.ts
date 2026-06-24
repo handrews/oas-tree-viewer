@@ -31,9 +31,12 @@ function buildNode(
   depth: number,
 ): TreeNode {
   if (depth > ctx.limits.maxDepth) {
+    // The pointer to a node this deep repeats the same token many times; show only enough to locate it.
+    const where = displayPointer(id);
+    const located = where.length > 60 ? `${where.slice(0, 60)}…` : where;
     throw new ResourceLimitError(
       "depth",
-      `Document is nested too deeply (over ${ctx.limits.maxDepth} levels at ${displayPointer(id)}). ` +
+      `Document is nested too deeply (over ${ctx.limits.maxDepth} levels at ${located}). ` +
         `It is too deeply nested to render.`,
     );
   }
