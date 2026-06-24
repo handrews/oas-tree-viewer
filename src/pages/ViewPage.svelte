@@ -11,7 +11,7 @@
   import type { DetailContext } from "../render/detail";
   import { unreachableDocs } from "../render/reachability";
   import { collectIssues, type IssueReport as IssueReportData } from "../render/issues";
-  import { runPipeline, docLabel } from "../app/bootstrap";
+  import { runPipeline, docLabel, type PipelineOptions } from "../app/bootstrap";
   import { demoInputs } from "../app/demos";
   import { session } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
@@ -30,6 +30,9 @@
   type Status = "loading" | "ready" | "empty" | "error";
   let status = $state<Status>("loading");
   let loadError = $state<string | null>(null);
+  // A resource-guard refusal offers a "Load anyway" retry; remember the inputs to re-run.
+  let limited = $state(false);
+  let lastInputs = $state<DocInput[]>([]);
 
   const unreachable = $derived(oad && refs ? unreachableDocs(oad, refs) : []);
   const unreachableDocIds = $derived(new Set(unreachable.map((d) => d.id)));
@@ -66,12 +69,15 @@
     status = "error";
   }
 
-  async function loadInputs(inputs: DocInput[]): Promise<void> {
+  async function loadInputs(inputs: DocInput[], opts: PipelineOptions = {}): Promise<void> {
     const token = ++loadToken;
+    lastInputs = inputs;
+    limited = false;
     status = "loading";
-    const result = await runPipeline(inputs, config);
+    const result = await runPipeline(inputs, config, opts);
     if (token !== loadToken) return; // a newer request superseded this one
     if (!result.ok) {
+      limited = result.limited ?? false;
       const parts = [
         ...Object.values(result.rowErrors ?? {}),
         ...(result.oadError ? [result.oadError] : []),
@@ -80,6 +86,11 @@
       return;
     }
     show(result.oad, result.refs);
+  }
+
+  // "Load anyway": re-run the same documents with the resource limits lifted.
+  function loadAnyway(): void {
+    void loadInputs(lastInputs, { enforceLimits: false });
   }
 
   function resolve(req: ViewRequest): void {
@@ -120,6 +131,7 @@
       onselect={(doc, node) => (selected = { doc, node })}
       onbackground={() => (selected = null)}
       onLoadAnother={() => navigate("/configure")}
+      onRenderError={(msg) => fail(msg)}
       bind:this={treeCanvas}
     />
     <aside id="detail-panel" aria-label="Selected node details">
@@ -138,6 +150,12 @@
   {:else if status === "error"}
     <div class="view-error" role="alert">
       <p class="view-error-msg">{loadError}</p>
+      {#if limited}
+        <p class="view-error-note">
+          Loading it anyway may make the page slow or unresponsive.
+        </p>
+        <button type="button" class="load-anyway" onclick={loadAnyway}>Load anyway</button>
+      {/if}
       <button type="button" class="view-back" onclick={() => navigate("/configure")}>
         Back to configure
       </button>

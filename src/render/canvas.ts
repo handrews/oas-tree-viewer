@@ -8,6 +8,7 @@ import type { Oad, OadDocument, TreeNode } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
 import { resolutionStyles } from "./colors";
+import { MAX_RENDER_EDGES, MAX_RENDER_ROWS } from "../limits";
 import { DocumentView } from "./treeView";
 
 const DOC_GAP = 56;
@@ -491,12 +492,21 @@ export class Canvas {
     if (act === "fit") {
       this.fit();
     } else if (act === "expand") {
+      // Expanding builds every row's SVG synchronously; on a very large tree (e.g. one admitted via
+      // "Load anyway") that can hang the tab, so confirm past a threshold before committing to it.
+      const rows = this.views.reduce((n, v) => n + v.nodeCount, 0);
+      if (rows > MAX_RENDER_ROWS && !this.confirmHeavyRender(rows, "rows")) return;
       this.views.forEach((v) => v.expandAll());
       this.fit();
     } else if (act === "collapse") {
       this.views.forEach((v) => v.collapseAll());
       this.fit();
     } else if (act === "showall") {
+      // Same hazard when drawing every reference arc at once; gate turning it on, not off.
+      const edges = this.resolved?.edges.length ?? 0;
+      if (!this.showAll && edges > MAX_RENDER_EDGES && !this.confirmHeavyRender(edges, "references")) {
+        return;
+      }
       this.showAll = !this.showAll;
       this.showAllBtn.classList.toggle("active", this.showAll);
       this.showAllBtn.setAttribute("aria-pressed", String(this.showAll));
@@ -504,6 +514,14 @@ export class Canvas {
     } else if (act === "another") {
       this.cb.onLoadAnother?.();
     }
+  }
+
+  /** Ask before a bulk render that could hang the tab. Returns true to proceed. */
+  private confirmHeavyRender(count: number, noun: string): boolean {
+    return window.confirm(
+      `This will render ${count.toLocaleString()} ${noun} at once, which may make the page slow ` +
+        `or unresponsive. Continue?`,
+    );
   }
 }
 

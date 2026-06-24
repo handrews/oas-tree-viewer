@@ -4,6 +4,23 @@ import TreeCanvas from "../../src/render/TreeCanvas.svelte";
 import { resolveOad } from "../../src/refs/resolver";
 import { makeDoc, makeOad } from "../helpers";
 
+/** A valid OpenAPI doc with `schemas` schemas each carrying `props` string properties — enough nodes to
+ *  cross the Expand-all render threshold (MAX_RENDER_ROWS = 5000) while still rendering small collapsed. */
+function bigOad(schemas: number, props: number): string {
+  const sch: Record<string, unknown> = {};
+  for (let s = 0; s < schemas; s++) {
+    const properties: Record<string, unknown> = {};
+    for (let p = 0; p < props; p++) properties[`p${p}`] = { type: "string" };
+    sch[`S${s}`] = { type: "object", properties };
+  }
+  return JSON.stringify({
+    openapi: "3.1.0",
+    info: { title: "T", version: "1" },
+    paths: {},
+    components: { schemas: sch },
+  });
+}
+
 const DOC = `
 openapi: 3.1.0
 info: { title: T, version: '1' }
@@ -104,5 +121,41 @@ test("arrow keys move focus; Right/Left expand and collapse; Enter selects", asy
   key(target, "Enter");
   expect(onselect).toHaveBeenCalledTimes(1);
   expect(treeitems()[1]!.getAttribute("aria-selected")).toBe("true");
+  await settle();
+});
+
+test("Expand all confirms before rendering a very large tree, and aborts when declined", async () => {
+  const oad = makeOad(await makeDoc(bigOad(60, 50), { isEntry: true })); // ~6k nodes, over the threshold
+  const refs = resolveOad(oad);
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+  render(TreeCanvas, { oad, refs, onselect: () => {}, onbackground: () => {} });
+  await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
+  const before = document.querySelectorAll("g.row").length;
+
+  (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
+
+  expect(confirmSpy).toHaveBeenCalledOnce();
+  expect(confirmSpy.mock.calls[0]![0]).toMatch(/render [\d,]+ rows .*unresponsive/i);
+  // Declining leaves the tree collapsed (no bulk render).
+  expect(document.querySelectorAll("g.row").length).toBe(before);
+  confirmSpy.mockRestore();
+  await settle();
+});
+
+test("Expand all does not confirm for a normally-sized tree, and expands it", async () => {
+  const oad = makeOad(await makeDoc(DOC, { isEntry: true }));
+  const refs = resolveOad(oad);
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+  render(TreeCanvas, { oad, refs, onselect: () => {}, onbackground: () => {} });
+  await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
+  const before = document.querySelectorAll("g.row").length;
+
+  (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
+
+  expect(confirmSpy).not.toHaveBeenCalled();
+  await expect.poll(() => document.querySelectorAll("g.row").length).toBeGreaterThan(before);
+  confirmSpy.mockRestore();
   await settle();
 });

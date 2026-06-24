@@ -11,10 +11,13 @@
     dirLocalSource,
     type LocalSource,
     type RenderOutcome,
+    type RenderOptions,
   } from "./oadForm";
   import { readDrop, readDropped, namedFilesFromList } from "./fileDrop";
 
-  let { onRender }: { onRender: (inputs: DocInput[]) => Promise<RenderOutcome> } = $props();
+  let {
+    onRender,
+  }: { onRender: (inputs: DocInput[], opts?: RenderOptions) => Promise<RenderOutcome> } = $props();
 
   interface RowState {
     id: number;
@@ -29,6 +32,11 @@
   let rows = $state<RowState[]>([newRow()]);
   let oadError = $state<string | null>(null);
   let dragId = $state<number | null>(null);
+  // A resource-guard failure (too large / deep / many nodes) offers a "Load anyway" retry that
+  // re-runs the last submitted inputs with the limits lifted.
+  let limited = $state(false);
+  let lastInputs = $state<DocInput[]>([]);
+  let lastOwners = $state<number[]>([]);
 
   // Open the hidden file/folder input that lives in the same row as the clicked button
   // (keeps the visible buttons keyboard-focusable, unlike a label over a hidden input).
@@ -100,10 +108,33 @@
     if (row.local.kind === "dir") row.local = { ...row.local, entryIndex: index };
   }
 
+  function clearErrors(): void {
+    oadError = null;
+    limited = false;
+    for (const r of rows) r.error = null;
+  }
+
+  /** Apply a failed outcome's errors back onto the rows / form, mapping each input index to its row. */
+  function applyOutcome(outcome: RenderOutcome, owners: number[]): void {
+    if (outcome.ok) return;
+    if (outcome.rowErrors) {
+      const byRow = new Map<number, string[]>();
+      for (const [idx, message] of Object.entries(outcome.rowErrors)) {
+        const rowId = owners[Number(idx)];
+        if (rowId != null) byRow.set(rowId, [...(byRow.get(rowId) ?? []), message]);
+      }
+      for (const r of rows) {
+        const msgs = byRow.get(r.id);
+        if (msgs) r.error = msgs.join(" ");
+      }
+    }
+    if (outcome.oadError) oadError = outcome.oadError;
+    limited = outcome.limited ?? false;
+  }
+
   async function submit(e: SubmitEvent): Promise<void> {
     e.preventDefault();
-    oadError = null;
-    for (const r of rows) r.error = null;
+    clearErrors();
 
     const inputs: DocInput[] = [];
     const owners: number[] = []; // rowId for each flattened input, for error attribution
@@ -122,21 +153,16 @@
     }
     if (hadError) return;
 
-    const outcome = await onRender(inputs);
-    if (outcome.ok) return;
+    lastInputs = inputs;
+    lastOwners = owners;
+    applyOutcome(await onRender(inputs), owners);
+  }
 
-    if (outcome.rowErrors) {
-      const byRow = new Map<number, string[]>();
-      for (const [idx, message] of Object.entries(outcome.rowErrors)) {
-        const rowId = owners[Number(idx)];
-        if (rowId != null) byRow.set(rowId, [...(byRow.get(rowId) ?? []), message]);
-      }
-      for (const r of rows) {
-        const msgs = byRow.get(r.id);
-        if (msgs) r.error = msgs.join(" ");
-      }
-    }
-    if (outcome.oadError) oadError = outcome.oadError;
+  // "Load anyway": retry the last submission with the resource limits lifted (the user accepts the
+  // risk of a slow or unresponsive tab).
+  async function loadAnyway(): Promise<void> {
+    clearErrors();
+    applyOutcome(await onRender(lastInputs, { enforceLimits: false }), lastOwners);
   }
 </script>
 
@@ -251,4 +277,14 @@
   </div>
 
   <p class="oad-error" hidden={!oadError}>{oadError}</p>
+
+  {#if limited}
+    <div class="limit-override" role="group" aria-label="Document size limit">
+      <p class="limit-note">
+        This document was refused because it is very large or deeply nested. Loading it anyway may make
+        the page slow or unresponsive.
+      </p>
+      <button type="button" class="load-anyway" onclick={loadAnyway}>Load anyway</button>
+    </div>
+  {/if}
 </form>

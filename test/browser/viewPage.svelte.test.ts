@@ -23,3 +23,21 @@ test("ViewPage shows an error state for an unknown demo", async () => {
   await expect.poll(() => document.querySelector(".view-error")).not.toBeNull();
   expect(document.querySelector(".view-back")).not.toBeNull();
 });
+
+test("ViewPage refuses an over-deep document, then 'Load anyway' renders it", async () => {
+  // The fixture nests `items` ~143 levels deep — past the default depth cap (128) but well under the
+  // stack-overflow floor, so lifting the limit renders it. Exercises the real fetch → guard → override
+  // path end to end.
+  render(ViewPage, {
+    request: { kind: "urls", docs: [{ url: "/fixtures/too-deeply-nested.json", isEntry: true }] },
+    config: defaultConfig,
+  });
+
+  await expect.poll(() => document.querySelector(".load-anyway"), { timeout: 5000 }).not.toBeNull();
+  expect(document.querySelector(".view-error-msg")?.textContent).toMatch(/nested too deeply/);
+
+  (document.querySelector(".load-anyway") as HTMLButtonElement).click();
+  await expect
+    .poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length, { timeout: 5000 })
+    .toBe(1);
+});

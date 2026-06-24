@@ -317,6 +317,34 @@ body {
   font-weight: 600;
 }
 
+/* "Load anyway" override: a deliberately secondary (outlined) action, shown after a document is
+   refused for being too large/deep, with a dimmed cautionary note. Shared by the form and the
+   Explore page's error state. */
+.limit-override {
+  margin-top: 0.7rem;
+}
+.limit-note,
+.view-error-note {
+  color: var(--text-dim);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  margin: 0 0 0.5rem;
+}
+.load-anyway {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--accent-solid);
+  color: var(--accent-solid);
+}
+.load-anyway:hover {
+  background: var(--surface2);
+}
+
 /* ── Demos (configure page) ───────────────────────────────────────────── */
 
 .demos {

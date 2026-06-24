@@ -88,6 +88,11 @@ export class DocumentView {
     this.render();
   }
 
+  /** Total nodes in this document's tree — every row a full "Expand all" would make visible. */
+  get nodeCount(): number {
+    return this.nodeIndex.size;
+  }
+
   /** Position this document's group at the given x offset (entry first => x 0). */
   setOffset(x: number): void {
     this.offsetX = x;
