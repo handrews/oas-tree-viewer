@@ -9,6 +9,12 @@ describe("kindOf", () => {
     expect(kindOf("s")).toBe("string");
     expect(kindOf(3)).toBe("number");
     expect(kindOf(true)).toBe("boolean");
+    expect(kindOf(3n)).toBe("number"); // bigint
+  });
+
+  it("treats anything not from JSON/YAML (undefined, function) as null", () => {
+    expect(kindOf(undefined)).toBe("null");
+    expect(kindOf(() => {})).toBe("null");
   });
 });
 
