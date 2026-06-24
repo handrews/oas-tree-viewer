@@ -123,6 +123,14 @@ export class DocumentView {
     return this.nodeIndex.size;
   }
 
+  /** The first / last currently-visible row's node id (the tree's top / bottom), for jump-to controls. */
+  get firstVisibleId(): string | null {
+    return this.visibleRows[0]?.node.data.id ?? null;
+  }
+  get lastVisibleId(): string | null {
+    return this.visibleRows[this.visibleRows.length - 1]?.node.data.id ?? null;
+  }
+
   /** Position this document's group at the given x offset (entry first => x 0). */
   setOffset(x: number): void {
     this.offsetX = x;

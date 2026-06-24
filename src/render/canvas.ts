@@ -17,6 +17,9 @@ const DOC_GAP = 56;
 // the top and the user pans) rather than zooming out until every row is on screen at once.
 const MIN_SCALE = 0.08;
 const MAX_SCALE = 3;
+// Mount this fraction of the visible band as extra rows above and below it, so a fast pan or zoom doesn't
+// outrun the window before the next frame repaints (the band is hundreds of rows when zoomed out).
+const WINDOW_MARGIN = 0.6;
 // Reference arcs leave the source past its label (where ⚠ markers sit) and enter the
 // target from the left, with the arrowhead sitting clear to the left of the target's
 // disclosure triangle (which starts ~16px left of the node marker) rather than on top.
@@ -68,6 +71,8 @@ export class Canvas {
     toolbar.className = "canvas-toolbar";
     toolbar.innerHTML = `
       <button type="button" data-act="fit">Fit</button>
+      <button type="button" data-act="top" title="Jump to the top of the tree">Top</button>
+      <button type="button" data-act="bottom" title="Jump to the bottom of the tree">Bottom</button>
       <button type="button" data-act="expand">Expand all</button>
       <button type="button" data-act="collapse">Collapse all</button>
       <button type="button" data-act="showall">Show all references</button>
@@ -263,7 +268,10 @@ export class Canvas {
     if (!svgNode) return null;
     const t = zoomTransform(svgNode);
     const sh = svgNode.clientHeight || 600;
-    return { top: (0 - t.y) / t.k, bottom: (sh - t.y) / t.k };
+    const top = (0 - t.y) / t.k;
+    const bottom = (sh - t.y) / t.k;
+    const margin = (bottom - top) * WINDOW_MARGIN;
+    return { top: top - margin, bottom: bottom + margin };
   }
 
   /** Push the current visible y-range to every view, so each mounts only the rows near it. */
@@ -541,10 +549,23 @@ export class Canvas {
       );
   }
 
+  /** Recenter on the first / last node of the entry document — for jumping a tall tree whose ends the
+   *  current zoom can't show at once. The target may be off-window; its position is known analytically. */
+  private jumpTo(end: "top" | "bottom"): void {
+    const view = this.views[0];
+    if (!view) return;
+    const id = end === "top" ? view.firstVisibleId : view.lastVisibleId;
+    if (id == null) return;
+    const anchor = view.anchorViewport(id);
+    if (anchor) this.recenter(anchor.x, anchor.y);
+  }
+
   private onToolbar(e: MouseEvent): void {
     const act = (e.target as HTMLElement).getAttribute("data-act");
     if (act === "fit") {
       this.fit();
+    } else if (act === "top" || act === "bottom") {
+      this.jumpTo(act);
     } else if (act === "expand") {
       // Expanding is cheap regardless of size: the tree is windowed, so only the rows near the viewport
       // are ever mounted (the rest are tracked analytically). No confirmation needed.

@@ -164,3 +164,31 @@ test("Expand all does not confirm for a normally-sized tree, and expands it", as
   confirmSpy.mockRestore();
   await settle();
 });
+
+test("Top / Bottom jump the viewport to the ends of a tall tree", async () => {
+  const oad = await makeBigOad(6000);
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  render(TreeCanvas, { oad, refs: resolveOad(oad), onselect: () => {}, onbackground: () => {} });
+  await expect.poll(() => document.querySelector('[role="tree"]')).not.toBeNull();
+  (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
+
+  // The deepest mounted row's y (rows are positioned at index*ROW_H within the tree); a 6k-node tree is
+  // well over 100,000px tall, far beyond any single window.
+  const maxRowY = (): number =>
+    treeitems().reduce((max, r) => {
+      const y = Number(
+        /translate\(0,\s*([\d.]+)\)/.exec(r.getAttribute("transform") ?? "")?.[1] ?? 0,
+      );
+      return Math.max(max, y);
+    }, 0);
+
+  // Bottom recenters near the last node, so a row far down the tree becomes mounted.
+  (document.querySelector('[data-act="bottom"]') as HTMLButtonElement).click();
+  await expect.poll(maxRowY, { timeout: 2000 }).toBeGreaterThan(50000);
+
+  // Top brings it back: the deep rows unmount, leaving only the top of the tree.
+  (document.querySelector('[data-act="top"]') as HTMLButtonElement).click();
+  await expect.poll(maxRowY, { timeout: 2000 }).toBeLessThan(20000);
+  vi.restoreAllMocks();
+  await settle();
+});
