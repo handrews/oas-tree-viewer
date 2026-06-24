@@ -145,3 +145,45 @@ test.describe("heading order (no skipped levels — for a perfect Lighthouse sco
     expect(results.violations, summarize(results)).toEqual([]);
   });
 });
+
+// The SVG tree is a WAI-ARIA Tree View: keyboard-operable, with valid tree/treeitem roles. This is the
+// deferred SVG-native accessibility work — exercise the real keyboard path and a clean axe run.
+test.describe("SVG tree — keyboard navigation & ARIA", () => {
+  test("is keyboard operable with valid tree roles and a visible focus ring", async ({ page }) => {
+    await page.goto("/view?demo=refs");
+    const items = page.locator('g.row[role="treeitem"]');
+    await expect(items.first()).toBeVisible();
+
+    // Tree + treeitem ARIA.
+    const tree = page.locator('[role="tree"]').first();
+    await expect(tree).toHaveAttribute("aria-label", /OAS 3\.1/);
+    await expect(tree).toHaveAttribute("aria-describedby", "tree-help");
+    await expect(items.first()).toHaveAttribute("aria-level", "1");
+    await expect(items.first()).toHaveAttribute("aria-expanded", "true");
+
+    // Focus the root: it takes DOM focus and shows the keyboard focus ring (a 2px stroked row-bg).
+    await items.first().focus();
+    await expect(items.first()).toBeFocused();
+    await expect(items.first().locator(".row-bg")).toHaveCSS("stroke-width", "2px");
+
+    // Down moves focus to the next visible row.
+    await page.keyboard.press("ArrowDown");
+    await expect(items.nth(1)).toBeFocused();
+
+    // Right expands a collapsed branch in place (more rows; the focused row becomes expanded).
+    const before = await items.count();
+    await page.locator('g.row[role="treeitem"][aria-expanded="false"]').first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.locator('g.row[role="treeitem"]')).not.toHaveCount(before);
+    await expect(page.locator(":focus")).toHaveAttribute("aria-expanded", "true");
+
+    // Enter selects the focused node (explicit selection) → the detail panel updates.
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#detail-panel .node-detail")).toContainText("Selected node");
+    await expect(page.locator(':focus[aria-selected="true"]')).toBeVisible();
+
+    // The new tree/treeitem roles are valid ARIA (no serious/critical violations).
+    const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+    expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+  });
+});

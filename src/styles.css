@@ -16,6 +16,20 @@ body {
   line-height: 1.45;
 }
 
+/* Visually hidden but available to assistive tech (e.g. the SVG tree's keyboard hint). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 #app-header {
   padding: 1rem 1.25rem 0.75rem;
   position: relative;
@@ -547,6 +561,17 @@ body {
 }
 .row.selected .row-bg {
   fill: color-mix(in srgb, var(--accent-solid) 18%, transparent);
+}
+/* Keyboard focus ring: a stroked outline (theme-aware accent), distinct from the .selected fill so a
+   focused-but-unselected row and a selected-but-unfocused row both read clearly, and can coexist. Uses
+   plain :focus (not :focus-visible) so a programmatically-focused SVG <g> — how arrow-key navigation
+   moves focus — always shows the ring, without depending on the keyboard-modality heuristic. */
+.row {
+  outline: none;
+}
+.row:focus .row-bg {
+  stroke: var(--accent);
+  stroke-width: 2px;
 }
 .disclosure {
   fill: var(--text-dim);
