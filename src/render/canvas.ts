@@ -8,10 +8,15 @@ import type { Oad, OadDocument, TreeNode } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
 import { resolutionStyles } from "./colors";
-import { MAX_RENDER_EDGES, MAX_RENDER_ROWS } from "../limits";
+import { MAX_RENDER_EDGES } from "../limits";
 import { DocumentView } from "./treeView";
 
 const DOC_GAP = 56;
+// Zoom limits. The minimum also bounds windowing: the viewport can never show more than ~`viewport
+// height / (MIN_SCALE * row height)` rows, so even "Fit" on a huge tree mounts a bounded slice (it frames
+// the top and the user pans) rather than zooming out until every row is on screen at once.
+const MIN_SCALE = 0.08;
+const MAX_SCALE = 3;
 // Reference arcs leave the source past its label (where ⚠ markers sit) and enter the
 // target from the left, with the arrowhead sitting clear to the left of the target's
 // disclosure triangle (which starts ~16px left of the node marker) rather than on top.
@@ -125,7 +130,7 @@ export class Canvas {
     this.viewport = this.svg.append("g").attr("class", "viewport");
 
     this.zoomBehavior = zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.08, 3])
+      .scaleExtent([MIN_SCALE, MAX_SCALE])
       .on("zoom", (event) => {
         this.viewport.attr("transform", event.transform.toString());
         this.scheduleWindowUpdate(); // re-window the trees as the visible area changes
@@ -224,7 +229,9 @@ export class Canvas {
     const sw = svgNode.clientWidth || 900;
     const sh = svgNode.clientHeight || 600;
     const margin = 48;
-    const k = Math.min((sw - margin) / bw, (sh - margin) / bh, 1.2);
+    // Never zoom out past the interactive minimum: a tree taller than the viewport at MIN_SCALE is framed
+    // from the top (and panned), so the mounted window stays bounded instead of covering every row.
+    const k = Math.max(MIN_SCALE, Math.min((sw - margin) / bw, (sh - margin) / bh, 1.2));
     const scaledW = bw * k;
     const scaledH = bh * k;
     // Content starts at the origin (header rect at 0,0), so no bbox offset to subtract.
@@ -539,10 +546,8 @@ export class Canvas {
     if (act === "fit") {
       this.fit();
     } else if (act === "expand") {
-      // Expanding builds every row's SVG synchronously; on a very large tree (e.g. one admitted via
-      // "Load anyway") that can hang the tab, so confirm past a threshold before committing to it.
-      const rows = this.views.reduce((n, v) => n + v.nodeCount, 0);
-      if (rows > MAX_RENDER_ROWS && !this.confirmHeavyRender(rows, "rows")) return;
+      // Expanding is cheap regardless of size: the tree is windowed, so only the rows near the viewport
+      // are ever mounted (the rest are tracked analytically). No confirmation needed.
       this.views.forEach((v) => v.expandAll());
       this.fit();
     } else if (act === "collapse") {
