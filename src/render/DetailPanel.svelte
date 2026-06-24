@@ -40,7 +40,9 @@
       <dd><code>{displayPointer(node.id)}</code></dd>
 
       <dt>OAS type</dt>
-      <dd>{#if node.oasType}{node.oasType}{:else}<em>generic</em>{/if}</dd>
+      <dd>
+        {#if node.oasType}{node.oasType}{:else}<em>generic</em>{/if}
+      </dd>
 
       <dt>Value kind</dt>
       <dd>{node.valueKind}</dd>
@@ -55,7 +57,10 @@
 
       {#if baseUri(doc)}
         <dt>Base URI</dt>
-        <dd><code>{baseUri(doc)}</code>{#if doc.selfUri} ($self){/if}</dd>
+        <dd>
+          <code>{baseUri(doc)}</code>{#if doc.selfUri}
+            ($self){/if}
+        </dd>
       {/if}
     </dl>
 
@@ -80,7 +85,11 @@
               {#if e.targetDocId && e.targetNodeId}
                 {@const targetDocId = e.targetDocId}
                 {@const targetNodeId = e.targetNodeId}
-                <button type="button" class="nav-ref" onclick={() => c.onNavigate(targetDocId, targetNodeId)}>
+                <button
+                  type="button"
+                  class="nav-ref"
+                  onclick={() => c.onNavigate(targetDocId, targetNodeId)}
+                >
                   {c.docLabel(targetDocId)} <code>{displayPointer(targetNodeId)}</code>
                 </button>
                 {#if e.status === "type-mismatch"}
@@ -90,7 +99,9 @@
                   </div>
                 {/if}
                 {#if e.resolution === "dynamic"}
-                  <div class="ref-note">tentative — the actual target depends on the evaluation path</div>
+                  <div class="ref-note">
+                    tentative — the actual target depends on the evaluation path
+                  </div>
                 {/if}
                 {#each e.diagnostics ?? [] as d (d.code)}
                   <div class="ref-note advisory severity-{d.severity}">{d.detail}</div>
@@ -132,6 +143,8 @@
   </section>
 {:else}
   <section class="node-detail empty">
-    <p class="hint">Click a node's label to inspect it. Click a node's dot to expand or collapse.</p>
+    <p class="hint">
+      Click a node's label to inspect it. Click a node's dot to expand or collapse.
+    </p>
   </section>
 {/if}

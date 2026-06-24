@@ -11,9 +11,21 @@ import { makeInput } from "./helpers";
 // `detectDocument` with small custom limits; the end-to-end `limited` flag + override is tested through
 // `runPipeline` against the real (large) default caps with a genuinely deep document.
 
-const onlyDepth = (maxDepth: number): Limits => ({ maxBytes: Infinity, maxDepth, maxNodes: Infinity });
-const onlyNodes = (maxNodes: number): Limits => ({ maxBytes: Infinity, maxDepth: Infinity, maxNodes });
-const onlyBytes = (maxBytes: number): Limits => ({ maxBytes, maxDepth: Infinity, maxNodes: Infinity });
+const onlyDepth = (maxDepth: number): Limits => ({
+  maxBytes: Infinity,
+  maxDepth,
+  maxNodes: Infinity,
+});
+const onlyNodes = (maxNodes: number): Limits => ({
+  maxBytes: Infinity,
+  maxDepth: Infinity,
+  maxNodes,
+});
+const onlyBytes = (maxBytes: number): Limits => ({
+  maxBytes,
+  maxDepth: Infinity,
+  maxNodes: Infinity,
+});
 
 /** An OpenAPI 3.1 document whose `components/schemas/A` nests `items` `depth` levels deep. */
 function deeplyNestedOad(depth: number): string {
@@ -89,7 +101,9 @@ describe("detectDocument byte cap", () => {
       })),
     );
     const url: DocInput = { source: "url", url: "https://e.test/big.yaml", isEntry: true };
-    await expect(detectDocument(url, false, onlyBytes(1000))).rejects.toBeInstanceOf(ResourceLimitError);
+    await expect(detectDocument(url, false, onlyBytes(1000))).rejects.toBeInstanceOf(
+      ResourceLimitError,
+    );
     expect(text).not.toHaveBeenCalled(); // rejected before the body is materialized
   });
 
@@ -103,7 +117,9 @@ describe("detectDocument byte cap", () => {
       })),
     );
     const url: DocInput = { source: "url", url: "https://e.test/big.yaml", isEntry: true };
-    await expect(detectDocument(url, false, onlyBytes(1000))).rejects.toMatchObject({ kind: "bytes" });
+    await expect(detectDocument(url, false, onlyBytes(1000))).rejects.toMatchObject({
+      kind: "bytes",
+    });
   });
 });
 

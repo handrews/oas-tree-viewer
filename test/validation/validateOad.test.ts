@@ -77,7 +77,10 @@ describe("validateOad — per-resource dialects", () => {
 
   it("honors a document-level jsonSchemaDialect of 2020-12", async () => {
     const { violations } = await validate(
-      doc({ jsonSchemaDialect: DRAFT_2020_12, components: { schemas: { Pet: { type: "strang" } } } }),
+      doc({
+        jsonSchemaDialect: DRAFT_2020_12,
+        components: { schemas: { Pet: { type: "strang" } } },
+      }),
     );
     expect(ptrs(violations)).toContain("/components/schemas/Pet/type");
   });
@@ -95,7 +98,10 @@ describe("validateOad — safety", () => {
   it("still validates a Schema Object that has a broken/external $ref (no ref resolution)", async () => {
     const { violations } = await validate(
       schemas({
-        Ref: { type: "object", properties: { x: { $ref: "https://nowhere.example/missing#/foo" } } },
+        Ref: {
+          type: "object",
+          properties: { x: { $ref: "https://nowhere.example/missing#/foo" } },
+        },
       }),
     );
     expect(violations).toEqual([]);

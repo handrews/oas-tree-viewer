@@ -21,13 +21,7 @@ export interface ResolutionAdvisory {
 }
 
 /** The JSON value categories a node can hold. */
-export type ValueKind =
-  | "object"
-  | "array"
-  | "string"
-  | "number"
-  | "boolean"
-  | "null";
+export type ValueKind = "object" | "array" | "string" | "number" | "boolean" | "null";
 
 /**
  * Coarse semantic bucket used for node coloring. OAS object types map onto one of

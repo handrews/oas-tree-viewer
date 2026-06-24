@@ -20,7 +20,9 @@
 
   async function onRender(inputs: DocInput[], opts: RenderOptions = {}): Promise<RenderOutcome> {
     if (inputs.every((i) => i.source === "url")) {
-      const docs = inputs.flatMap((i) => (i.source === "url" ? [{ url: i.url, isEntry: i.isEntry }] : []));
+      const docs = inputs.flatMap((i) =>
+        i.source === "url" ? [{ url: i.url, isEntry: i.isEntry }] : [],
+      );
       navigate(viewPath({ kind: "urls", docs }, config));
       return { ok: true };
     }
@@ -32,9 +34,18 @@
       // `inputs` (the form may hand back its reactive `lastInputs` on a "Load anyway" retry) and
       // `config` are reactive ($state proxies); snapshot them to plain objects so they can be
       // structured-cloned across the worker boundary (a proxy can't).
-      const result = await pipelineClient.run($state.snapshot(inputs), $state.snapshot(config), opts);
+      const result = await pipelineClient.run(
+        $state.snapshot(inputs),
+        $state.snapshot(config),
+        opts,
+      );
       if (!result.ok)
-        return { ok: false, rowErrors: result.rowErrors, oadError: result.oadError, limited: result.limited };
+        return {
+          ok: false,
+          rowErrors: result.rowErrors,
+          oadError: result.oadError,
+          limited: result.limited,
+        };
       session.result = { oad: result.oad, refs: result.refs };
       navigate(viewPath({ kind: "session" }, config));
       return { ok: true };
@@ -62,7 +73,11 @@
   <div class="doc-region">
     <!-- Load behavior chosen above the documents it governs; no visible label (kept terse), so the
          select carries its own accessible name. -->
-    <select class="load-behavior" aria-label="Document loading behavior" bind:value={config.fragments}>
+    <select
+      class="load-behavior"
+      aria-label="Document loading behavior"
+      bind:value={config.fragments}
+    >
       <option value="none">Complete OpenAPI or JSON Schema documents only</option>
       <option value="root">Allow fragmentary OpenAPI documents if their root is referenced</option>
       <option value="any">Allow any fragmentary OpenAPI document</option>
@@ -118,4 +133,3 @@
     </ul>
   </section>
 </section>
-

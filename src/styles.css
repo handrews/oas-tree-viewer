@@ -627,25 +627,67 @@ body {
 }
 
 /* Category colors (themed via --cat-*): tree markers fill+stroke, legend swatches background. */
-.marker.cat-structural { fill: var(--cat-structural); stroke: var(--cat-structural); }
-.marker.cat-metadata { fill: var(--cat-metadata); stroke: var(--cat-metadata); }
-.marker.cat-http { fill: var(--cat-http); stroke: var(--cat-http); }
-.marker.cat-data { fill: var(--cat-data); stroke: var(--cat-data); }
-.marker.cat-security { fill: var(--cat-security); stroke: var(--cat-security); }
-.marker.cat-object { fill: var(--cat-object); stroke: var(--cat-object); }
-.marker.cat-array { fill: var(--cat-array); stroke: var(--cat-array); }
-.marker.cat-scalar { fill: var(--cat-scalar); stroke: var(--cat-scalar); }
+.marker.cat-structural {
+  fill: var(--cat-structural);
+  stroke: var(--cat-structural);
+}
+.marker.cat-metadata {
+  fill: var(--cat-metadata);
+  stroke: var(--cat-metadata);
+}
+.marker.cat-http {
+  fill: var(--cat-http);
+  stroke: var(--cat-http);
+}
+.marker.cat-data {
+  fill: var(--cat-data);
+  stroke: var(--cat-data);
+}
+.marker.cat-security {
+  fill: var(--cat-security);
+  stroke: var(--cat-security);
+}
+.marker.cat-object {
+  fill: var(--cat-object);
+  stroke: var(--cat-object);
+}
+.marker.cat-array {
+  fill: var(--cat-array);
+  stroke: var(--cat-array);
+}
+.marker.cat-scalar {
+  fill: var(--cat-scalar);
+  stroke: var(--cat-scalar);
+}
 /* Collapsed nodes read as hollow: surface fill, category stroke. (Asterisks keep no fill.) */
-.marker.collapsed:not(.asterisk) { fill: var(--surface); }
+.marker.collapsed:not(.asterisk) {
+  fill: var(--surface);
+}
 
-.swatch.cat-structural { background: var(--cat-structural); }
-.swatch.cat-metadata { background: var(--cat-metadata); }
-.swatch.cat-http { background: var(--cat-http); }
-.swatch.cat-data { background: var(--cat-data); }
-.swatch.cat-security { background: var(--cat-security); }
-.swatch.cat-object { background: var(--cat-object); }
-.swatch.cat-array { background: var(--cat-array); }
-.swatch.cat-scalar { background: var(--cat-scalar); }
+.swatch.cat-structural {
+  background: var(--cat-structural);
+}
+.swatch.cat-metadata {
+  background: var(--cat-metadata);
+}
+.swatch.cat-http {
+  background: var(--cat-http);
+}
+.swatch.cat-data {
+  background: var(--cat-data);
+}
+.swatch.cat-security {
+  background: var(--cat-security);
+}
+.swatch.cat-object {
+  background: var(--cat-object);
+}
+.swatch.cat-array {
+  background: var(--cat-array);
+}
+.swatch.cat-scalar {
+  background: var(--cat-scalar);
+}
 .node-label {
   font: 12px var(--font);
   fill: var(--text);

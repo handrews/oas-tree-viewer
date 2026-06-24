@@ -70,7 +70,10 @@ components:
   it("annotates the source node with how it resolved (drives the marker)", async () => {
     const oad = makeOad(await makeDoc(DOC, { isEntry: true }));
     resolveOad(oad);
-    const mapping = findByPointer(oad.documents[0]!.root, "/components/schemas/Pet/discriminator/mapping");
+    const mapping = findByPointer(
+      oad.documents[0]!.root,
+      "/components/schemas/Pet/discriminator/mapping",
+    );
     const byName = mapping!.children.find((c) => c.key === "c")!;
     const byUri = mapping!.children.find((c) => c.key === "d")!;
     expect(byName.resolvedAs).toBe("component-name");
@@ -171,7 +174,10 @@ components:
 });
 
 // Tiny pointer-walk helper (node ids are doc-root JSON Pointers).
-function findByPointer(root: { id: string; children: unknown[] }, pointer: string): {
+function findByPointer(
+  root: { id: string; children: unknown[] },
+  pointer: string,
+): {
   key: string | null;
   children: { key: string | null; resolvedAs?: string }[];
 } | null {

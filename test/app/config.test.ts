@@ -26,10 +26,12 @@ describe("config", () => {
 
   it("emits only non-default params (default config -> empty)", () => {
     expect(configParams(defaultConfig).toString()).toBe("");
-    expect(
-      configParams({ ...defaultConfig, mappingPrecedence: "uri-first" }).toString(),
-    ).toBe("disc=uri-first");
-    expect(configParams({ ...defaultConfig, componentLookup: "local" }).toString()).toBe("lookup=local");
+    expect(configParams({ ...defaultConfig, mappingPrecedence: "uri-first" }).toString()).toBe(
+      "disc=uri-first",
+    );
+    expect(configParams({ ...defaultConfig, componentLookup: "local" }).toString()).toBe(
+      "lookup=local",
+    );
     expect(configParams({ ...defaultConfig, fragments: "root" }).toString()).toBe("fragments=root");
     expect(configParams({ ...defaultConfig, fragments: "any" }).toString()).toBe("fragments=any");
   });

@@ -278,8 +278,10 @@ describe("resolveOad — lookup maps", () => {
 
   it("indexes a reference under both its field and its object", () => {
     const anchorEdge = byRef("https://example.com/schemas/pet#PetAnchor")[0]!;
-    const byObject = refs.bySource.get(refKey(anchorEdge.sourceDocId, anchorEdge.sourceObjectId)) ?? [];
-    const byField = refs.bySource.get(refKey(anchorEdge.sourceDocId, anchorEdge.sourceNodeId)) ?? [];
+    const byObject =
+      refs.bySource.get(refKey(anchorEdge.sourceDocId, anchorEdge.sourceObjectId)) ?? [];
+    const byField =
+      refs.bySource.get(refKey(anchorEdge.sourceDocId, anchorEdge.sourceNodeId)) ?? [];
     expect(byObject).toContain(anchorEdge);
     expect(byField).toContain(anchorEdge);
   });

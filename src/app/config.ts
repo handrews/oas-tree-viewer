@@ -40,7 +40,11 @@ export function parseConfig(params: URLSearchParams): ViewerConfig {
     mappingPrecedence: params.get("disc") === "uri-first" ? "uri-first" : "name-first",
     componentLookup: params.get("lookup") === "local" ? "local" : "entry",
     fragments:
-      params.get("fragments") === "any" ? "any" : params.get("fragments") === "root" ? "root" : "none",
+      params.get("fragments") === "any"
+        ? "any"
+        : params.get("fragments") === "root"
+          ? "root"
+          : "none",
   };
 }
 

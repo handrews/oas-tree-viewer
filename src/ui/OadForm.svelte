@@ -46,7 +46,8 @@
   }
 
   const removable = $derived(rows.length > 1);
-  const roleLabel = (i: number): string => (i === 0 ? "Entry document" : `Additional document ${i}`);
+  const roleLabel = (i: number): string =>
+    i === 0 ? "Entry document" : `Additional document ${i}`;
 
   function addRow(): void {
     rows = [...rows, newRow()];
@@ -70,7 +71,10 @@
     row.local = { kind: "file", filename: file.name, text: await file.text() };
   }
 
-  async function loadDir(row: RowState, files: { filename: string; relativePath: string; text: string }[]): Promise<void> {
+  async function loadDir(
+    row: RowState,
+    files: { filename: string; relativePath: string; text: string }[],
+  ): Promise<void> {
     const dir = dirLocalSource(files);
     if (dir.docs.length === 0) {
       row.error = "No OpenAPI documents (.json/.yaml) found in that folder.";
@@ -208,8 +212,10 @@
             <button type="button" class="choose-file" onclick={(e) => pick(e, "input.file")}
               >Choose file…</button
             >
-            <button type="button" class="choose-folder" onclick={(e) => pick(e, "input.folder-input")}
-              >Choose folder…</button
+            <button
+              type="button"
+              class="choose-folder"
+              onclick={(e) => pick(e, "input.folder-input")}>Choose folder…</button
             >
             <input
               type="file"
@@ -227,13 +233,25 @@
             />
           {:else if row.local.kind === "file"}
             <span class="file-name" title={row.local.filename}>{row.local.filename}</span>
-            <button type="button" class="clear-local" title="Remove file" onclick={() => clearLocal(row)}>×</button>
+            <button
+              type="button"
+              class="clear-local"
+              title="Remove file"
+              onclick={() => clearLocal(row)}>×</button
+            >
           {:else}
             {@const dir = row.local}
             <div class="dir-summary">
               <span class="folder-name" title={dir.folderName}>{dir.folderName}/</span>
-              <span class="dir-count">{dir.docs.length} document{dir.docs.length === 1 ? "" : "s"}</span>
-              <button type="button" class="clear-local" title="Remove folder" onclick={() => clearLocal(row)}>×</button>
+              <span class="dir-count"
+                >{dir.docs.length} document{dir.docs.length === 1 ? "" : "s"}</span
+              >
+              <button
+                type="button"
+                class="clear-local"
+                title="Remove folder"
+                onclick={() => clearLocal(row)}>×</button
+              >
             </div>
             {#if i === 0}
               <label class="entry-pick">
@@ -281,8 +299,8 @@
   {#if limited}
     <div class="limit-override" role="group" aria-label="Document size limit">
       <p class="limit-note">
-        This document was refused because it is very large or deeply nested. Loading it anyway may make
-        the page slow or unresponsive.
+        This document was refused because it is very large or deeply nested. Loading it anyway may
+        make the page slow or unresponsive.
       </p>
       <button type="button" class="load-anyway" onclick={loadAnyway}>Load anyway</button>
     </div>

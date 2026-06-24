@@ -19,4 +19,5 @@
   aria-pressed={theme === "dark" ? "true" : "false"}
   aria-label={`Switch to ${target} theme`}
   title={`Switch to ${target} theme`}
-  onclick={toggle}>{theme === "dark" ? "☾" : "☀"}</button>
+  onclick={toggle}>{theme === "dark" ? "☾" : "☀"}</button
+>

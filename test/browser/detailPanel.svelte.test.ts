@@ -63,7 +63,9 @@ test("shows selected node info, incoming refs, and wires navigation", async () =
 
   // The two incoming edges carry resolved + type-mismatch badges.
   await expect
-    .poll(() => [...document.querySelectorAll(".ref-item .ref-badge")].map((b) => b.textContent).sort())
+    .poll(() =>
+      [...document.querySelectorAll(".ref-item .ref-badge")].map((b) => b.textContent).sort(),
+    )
     .toEqual(["resolved", "type-mismatch"]);
 
   // Clicking a nav link navigates.

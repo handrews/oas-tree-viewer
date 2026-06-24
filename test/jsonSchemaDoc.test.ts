@@ -55,9 +55,9 @@ describe("JSON Schema document — detection", () => {
   });
 
   it("rejects a document that is neither OpenAPI nor JSON Schema", async () => {
-    await expect(detectDocument(makeInput("title: just data\ntype: object\n"))).rejects.toBeInstanceOf(
-      NotOpenApiError,
-    );
+    await expect(
+      detectDocument(makeInput("title: just data\ntype: object\n")),
+    ).rejects.toBeInstanceOf(NotOpenApiError);
   });
 });
 
@@ -77,7 +77,9 @@ describe("JSON Schema document — classification, validation, resolution", () =
 
   it("rejects a schema-invalid document with a SchemaValidationError", async () => {
     await expect(
-      makeDoc("$schema: https://json-schema.org/draft/2020-12/schema\ntype: 123\n", { isEntry: true }),
+      makeDoc("$schema: https://json-schema.org/draft/2020-12/schema\ntype: 123\n", {
+        isEntry: true,
+      }),
     ).rejects.toBeInstanceOf(SchemaValidationError);
   });
 });

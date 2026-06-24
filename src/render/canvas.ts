@@ -315,8 +315,7 @@ export class Canvas {
     // zero-width carrier that supplies the (fixed-size) arrowhead at the centerline.
     const OFFSET = 1.4;
     const drawLine = (cls: string, dy: number): void => {
-      this.arcsDouble!
-        .selectAll<SVGPathElement, EdgeGeo>(`path.${cls}`)
+      this.arcsDouble!.selectAll<SVGPathElement, EdgeGeo>(`path.${cls}`)
         .data(double, (d) => d.edge.id)
         .join("path")
         .attr("class", (d) => `${baseClass(d)} dbl-line ${cls}`)
@@ -403,7 +402,9 @@ export class Canvas {
       .data(data, (d) => d.key)
       .join("text")
       .attr("class", (d) =>
-        d.kind === "dialect" ? "warn-glyph status-dialect" : `warn-glyph status-${d.broken ? "broken" : "external"}`,
+        d.kind === "dialect"
+          ? "warn-glyph status-dialect"
+          : `warn-glyph status-${d.broken ? "broken" : "external"}`,
       )
       .attr("x", (d) => d.x + 12)
       .attr("y", (d) => d.y + 6)
@@ -417,13 +418,15 @@ export class Canvas {
           sel.append("tspan").text("⚠");
           return;
         }
-        sel.append("title").text(
-          d.count > 1
-            ? `${d.count} unresolved references on this row`
-            : d.broken
-              ? "Unresolved reference (target not found)"
-              : "Unresolved reference (external document not loaded)",
-        );
+        sel
+          .append("title")
+          .text(
+            d.count > 1
+              ? `${d.count} unresolved references on this row`
+              : d.broken
+                ? "Unresolved reference (target not found)"
+                : "Unresolved reference (external document not loaded)",
+          );
         sel.append("tspan").text("⚠");
         if (d.count > 1) {
           sel.append("tspan").attr("class", "warn-count").attr("dx", "1").text(String(d.count));
@@ -484,7 +487,10 @@ export class Canvas {
     this.svg
       .transition()
       .duration(400)
-      .call(this.zoomBehavior.transform, zoomIdentity.translate(sw / 2 - k * x, sh / 2 - k * y).scale(k));
+      .call(
+        this.zoomBehavior.transform,
+        zoomIdentity.translate(sw / 2 - k * x, sh / 2 - k * y).scale(k),
+      );
   }
 
   private onToolbar(e: MouseEvent): void {
@@ -504,7 +510,11 @@ export class Canvas {
     } else if (act === "showall") {
       // Same hazard when drawing every reference arc at once; gate turning it on, not off.
       const edges = this.resolved?.edges.length ?? 0;
-      if (!this.showAll && edges > MAX_RENDER_EDGES && !this.confirmHeavyRender(edges, "references")) {
+      if (
+        !this.showAll &&
+        edges > MAX_RENDER_EDGES &&
+        !this.confirmHeavyRender(edges, "references")
+      ) {
         return;
       }
       this.showAll = !this.showAll;

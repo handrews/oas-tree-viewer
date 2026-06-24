@@ -3,7 +3,8 @@ import { assembleOad } from "../src/oad";
 import { DuplicateOperationIdError, VersionMismatchError } from "../src/errors";
 import { makeDoc } from "./helpers";
 
-const doc = (version: string) => `openapi: ${version}\ninfo: { title: T, version: '1' }\npaths: {}\n`;
+const doc = (version: string) =>
+  `openapi: ${version}\ninfo: { title: T, version: '1' }\npaths: {}\n`;
 
 /** A 3.2 document whose Operations declare the given operationIds, one per generated path. */
 const opsDoc = (...operationIds: string[]) =>

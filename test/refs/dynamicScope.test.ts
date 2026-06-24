@@ -46,7 +46,10 @@ describe("analyzeDynamicScope — strict winners", () => {
   });
 
   it("reveals the base default once the entry uses the base directly", () => {
-    const direct = { ...shadowed, resourceEdges: [...shadowed.resourceEdges, { from: "ER", to: "B" }] };
+    const direct = {
+      ...shadowed,
+      resourceEdges: [...shadowed.resourceEdges, { from: "ER", to: "B" }],
+    };
     // Now ER reaches B without first hitting E, so B is outermost-eligible too.
     expect(winnerResources(direct, "B", "item")).toEqual(["B", "E"]);
   });

@@ -6,11 +6,14 @@ import type { DocInput } from "../../src/loader";
 import type { RenderOutcome, RenderOptions } from "../../src/ui/oadForm";
 
 type OnRender = ReturnType<typeof vi.fn<(inputs: DocInput[]) => Promise<RenderOutcome>>>;
-const okRender = (): OnRender => vi.fn<(inputs: DocInput[]) => Promise<RenderOutcome>>(async () => ({ ok: true }));
+const okRender = (): OnRender =>
+  vi.fn<(inputs: DocInput[]) => Promise<RenderOutcome>>(async () => ({ ok: true }));
 
 const rows = (): HTMLElement[] => [...document.querySelectorAll<HTMLElement>(".doc-row")];
-const roleTexts = (): (string | null)[] => [...document.querySelectorAll(".row-role")].map((r) => r.textContent);
-const fileNames = (): (string | null)[] => [...document.querySelectorAll(".file-name")].map((f) => f.textContent);
+const roleTexts = (): (string | null)[] =>
+  [...document.querySelectorAll(".row-role")].map((r) => r.textContent);
+const fileNames = (): (string | null)[] =>
+  [...document.querySelectorAll(".file-name")].map((f) => f.textContent);
 
 function fill(el: Element | null, value: string): void {
   const input = el as HTMLInputElement;
@@ -52,7 +55,8 @@ async function submit(): Promise<void> {
   await tick();
 }
 
-const url = (rowEl: HTMLElement): HTMLInputElement => rowEl.querySelector("input.url") as HTMLInputElement;
+const url = (rowEl: HTMLElement): HTMLInputElement =>
+  rowEl.querySelector("input.url") as HTMLInputElement;
 
 test("starts with a single entry row", () => {
   render(OadForm, { onRender: okRender() });
@@ -92,7 +96,13 @@ test("submits an uploaded file as an upload input, isEntry on the first row", as
   await submit();
   await vi.waitFor(() => expect(onRender).toHaveBeenCalledTimes(1));
   expect(onRender.mock.calls[0]![0]).toEqual([
-    { source: "upload", filename: "entry.yaml", text: "openapi: 3.1.0\n", retrievalUri: undefined, isEntry: true },
+    {
+      source: "upload",
+      filename: "entry.yaml",
+      text: "openapi: 3.1.0\n",
+      retrievalUri: undefined,
+      isEntry: true,
+    },
   ]);
 });
 
@@ -118,7 +128,9 @@ test("a URL with no local file becomes a fetched url input", async () => {
   await tick();
   await submit();
   await vi.waitFor(() => expect(onRender).toHaveBeenCalledTimes(1));
-  expect(onRender.mock.calls[0]![0]).toEqual([{ source: "url", url: "https://a/entry.yaml", isEntry: true }]);
+  expect(onRender.mock.calls[0]![0]).toEqual([
+    { source: "url", url: "https://a/entry.yaml", isEntry: true },
+  ]);
 });
 
 test("reports a per-row presence error for an empty row and does not call onRender", async () => {
@@ -142,7 +154,9 @@ test("loads a folder, defaults the entry by convention, and ignores non-OAS file
     fileWith("openapi.yaml", "oad/openapi.yaml"),
   ]);
   // Two OAS docs, the conventional one pre-selected as entry.
-  expect((rows()[0]!.querySelector(".dir-count") as HTMLElement).textContent).toMatch(/2 documents/);
+  expect((rows()[0]!.querySelector(".dir-count") as HTMLElement).textContent).toMatch(
+    /2 documents/,
+  );
   const select = rows()[0]!.querySelector(".entry-select") as HTMLSelectElement;
   expect(select.value).toBe("1");
   expect(select.options[Number(select.value)]!.textContent).toBe("oad/openapi.yaml");
@@ -150,14 +164,21 @@ test("loads a folder, defaults the entry by convention, and ignores non-OAS file
   await submit();
   await vi.waitFor(() => expect(onRender).toHaveBeenCalledTimes(1));
   const inputs = onRender.mock.calls[0]![0];
-  expect(inputs[0]).toMatchObject({ filename: "openapi.yaml", relativePath: "oad/openapi.yaml", isEntry: true });
+  expect(inputs[0]).toMatchObject({
+    filename: "openapi.yaml",
+    relativePath: "oad/openapi.yaml",
+    isEntry: true,
+  });
   expect(inputs[1]).toMatchObject({ relativePath: "oad/schemas/pet.yaml", isEntry: false });
 });
 
 test("the entry picker chooses which folder document is the entry", async () => {
   const onRender = okRender();
   render(OadForm, { onRender });
-  await setFolder(rows()[0]!, [fileWith("openapi.yaml", "oad/openapi.yaml"), fileWith("alt.yaml", "oad/alt.yaml")]);
+  await setFolder(rows()[0]!, [
+    fileWith("openapi.yaml", "oad/openapi.yaml"),
+    fileWith("alt.yaml", "oad/alt.yaml"),
+  ]);
   const select = rows()[0]!.querySelector(".entry-select") as HTMLSelectElement;
   // Switch the entry to alt.yaml.
   const altIndex = [...select.options].findIndex((o) => o.textContent === "oad/alt.yaml");
@@ -167,13 +188,19 @@ test("the entry picker chooses which folder document is the entry", async () => 
 
   await submit();
   await vi.waitFor(() => expect(onRender).toHaveBeenCalledTimes(1));
-  expect(onRender.mock.calls[0]![0][0]).toMatchObject({ relativePath: "oad/alt.yaml", isEntry: true });
+  expect(onRender.mock.calls[0]![0][0]).toMatchObject({
+    relativePath: "oad/alt.yaml",
+    isEntry: true,
+  });
 });
 
 test("maps the folder onto a supplied base URL", async () => {
   const onRender = okRender();
   render(OadForm, { onRender });
-  await setFolder(rows()[0]!, [fileWith("openapi.yaml", "myoad/openapi.yaml"), fileWith("pet.yaml", "myoad/schemas/pet.yaml")]);
+  await setFolder(rows()[0]!, [
+    fileWith("openapi.yaml", "myoad/openapi.yaml"),
+    fileWith("pet.yaml", "myoad/schemas/pet.yaml"),
+  ]);
   fill(url(rows()[0]!), "https://example.com/api/");
   await tick();
   await submit();
@@ -190,7 +217,10 @@ test("attributes a flattened-input error back to its owning row (bundle expands 
     rowErrors: { 2: "second doc bad" },
   }));
   render(OadForm, { onRender });
-  await setFolder(rows()[0]!, [fileWith("openapi.yaml", "oad/openapi.yaml"), fileWith("pet.yaml", "oad/schemas/pet.yaml")]);
+  await setFolder(rows()[0]!, [
+    fileWith("openapi.yaml", "oad/openapi.yaml"),
+    fileWith("pet.yaml", "oad/schemas/pet.yaml"),
+  ]);
   (document.querySelector(".add-row") as HTMLButtonElement).click();
   await tick();
   await setFile(rows()[1]!, "more.yaml");
@@ -221,7 +251,11 @@ test("displays an OAD-level error returned by onRender", async () => {
 test("offers 'Load anyway' on a limited failure and retries with the limits lifted", async () => {
   const onRender = vi
     .fn<(inputs: DocInput[], opts?: RenderOptions) => Promise<RenderOutcome>>()
-    .mockResolvedValueOnce({ ok: false, rowErrors: { 0: "Document is too large (~14 MB; limit is 8 MB)." }, limited: true })
+    .mockResolvedValueOnce({
+      ok: false,
+      rowErrors: { 0: "Document is too large (~14 MB; limit is 8 MB)." },
+      limited: true,
+    })
     .mockResolvedValueOnce({ ok: true });
   render(OadForm, { onRender });
   fill(url(rows()[0]!), "https://a/big.yaml");
@@ -239,7 +273,9 @@ test("offers 'Load anyway' on a limited failure and retries with the limits lift
   // Clicking it retries the same inputs with enforceLimits: false.
   btn.click();
   await vi.waitFor(() => expect(onRender).toHaveBeenCalledTimes(2));
-  expect(onRender.mock.calls[1]![0]).toEqual([{ source: "url", url: "https://a/big.yaml", isEntry: true }]);
+  expect(onRender.mock.calls[1]![0]).toEqual([
+    { source: "url", url: "https://a/big.yaml", isEntry: true },
+  ]);
   expect(onRender.mock.calls[1]![1]).toEqual({ enforceLimits: false });
   // On the successful retry the override clears.
   await vi.waitFor(() => expect(document.querySelector(".load-anyway")).toBeNull());

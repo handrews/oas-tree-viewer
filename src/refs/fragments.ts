@@ -111,7 +111,11 @@ function collectAnchors(
  * (`fragmentAmbiguous`); contested interior nodes have their subtrees blanked and are recorded in
  * `fragmentContested`.
  */
-function applyAnchors(frag: OadDocument, anchors: AnchorMap | undefined, version: VersionFamily): void {
+function applyAnchors(
+  frag: OadDocument,
+  anchors: AnchorMap | undefined,
+  version: VersionFamily,
+): void {
   if (!anchors || anchors.size === 0) return; // nothing types this fragment (stays generic)
 
   const contested = new Set<string>();
@@ -206,7 +210,9 @@ function withinRegion(nodeId: string, regions: string[]): boolean {
 
 /** Drop any id that lies within another id's subtree, leaving only the outermost region roots. */
 function outermost(ids: string[]): string[] {
-  return ids.filter((id) => !ids.some((other) => other !== id && (id === other || id.startsWith(`${other}/`))));
+  return ids.filter(
+    (id) => !ids.some((other) => other !== id && (id === other || id.startsWith(`${other}/`))),
+  );
 }
 
 /** A stable string for an anchor set, to detect the fixpoint reaching a fixed point. */

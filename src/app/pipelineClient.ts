@@ -53,7 +53,11 @@ export class PipelineClient {
 
   /** Run the pipeline off-thread. Resolves with the {@link PipelineResult}; rejects with
    *  {@link PipelineCancelled} if {@link cancel} is called before it finishes. */
-  run(inputs: DocInput[], config: ViewerConfig, opts: PipelineOptions = {}): Promise<PipelineResult> {
+  run(
+    inputs: DocInput[],
+    config: ViewerConfig,
+    opts: PipelineOptions = {},
+  ): Promise<PipelineResult> {
     const worker = this.ensureWorker();
     const id = this.nextId++;
     return new Promise<PipelineResult>((resolve, reject) => {

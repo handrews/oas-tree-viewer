@@ -27,7 +27,12 @@ const report: IssueReportData = {
     },
   ],
   docIssues: [
-    { severity: "warning", kind: "unreachable", doc: "extra.yaml", detail: "not reachable from the entry document" },
+    {
+      severity: "warning",
+      kind: "unreachable",
+      doc: "extra.yaml",
+      detail: "not reachable from the entry document",
+    },
   ],
   nodeAdvisories: [
     {

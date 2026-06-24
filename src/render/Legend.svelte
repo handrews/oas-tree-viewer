@@ -47,7 +47,9 @@
           <span class="legend-shape shape-{r.marker}">{markerGlyph(r.marker)}</span>
           <span class="ref-sample">
             <span class="legend-line line-{r.line}" class:line-dotted={r.dash === "dotted"}></span>
-            <span class="ref-arrow-sample" aria-hidden="true">{r.arrowhead === "open" ? "▷" : "▶"}</span>
+            <span class="ref-arrow-sample" aria-hidden="true"
+              >{r.arrowhead === "open" ? "▷" : "▶"}</span
+            >
           </span>
           {r.label}
         </li>
@@ -58,7 +60,8 @@
     <ul class="legend-list">
       {#each lineLegend as l (l.variant)}
         <li>
-          <span class="legend-line line-dashed" class:line-error={l.variant === "type-mismatch"}></span>
+          <span class="legend-line line-dashed" class:line-error={l.variant === "type-mismatch"}
+          ></span>
           {l.label}
         </li>
       {/each}
@@ -74,7 +77,9 @@
     <h3>Reference advisories</h3>
     <ul class="legend-list">
       {#each diagnosticLegend as a (a.severity)}
-        <li><span class="legend-advisory {a.colorClass}" aria-hidden="true">{a.glyph}</span>{a.label}</li>
+        <li>
+          <span class="legend-advisory {a.colorClass}" aria-hidden="true">{a.glyph}</span>{a.label}
+        </li>
       {/each}
     </ul>
 

@@ -39,7 +39,13 @@ export async function readDrop(dt: DataTransfer): Promise<DroppedLocal | null> {
 /** Read each file's text. For a directory drop, paths are kept folder-relative. */
 export async function readDropped(dropped: DroppedLocal): Promise<NamedFile[]> {
   if (dropped.kind === "file") {
-    return [{ filename: dropped.file.name, relativePath: dropped.file.name, text: await dropped.file.text() }];
+    return [
+      {
+        filename: dropped.file.name,
+        relativePath: dropped.file.name,
+        text: await dropped.file.text(),
+      },
+    ];
   }
   return Promise.all(
     dropped.files.map(async ({ relativePath, file }) => ({

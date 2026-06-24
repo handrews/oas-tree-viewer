@@ -18,7 +18,8 @@ const input = (yaml: string, name: string, isEntry = false) =>
 
 async function ok(inputs: ReturnType<typeof input>[]): Promise<{ oad: Oad; refs: ResolvedRefs }> {
   const result = await runPipeline(inputs, FRAGMENTS);
-  if (!result.ok) throw new Error(`pipeline failed: ${result.oadError ?? JSON.stringify(result.rowErrors)}`);
+  if (!result.ok)
+    throw new Error(`pipeline failed: ${result.oadError ?? JSON.stringify(result.rowErrors)}`);
   return { oad: result.oad, refs: result.refs };
 }
 
@@ -37,12 +38,21 @@ function nodeAt(root: TreeNode, pointer: string): TreeNode | undefined {
 
 describe("document fragments — detection", () => {
   it("rejects an unrecognized document when fragments are off, loads it as a fragment when on", async () => {
-    const frag = makeInput("get: { responses: { '200': { description: ok } } }\n", { isEntry: true });
+    const frag = makeInput("get: { responses: { '200': { description: ok } } }\n", {
+      isEntry: true,
+    });
     const off = await runPipeline([frag], defaultConfig);
     expect(off.ok).toBe(false);
 
-    const entry = input("openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths:\n  /p: { $ref: f.yaml }\n", "openapi.yaml", true);
-    const { oad } = await ok([entry, input("get: { responses: { '200': { description: ok } } }\n", "f.yaml")]);
+    const entry = input(
+      "openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths:\n  /p: { $ref: f.yaml }\n",
+      "openapi.yaml",
+      true,
+    );
+    const { oad } = await ok([
+      entry,
+      input("get: { responses: { '200': { description: ok } } }\n", "f.yaml"),
+    ]);
     expect(oad.documents.some((d) => d.kind === "fragment")).toBe(true);
   });
 });
@@ -124,8 +134,15 @@ get:
 
 describe("document fragments — untyped", () => {
   it("renders a non-entry unreferenced fragment as generic (no inferred type)", async () => {
-    const entry = input("openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths: {}\n", "openapi.yaml", true);
-    const { oad, refs } = await ok([entry, input("get: { responses: { '200': { description: ok } } }\n", "lonely.yaml")]);
+    const entry = input(
+      "openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths: {}\n",
+      "openapi.yaml",
+      true,
+    );
+    const { oad, refs } = await ok([
+      entry,
+      input("get: { responses: { '200': { description: ok } } }\n", "lonely.yaml"),
+    ]);
     const frag = fragOf(oad, "lonely.yaml");
     expect(frag.root.oasType).toBeUndefined();
     expect(frag.fragmentAmbiguous).toBeFalsy();
@@ -202,7 +219,10 @@ Error:
 `;
 
   it("types only the referenced interior nodes, leaving the root generic", async () => {
-    const { oad, refs } = await ok([input(ENTRY, "openapi.yaml", true), input(LIB, "schema-lib.yaml")]);
+    const { oad, refs } = await ok([
+      input(ENTRY, "openapi.yaml", true),
+      input(LIB, "schema-lib.yaml"),
+    ]);
     const lib = fragOf(oad, "schema-lib.yaml");
 
     expect(lib.root.oasType).toBeUndefined(); // root untyped (a generic map of schemas)
@@ -214,15 +234,20 @@ Error:
     const incoming = refs.edges.filter((e) => e.targetDocId === lib.id);
     expect(incoming.length).toBeGreaterThanOrEqual(2);
     expect(incoming.every((e) => e.status === "resolved")).toBe(true);
-    const internal = refs.edges.find((e) => e.sourceDocId === lib.id && e.targetNodeId === "/Error");
+    const internal = refs.edges.find(
+      (e) => e.sourceDocId === lib.id && e.targetNodeId === "/Error",
+    );
     expect(internal?.status).toBe("resolved");
   });
 
   it("is a load error under root mode (no reference to its root)", async () => {
-    const result = await runPipeline([input(ENTRY, "openapi.yaml", true), input(LIB, "schema-lib.yaml")], {
-      ...defaultConfig,
-      fragments: "root",
-    });
+    const result = await runPipeline(
+      [input(ENTRY, "openapi.yaml", true), input(LIB, "schema-lib.yaml")],
+      {
+        ...defaultConfig,
+        fragments: "root",
+      },
+    );
     expect(result.ok).toBe(false);
     expect(result.ok ? "" : result.oadError).toMatch(/no reference to its root/i);
   });
@@ -317,7 +342,10 @@ properties:
 `;
 
   it("types a bare-Schema fragment as a Schema Object fragment, not a JSON Schema document", async () => {
-    const { oad } = await ok([input(ENTRY, "openapi.yaml", true), input(SCHEMA, "pet-schema.yaml")]);
+    const { oad } = await ok([
+      input(ENTRY, "openapi.yaml", true),
+      input(SCHEMA, "pet-schema.yaml"),
+    ]);
     const frag = fragOf(oad, "pet-schema.yaml");
     expect(oad.versionFamily).toBe("3.0");
     expect(frag.kind).toBe("fragment"); // detected as a fragment, not a standalone JSON Schema document

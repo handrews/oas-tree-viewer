@@ -48,10 +48,16 @@ describe("docVersionLabel", () => {
     const frag = (
       root: { oasType?: string },
       extra: { fragmentAmbiguous?: boolean; fragmentInteriorTyped?: boolean } = {},
-    ): OadDocument => ({ kind: "fragment", root, ...extra } as unknown as OadDocument);
-    expect(docVersionLabel(frag({ oasType: "Path Item Object" }))).toBe("Fragment · Path Item Object");
-    expect(docVersionLabel(frag({}, { fragmentAmbiguous: true }))).toBe("Fragment · ambiguous root");
-    expect(docVersionLabel(frag({}, { fragmentInteriorTyped: true }))).toBe("Fragment · partially typed");
+    ): OadDocument => ({ kind: "fragment", root, ...extra }) as unknown as OadDocument;
+    expect(docVersionLabel(frag({ oasType: "Path Item Object" }))).toBe(
+      "Fragment · Path Item Object",
+    );
+    expect(docVersionLabel(frag({}, { fragmentAmbiguous: true }))).toBe(
+      "Fragment · ambiguous root",
+    );
+    expect(docVersionLabel(frag({}, { fragmentInteriorTyped: true }))).toBe(
+      "Fragment · partially typed",
+    );
     expect(docVersionLabel(frag({}))).toBe("Fragment · type undetermined");
   });
 });

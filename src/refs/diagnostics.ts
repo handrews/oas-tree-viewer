@@ -160,10 +160,7 @@ function componentReach(
 // ── per-edge advisories ────────────────────────────────────────────────────────
 
 /** Path Item `$ref` whose sibling field collides with a field in the referenced Path Item. */
-function pathItemOverlap(
-  e: ReferenceEdge,
-  pointerIndex: Map<string, Map<string, TreeNode>>,
-): void {
+function pathItemOverlap(e: ReferenceEdge, pointerIndex: Map<string, Map<string, TreeNode>>): void {
   if (e.kind !== "$ref" || e.context !== "pathItem" || e.status !== "resolved") return;
   if (e.targetDocId == null || e.targetNodeId == null) return;
   const src = pointerIndex.get(e.sourceDocId)?.get(e.sourceObjectId);

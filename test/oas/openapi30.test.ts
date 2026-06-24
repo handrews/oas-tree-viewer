@@ -69,7 +69,9 @@ describe("OAS 3.0 — detection, family, classification, validation", () => {
   it("rejects mixing a 3.0 document with a 3.1 document", async () => {
     await expect(
       loadOad(
-        makeInput("openapi: 3.0.4\ninfo: { title: A, version: '1' }\npaths: {}\n", { isEntry: true }),
+        makeInput("openapi: 3.0.4\ninfo: { title: A, version: '1' }\npaths: {}\n", {
+          isEntry: true,
+        }),
         makeInput("openapi: 3.1.0\ninfo: { title: B, version: '1' }\npaths: {}\n", {}),
       ),
     ).rejects.toThrow(/mixes OAS versions/i);
