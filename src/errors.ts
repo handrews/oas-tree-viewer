@@ -39,6 +39,17 @@ export class SchemaValidationError extends OadError {
   }
 }
 
+/** The document exceeds a resource guard — too many source bytes, too deeply nested, or too many
+ *  nodes — and was refused before the pipeline could consume excessive time or memory on it. `kind`
+ *  lets the UI recognize a limit failure and offer a "Load anyway" override. */
+export class ResourceLimitError extends OadError {
+  readonly kind: "bytes" | "depth" | "nodes";
+  constructor(kind: ResourceLimitError["kind"], message: string) {
+    super(message);
+    this.kind = kind;
+  }
+}
+
 // ── OAD-level errors ───────────────────────────────────────────────────────
 
 /** Documents mix OAS 3.1 and 3.2, which is unsupported for now. */

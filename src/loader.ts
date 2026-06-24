@@ -8,12 +8,14 @@ import type { DocKind, OadDocument, TreeNode, VersionFamily } from "./types";
 import {
   InvalidDocumentError,
   NotOpenApiError,
+  ResourceLimitError,
   RetrievalError,
   SchemaValidationError,
   UnsupportedVersionError,
   VersionMismatchError,
   errorMessage,
 } from "./errors";
+import { defaultLimits, formatBytes, type Limits } from "./limits";
 import { parseDocument } from "./parse/detectFormat";
 import { buildTree } from "./model/treeBuilder";
 import { classifyDocument } from "./oas/classify";
@@ -107,19 +109,28 @@ export function determineVersionFamily(
   return { family: family ?? "3.1", determined: families.size === 1 };
 }
 
-/** Phase 1: acquire, parse, build the tree, and detect the document kind. */
-export async function detectDocument(input: DocInput, fragmentsEnabled = false): Promise<DetectedDoc> {
+/**
+ * Phase 1: acquire, parse, build the tree, and detect the document kind. `limits` caps the source
+ * size, tree depth, and node count, refusing an oversized/over-deep document before parse and build
+ * spend resources on it (the "Load anyway" override passes lifted limits).
+ */
+export async function detectDocument(
+  input: DocInput,
+  fragmentsEnabled = false,
+  limits: Limits = defaultLimits,
+): Promise<DetectedDoc> {
   let text: string;
   let filename: string | undefined;
   let retrievalUri: string | undefined;
 
   if (input.source === "url") {
-    text = await fetchText(input.url);
+    text = await fetchText(input.url, limits);
     retrievalUri = input.retrievalUri?.trim() || input.url;
     filename = filenameFromUrl(input.url);
   } else {
     text = input.text;
     filename = input.filename;
+    assertWithinByteCap(text.length, limits);
     // With no provided retrieval URL, fall back to a file:// URL built from the file's
     // path. A directory upload gives a relative path (e.g. `oad/schemas/pet.yaml`) so
     // subdirectory-relative references resolve; a single-file upload only exposes the
@@ -129,7 +140,7 @@ export async function detectDocument(input: DocInput, fragmentsEnabled = false):
 
   const { value, format } = parseDocument(text, filename);
   const detected = detectKind(value, fragmentsEnabled);
-  const root = buildTree(value);
+  const root = buildTree(value, limits);
 
   return {
     kind: detected.kind,
@@ -304,7 +315,7 @@ function detectKind(
   );
 }
 
-async function fetchText(url: string): Promise<string> {
+async function fetchText(url: string, limits: Limits): Promise<string> {
   let res: Response;
   try {
     res = await fetch(url, { redirect: "follow" });
@@ -316,7 +327,22 @@ async function fetchText(url: string): Promise<string> {
   if (!res.ok) {
     throw new RetrievalError(`Could not fetch ${url}: HTTP ${res.status} ${res.statusText}.`);
   }
-  return res.text();
+  // Reject on the advertised size before materializing the body, when the server provides it.
+  const advertised = Number(res.headers.get("content-length"));
+  if (Number.isFinite(advertised) && advertised > 0) assertWithinByteCap(advertised, limits);
+  const text = await res.text();
+  assertWithinByteCap(text.length, limits);
+  return text;
+}
+
+/** Refuse a document whose source exceeds the byte cap (UTF-16 code units ≈ bytes for JSON/YAML). */
+function assertWithinByteCap(size: number, limits: Limits): void {
+  if (size > limits.maxBytes) {
+    throw new ResourceLimitError(
+      "bytes",
+      `Document is too large (~${formatBytes(size)}; limit is ${formatBytes(limits.maxBytes)}).`,
+    );
+  }
 }
 
 function filenameFromUrl(url: string): string | undefined {
