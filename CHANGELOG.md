@@ -5,6 +5,21 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-06-23
+
+### Added
+
+- **Keyboard navigation and screen-reader support for the document trees.** Each tree is now a
+  WAI-ARIA Tree View — `tree` / `treeitem` roles with level, expanded, and selected state and an
+  accessible name per node. Arrow keys move between nodes (Up/Down) and expand or collapse them
+  (Right/Left), Home/End jump to the first/last visible node, and Enter or Space selects the focused
+  node (opening it in the detail panel). A visible focus ring, distinct from the selection highlight,
+  follows keyboard focus, and the canvas scrolls the focused node into view.
+- **Guards against oversized or deeply-nested documents.** A document too large (by byte size or node
+  count) or too deeply nested is refused up front with a clear, located message instead of freezing the
+  page, with a **Load anyway** override that retries with the limits lifted. Separately, **Expand all**
+  and **Show all references** confirm before rendering a very large number of rows or arcs at once.
+
 ## [0.5.0] — 2026-06-23
 
 ### Added
@@ -192,6 +207,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[0.6.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.3.1...v0.4.0
