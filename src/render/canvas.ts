@@ -80,14 +80,13 @@ export class Canvas {
       toolbar.appendChild(another);
     }
 
+    // A group of keyboard-navigable trees (one per document), not a single opaque image — so do NOT
+    // use role="img" (which would hide the trees from assistive tech).
     this.svg = select(container)
       .append("svg")
       .attr("class", "tree-canvas")
-      .attr("role", "img")
-      .attr(
-        "aria-label",
-        "Document structure trees — an interactive visual; use the toolbar above and the detail panel to inspect nodes",
-      )
+      .attr("role", "group")
+      .attr("aria-label", "OpenAPI Description document trees")
       .attr("width", "100%")
       .attr("height", "100%");
 
@@ -157,14 +156,16 @@ export class Canvas {
             this.drawWarnings();
             this.drawAdvisories();
           },
+          onFocusNode: (nodeId) => this.recenterNode(doc.id, nodeId),
         },
         unreachableDocIds.has(doc.id),
       );
       this.views.push(view);
     }
 
-    // Edge overlay sits above the document groups.
-    const edgeLayer = this.viewport.append("g").attr("class", "edges");
+    // Edge overlay sits above the document groups. Arcs duplicate (visually) the reference info already
+    // in the accessible detail panel, so the whole layer is hidden from assistive tech.
+    const edgeLayer = this.viewport.append("g").attr("class", "edges").attr("aria-hidden", "true");
     this.warnG = edgeLayer.append("g").attr("class", "warnings");
     // Advisory glyphs (resolved-but-problematic references) sit beside the unresolved ⚠ glyphs.
     this.advisoryG = edgeLayer.append("g").attr("class", "advisories");
@@ -193,6 +194,12 @@ export class Canvas {
     view.revealPath(nodeId);
     view.selectById(nodeId);
     const anchor = view.anchorViewport(nodeId);
+    if (anchor) this.recenter(anchor.x, anchor.y);
+  }
+
+  /** Scroll a keyboard-focused node into view without changing selection (no reveal — it's visible). */
+  private recenterNode(docId: string, nodeId: string): void {
+    const anchor = this.viewForDoc(docId)?.anchorViewport(nodeId);
     if (anchor) this.recenter(anchor.x, anchor.y);
   }
 

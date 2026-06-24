@@ -36,6 +36,8 @@ const TRI_OPEN = "M-4,-2 L4,-2 L0,4 Z"; //   ▼
 export interface DocumentViewCallbacks {
   onSelect: (doc: OadDocument, node: TreeNode) => void;
   onLayoutChanged: () => void;
+  /** Keyboard focus moved to this node — the canvas scrolls it into view under the current zoom/pan. */
+  onFocusNode: (nodeId: string) => void;
 }
 
 export class DocumentView {
@@ -49,6 +51,10 @@ export class DocumentView {
   private readonly cb: DocumentViewCallbacks;
   private rowSel: Selection<SVGGElement, RowDatum, SVGGElement, unknown> | null = null;
   private selectedId: string | null = null;
+  /** The currently-focused (roving-tabindex) row's node id — distinct from selection. */
+  private activeId: string | null = null;
+  /** The flat list of currently-visible rows, in keyboard (visual top-to-bottom) order. */
+  private visibleRows: RowDatum[] = [];
   /** Current horizontal offset of this document's group within the viewport. */
   private offsetX = 0;
   /** Every node by id (incl. collapsed), for anchor/reveal lookups. */
@@ -78,6 +84,7 @@ export class DocumentView {
     this.rootHier = hierarchy<TreeNode>(doc.root) as CNode;
     this.collapseDeep(this.rootHier, 0);
     walk(this.rootHier, (n) => this.nodeIndex.set(n.data.id, n));
+    this.activeId = this.rootHier.data.id; // the root is the tree's initial tab stop
     this.render();
   }
 
@@ -185,6 +192,7 @@ export class DocumentView {
   clearSelection(): void {
     this.selectedId = null;
     this.rowSel?.classed("selected", false);
+    this.rowSel?.attr("aria-selected", "false");
   }
 
   // ── internals ────────────────────────────────────────────────────────────
@@ -215,7 +223,75 @@ export class DocumentView {
   private select(node: TreeNode): void {
     this.selectedId = node.id;
     this.rowSel?.classed("selected", (d) => d.node.data.id === this.selectedId);
+    this.rowSel?.attr("aria-selected", (d) => String(d.node.data.id === this.selectedId));
     this.cb.onSelect(this.doc, node);
+  }
+
+  /** Make `id` the roving tab stop. With `focus`, move DOM focus there and scroll it into view. */
+  private setActive(id: string, focus: boolean): void {
+    this.activeId = id;
+    if (!this.rowSel) return;
+    this.rowSel.attr("tabindex", (d) => (d.node.data.id === id ? 0 : -1));
+    if (focus) {
+      this.rowSel
+        .filter((d) => d.node.data.id === id)
+        .node()
+        ?.focus();
+      this.cb.onFocusNode(id);
+    }
+  }
+
+  /** Focus the visible row at index `i` (no-op if out of range). */
+  private focusRowAt(i: number): void {
+    const row = this.visibleRows[i];
+    if (row) this.setActive(row.node.data.id, true);
+  }
+
+  /** WAI-ARIA Tree View keyboard model, handled on the focused treeitem. */
+  private onKeydown(event: KeyboardEvent, d: RowDatum): void {
+    const node = d.node;
+    const i = this.visibleRows.findIndex((r) => r.node.data.id === node.data.id);
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        this.focusRowAt(i + 1);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        this.focusRowAt(i - 1);
+        break;
+      case "ArrowRight":
+        event.preventDefault();
+        if (node._children) {
+          this.toggle(node); // expand, keeping focus here (a second Right then enters the first child)
+          this.setActive(node.data.id, true);
+        } else if (node.children?.length) {
+          this.setActive(node.children[0]!.data.id, true); // already expanded → move to first child
+        }
+        break;
+      case "ArrowLeft":
+        event.preventDefault();
+        if (node.children) {
+          this.toggle(node); // collapse, keeping focus here
+          this.setActive(node.data.id, true);
+        } else if (node.parent) {
+          this.setActive((node.parent as CNode).data.id, true); // leaf/collapsed → move to parent
+        }
+        break;
+      case "Home":
+        event.preventDefault();
+        this.focusRowAt(0);
+        break;
+      case "End":
+        event.preventDefault();
+        this.focusRowAt(this.visibleRows.length - 1);
+        break;
+      case "Enter":
+      case " ":
+        event.preventDefault();
+        this.select(node.data); // selection is explicit (Enter/Space), distinct from focus
+        break;
+    }
   }
 
   private render(): void {
@@ -228,6 +304,14 @@ export class DocumentView {
       node.children?.forEach((child) => visit(child, depth + 1));
     };
     visit(this.rootHier, 0);
+
+    // Keyboard order is the visible top-to-bottom list. Keep exactly one roving tab stop: the active
+    // node if it is still visible, else the root row.
+    this.visibleRows = rows;
+    const visibleIds = new Set(rows.map((r) => r.node.data.id));
+    const tabbableId =
+      this.activeId && visibleIds.has(this.activeId) ? this.activeId : (rows[0]?.node.data.id ?? null);
+    this.activeId = tabbableId;
 
     const colWidth = Math.max(MIN_COL_W, maxDepth * INDENT + LABEL_BUDGET);
 
@@ -243,13 +327,34 @@ export class DocumentView {
 
     this.treeG.selectAll("*").remove();
 
-    const rowSel = this.treeG
+    // The rows group is the accessible tree; each row a treeitem. Its name carries the document
+    // identity (the visual header is aria-hidden), and the shared keyboard hint describes the controls.
+    const entryFlag = this.doc.isEntry
+      ? " (entry document)"
+      : this.unreachable
+        ? " (unreachable)"
+        : "";
+    const treeRoot = this.treeG
       .append("g")
       .attr("class", "rows")
+      .attr("role", "tree")
+      .attr("aria-label", `${headerTitle(this.doc)} · ${docVersionLabel(this.doc)}${entryFlag}`)
+      .attr("aria-describedby", "tree-help");
+
+    const rowSel = treeRoot
       .selectAll<SVGGElement, RowDatum>("g.row")
       .data(rows)
       .join("g")
       .attr("class", "row")
+      .attr("role", "treeitem")
+      .attr("aria-level", (d) => d.depth + 1)
+      .attr("aria-setsize", (d) => siblingCount(d.node))
+      .attr("aria-posinset", (d) => siblingIndex(d.node))
+      .attr("aria-selected", (d) => String(d.node.data.id === this.selectedId))
+      // Expandable rows announce their state; leaves omit aria-expanded entirely.
+      .attr("aria-expanded", (d) => (hasChildren(d.node) ? String(Boolean(d.node.children)) : null))
+      .attr("aria-label", (d) => ariaName(d.node))
+      .attr("tabindex", (d) => (d.node.data.id === tabbableId ? 0 : -1))
       .classed("selected", (d) => d.node.data.id === this.selectedId)
       .attr("transform", (_d, i) => `translate(0, ${i * ROW_H})`)
       .on("click", (event: MouseEvent, d) => {
@@ -259,6 +364,10 @@ export class DocumentView {
       .on("dblclick", (event: MouseEvent, d) => {
         event.stopPropagation();
         this.toggle(d.node);
+      })
+      .on("keydown", (event: KeyboardEvent, d) => this.onKeydown(event, d))
+      .on("focus", (_event: FocusEvent, d) => {
+        this.activeId = d.node.data.id; // keep the roving tab stop in sync with DOM focus (e.g. Tab-in)
       });
 
     // Full-width transparent hit/hover background per row.
@@ -381,9 +490,11 @@ export class DocumentView {
     const showBase = base !== undefined && base !== this.doc.retrievalUri;
     if (showBase) this.headerH = HEADER_H + 14;
 
+    // The header is decorative for AT — its identity is folded into the tree's accessible name.
     const h = this.group
       .append("g")
-      .attr("class", this.unreachable ? "doc-header unreachable" : "doc-header");
+      .attr("class", this.unreachable ? "doc-header unreachable" : "doc-header")
+      .attr("aria-hidden", "true");
     h.append("rect")
       .attr("class", "doc-header-bg")
       .attr("x", 0)
@@ -426,6 +537,27 @@ function walk(node: CNode, fn: (n: CNode) => void): void {
 
 function hasChildren(node: CNode): boolean {
   return Boolean(node.children?.length || node._children?.length);
+}
+
+/** Visible-sibling count / 1-based position, for aria-setsize/aria-posinset on the flat (DOM) tree. */
+function siblingCount(node: CNode): number {
+  const siblings = (node.parent as CNode | null)?.children;
+  return siblings ? siblings.length : 1;
+}
+function siblingIndex(node: CNode): number {
+  const siblings = (node.parent as CNode | null)?.children;
+  return siblings ? siblings.indexOf(node) + 1 : 1;
+}
+
+/** A treeitem's accessible name: key, then its type/target/value, then any hidden-child count — read
+ *  more naturally than the visual label (e.g. "references …"/"is …" instead of the "→"/":" glyphs). */
+function ariaName(node: CNode): string {
+  const data = node.data;
+  const secondary = secondaryLabel(data)
+    .replace(/^→\s*/, "references ")
+    .replace(/^:\s*/, "is ");
+  const hidden = node._children?.length;
+  return [primaryLabel(data), secondary, hidden ? `${hidden} hidden` : ""].filter(Boolean).join(", ");
 }
 
 function headerTitle(doc: OadDocument): string {

@@ -39,4 +39,10 @@
   }
 </script>
 
+<!-- Keyboard help for the trees inside the canvas, referenced by each tree's aria-describedby. It sits
+     outside #canvas-wrap because the Canvas class clears that container's contents on render. -->
+<p id="tree-help" class="sr-only">
+  Use the up and down arrow keys to move between nodes; right and left arrows expand and collapse a node;
+  Enter or Space selects the focused node.
+</p>
 <div bind:this={wrap} id="canvas-wrap" aria-label="Document trees"></div>
