@@ -16,9 +16,13 @@ export interface Demo {
   config?: Partial<ViewerConfig>;
 }
 
-/** Root-absolute same-origin fixture URL, so it resolves the same under any in-app route. */
-function fixtureUrl(name: string): string {
-  return `/fixtures/${name}`;
+/**
+ * Same-origin fixture URL under the deploy base (Vite `import.meta.env.BASE_URL`), so it resolves the
+ * same under any in-app route AND under a sub-path deploy (e.g. "/projects/oas/fixtures/…"). A bare
+ * root-absolute "/fixtures/…" would escape the sub-path and 404 (then hit the SPA fallback).
+ */
+export function fixtureUrl(name: string): string {
+  return `${import.meta.env.BASE_URL}fixtures/${name}`;
 }
 
 function urlDoc(name: string, isEntry = false, retrievalUri?: string): DocInput {
