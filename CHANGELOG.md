@@ -5,6 +5,26 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-06-24
+
+### Added
+
+- **Top and Bottom toolbar buttons** that jump to either end of a tall tree, alongside the existing
+  Fit / Expand all / Collapse all / Show all references controls.
+
+### Changed
+
+- **Large documents now render without freezing the page.** The tree is windowed to the viewport —
+  only the rows currently in view are mounted, while the rest are tracked analytically — so even very
+  large, heavily-referenced descriptions stay responsive to pan, zoom, expand, and collapse. As a
+  result the earlier document-size and node-count limits are lifted (only a nesting-depth guard
+  remains), and **Expand all** no longer prompts. **Show all references** still confirms before
+  drawing a very large number of arcs at once, and now notes that at that scale the arcs may render
+  imperfectly.
+- **Configure page:** the document-type selector, the document list, and the resolution options are
+  grouped in a single framed panel, and the document-type selector now carries a visible **Document
+  types** label.
+
 ## [0.7.0] — 2026-06-24
 
 ### Changed
@@ -215,6 +235,8 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[0.8.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.4.0...v0.4.1
