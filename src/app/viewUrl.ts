@@ -56,6 +56,24 @@ export function canonicalRedirect(pathname: string): string | null {
 }
 
 /**
+ * Deploy base-path helpers. The app may be mounted under a sub-path (Vite `base`, e.g. "/projects/oas/"),
+ * so the live location carries that prefix while the routes above stay root-relative. The router passes
+ * `base` (no trailing slash, "" at a domain root); these strip it before parsing and prepend it when
+ * navigating, keeping the codec itself base-agnostic.
+ */
+export function stripBase(base: string, pathname: string): string {
+  if (base && (pathname === base || pathname.startsWith(base + "/"))) {
+    return pathname.slice(base.length) || "/";
+  }
+  return pathname;
+}
+
+/** Prepend the deploy base prefix to a root-relative in-app path. */
+export function withBase(base: string, path: string): string {
+  return base + path;
+}
+
+/**
  * Build the `path[?query]` for a view request + config (the configure page navigates to
  * this). The entry document is encoded first; only non-default config is appended.
  */

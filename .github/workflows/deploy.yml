@@ -1,6 +1,6 @@
 name: Deploy
 
-# Tag-gated production deploy of oas.henryandrews.net, built directly from this repo. The app bakes its
+# Tag-gated production deploy of henryandrews.net/projects/oas, built directly from this repo. The app bakes its
 # package.json version into the header (and links it to that release's changelog), so the live site should
 # correspond to a tagged release — not every push to main. Cloudflare Workers Builds triggers on branches,
 # not tags, so the deploy runs here on a version tag instead.
@@ -27,9 +27,9 @@ jobs:
     name: Build & deploy to Cloudflare
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version-file: ".node-version"
           cache: npm

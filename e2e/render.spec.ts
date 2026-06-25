@@ -159,7 +159,9 @@ test.describe("demos, online URLs & bookmarking", () => {
     await expect(page.locator(".oad-form")).toBeVisible();
   });
 
-  test("a nested unrecognized path loads (not blank) and normalizes to /configure", async ({ page }) => {
+  test("a nested unrecognized path loads (not blank) and normalizes to /configure", async ({
+    page,
+  }) => {
     await page.goto("/configure/foo");
     await expect(page).toHaveURL(/\/configure$/);
     await expect(page.locator(".oad-form")).toBeVisible();
