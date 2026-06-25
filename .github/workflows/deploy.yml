@@ -13,6 +13,8 @@ name: Deploy
 on:
   push:
     tags: ["v*.*.*"]
+  # Manual re-deploy of the current main (e.g. to retry a failed deploy) without minting a new tag.
+  workflow_dispatch:
 
 # Never run two deploys at once; let an in-flight deploy finish rather than cancelling it.
 concurrency:
@@ -47,4 +49,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # The action otherwise installs its bundled Wrangler 3.x, which predates Worker-with-assets-
+          # binding support and fails this config with "Missing entry-point". Wrangler 4 deploys it.
+          wranglerVersion: "4"
           command: deploy
