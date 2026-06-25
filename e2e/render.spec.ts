@@ -153,6 +153,20 @@ test.describe("demos, online URLs & bookmarking", () => {
     await expect(page.locator(".oad-form")).toBeVisible();
   });
 
+  test("an unrecognized path normalizes to /configure (address bar + form)", async ({ page }) => {
+    await page.goto("/foo");
+    await expect(page).toHaveURL(/\/configure$/);
+    await expect(page.locator(".oad-form")).toBeVisible();
+  });
+
+  test("a nested unrecognized path loads (not blank) and normalizes to /configure", async ({
+    page,
+  }) => {
+    await page.goto("/configure/foo");
+    await expect(page).toHaveURL(/\/configure$/);
+    await expect(page.locator(".oad-form")).toBeVisible();
+  });
+
   test("a demo loads, is bookmarkable, and Back returns to configure", async ({ page }) => {
     await page.goto("/configure");
     await page.getByRole("button", { name: "Broken & external references (3.1)" }).click();

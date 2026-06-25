@@ -1,0 +1,10 @@
+openapi: 3.2.0
+$self: https://example.com/oad/mediatypes
+info:
+  title: Shared Media Types
+  version: 1.0.0
+components:
+  mediaTypes:
+    JSONOrder:
+      schema:
+        $ref: './schemas#/components/schemas/Order'

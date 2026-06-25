@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { demos, demoById, demoInputs } from "../../src/app/demos";
+import { describe, it, expect, vi } from "vitest";
+import { demos, demoById, demoInputs, fixtureUrl } from "../../src/app/demos";
 
 describe("demos", () => {
   it("every demo has a unique id, a label, a description, and an entry document", () => {
@@ -22,6 +22,16 @@ describe("demos", () => {
         expect(input.source === "url" && input.url.startsWith("/fixtures/")).toBe(true);
       }
     }
+  });
+
+  it("fixtureUrl prefixes with the deploy base, so a sub-path deploy resolves it (not just the root)", () => {
+    // Default base (Vite "/"): unchanged behavior.
+    expect(fixtureUrl("refs-3.1.yaml")).toBe("/fixtures/refs-3.1.yaml");
+    // Under a sub-path deploy, the fixture must live under that base — a bare "/fixtures/…" would 404
+    // and fall through to the SPA shell ("Document root is not a JSON/YAML object").
+    vi.stubEnv("BASE_URL", "/projects/oas/");
+    expect(fixtureUrl("refs-3.1.yaml")).toBe("/projects/oas/fixtures/refs-3.1.yaml");
+    vi.unstubAllEnvs();
   });
 
   it("demoById / demoInputs resolve known ids and reject unknown ones", () => {

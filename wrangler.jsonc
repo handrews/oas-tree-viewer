@@ -1,0 +1,26 @@
+// Cloudflare config for the https://henryandrews.net/projects/oas deployment, built directly from this repo.
+//
+// A Worker (worker/index.js) with a static-assets binding (`ASSETS`) over the Vite build in ./dist. The
+// build nests its output under dist/projects/oas/ so the file layout matches the route
+// (henryandrews.net/projects/oas/*): Cloudflare serves the assets directly, and the Worker runs only for
+// unmatched paths — the History-API deep links — where it returns the SPA shell. (A plain assets-only
+// Worker with `not_found_handling: "single-page-application"` can't do this: that fallback assumes the app
+// is served from a domain root, not a sub-path.)
+//
+// The deploy is run from CI (see .github/workflows/deploy.yml) on a version tag:
+//
+//   npx wrangler deploy            (CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID from the environment)
+//
+// `name` stays "oas-tree-viewer" (the existing Worker). The route must be configured on the henryandrews.net
+// zone so /projects/oas/* hits this Worker ahead of the main henry-web Worker's catch-all route — that zone
+// lives in the henry-web owner's Cloudflare account, so coordinate the route + API token with them.
+{
+  "name": "oas-tree-viewer",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+  },
+  "routes": [{ "pattern": "henryandrews.net/projects/oas/*", "zone_name": "henryandrews.net" }],
+}

@@ -1,0 +1,50 @@
+name: Deploy
+
+# Tag-gated production deploy of henryandrews.net/projects/oas, built directly from this repo. The app bakes its
+# package.json version into the header (and links it to that release's changelog), so the live site should
+# correspond to a tagged release — not every push to main. Cloudflare Workers Builds triggers on branches,
+# not tags, so the deploy runs here on a version tag instead.
+#
+# The full test suite already runs on the PR to main (ci.yml), and tags are cut from main, so this workflow
+# guards on the build (svelte-check + vite build) only — a type error or broken build fails the deploy.
+#
+# Requires repo secrets CLOUDFLARE_API_TOKEN (scope: Workers Scripts: Edit) and CLOUDFLARE_ACCOUNT_ID for
+# the account that owns the oas-tree-viewer Worker + the henryandrews.net zone.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+# Never run two deploys at once; let an in-flight deploy finish rather than cancelling it.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & deploy to Cloudflare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ".node-version"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Explicit build (not relying on the `prepare` script, which is being retired) so dist/ is produced
+      # from this tagged commit; svelte-check fails the deploy on a type error.
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

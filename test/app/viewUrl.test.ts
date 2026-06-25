@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { parseRoute, viewPath, type ViewRequest } from "../../src/app/viewUrl";
+import {
+  canonicalRedirect,
+  parseRoute,
+  stripBase,
+  viewPath,
+  withBase,
+  type ViewRequest,
+} from "../../src/app/viewUrl";
 import { defaultConfig, type ViewerConfig } from "../../src/app/config";
 
 /** Split a `viewPath` result back into (pathname, search) the way the router would. */
@@ -118,5 +125,46 @@ describe("viewUrl", () => {
       parsePath(path) as { request: { kind: "urls"; docs: { url: string; isEntry: boolean }[] } }
     ).request.docs;
     expect(docs[0]).toEqual({ url: "https://a/main.yaml", isEntry: true });
+  });
+
+  it("canonicalRedirect normalizes unrecognized and nested paths to /configure", () => {
+    // Already-canonical paths: no redirect.
+    expect(canonicalRedirect("/configure")).toBeNull();
+    expect(canonicalRedirect("/view")).toBeNull();
+    expect(canonicalRedirect("/view/")).toBeNull();
+    // Everything the app renders as configure but whose URL isn't /configure → rewrite.
+    expect(canonicalRedirect("/")).toBe("/configure");
+    expect(canonicalRedirect("/foo")).toBe("/configure");
+    expect(canonicalRedirect("/configure/")).toBe("/configure");
+    expect(canonicalRedirect("/configure/foo")).toBe("/configure");
+    expect(canonicalRedirect("/view/foo")).toBe("/configure"); // not a real /view path
+  });
+});
+
+describe("base path helpers (stripBase / withBase)", () => {
+  it("is a no-op at a domain root (base is the empty string)", () => {
+    expect(stripBase("", "/view")).toBe("/view");
+    expect(stripBase("", "/configure")).toBe("/configure");
+    expect(withBase("", "/view?demo=x")).toBe("/view?demo=x");
+  });
+
+  it("strips a sub-path base, yielding a root-relative path", () => {
+    const base = "/projects/oas";
+    expect(stripBase(base, "/projects/oas/view")).toBe("/view");
+    expect(stripBase(base, "/projects/oas/configure")).toBe("/configure");
+    expect(stripBase(base, "/projects/oas")).toBe("/"); // the mount root, no trailing slash
+    expect(stripBase(base, "/projects/oas/")).toBe("/"); // the mount root, trailing slash
+  });
+
+  it("leaves a path outside the base untouched (defensive; the route guarantees the prefix)", () => {
+    expect(stripBase("/projects/oas", "/projects/oasis")).toBe("/projects/oasis");
+    expect(stripBase("/projects/oas", "/other")).toBe("/other");
+  });
+
+  it("prepends a sub-path base to a root-relative path, and round-trips with stripBase", () => {
+    const base = "/projects/oas";
+    expect(withBase(base, "/configure")).toBe("/projects/oas/configure");
+    expect(withBase(base, "/view?demo=x")).toBe("/projects/oas/view?demo=x");
+    expect(stripBase(base, withBase(base, "/view"))).toBe("/view");
   });
 });
