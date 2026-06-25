@@ -231,7 +231,7 @@ Deploy config lives in [`wrangler.jsonc`](wrangler.jsonc) + [`worker/index.js`](
   `/fixtures/…` escapes the sub-path, 404s, and falls through to the SPA shell.
 - **Two routes** are configured: `henryandrews.net/projects/oas/*` (the app + assets) and the exact
   `henryandrews.net/projects/oas` (the bare path, which `/*` does not match — Cloudflare's asset layer
-  307-redirects it to the slashed form). Both must out-specify the main `henry-web` Worker's catch-all
+  307-redirects it to the slashed form). Both must out-specify the main `henryandrews.net` Worker's catch-all
   (`henryandrews.net/*`); the more specific route wins.
 - **Deep links** (`/projects/oas/view?…`) are served by `worker/index.js`, which returns the app shell
   for any path with no matching asset, so reloading a History-API route works.
