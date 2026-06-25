@@ -386,13 +386,35 @@ body {
   line-height: 1.45;
 }
 
-/* ── Load behavior + resolution options (configure page) ──────────────── */
+/* ── Document-type / resolution group (configure page) ────────────────── */
 
-/* Load behavior sits above the documents it governs, full-width like the form card. */
-.load-behavior {
-  width: 100%;
-  box-sizing: border-box;
+/* Frames the document-type selector, the document list, and the resolution options as one region,
+   set off from the page header above and the examples below. */
+.config-group {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+/* The document-type selector: a label to the left of the select, sitting above the documents it
+   governs. The field row carries the spacing; the select flexes to fill the remaining width. */
+.load-behavior-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin-bottom: 0.6rem;
+}
+.load-behavior-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.load-behavior {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;

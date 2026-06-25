@@ -70,52 +70,55 @@
 </script>
 
 <section id="input-panel" aria-label="OAD input">
-  <div class="doc-region">
-    <!-- Load behavior chosen above the documents it governs; no visible label (kept terse), so the
-         select carries its own accessible name. -->
-    <select
-      class="load-behavior"
-      aria-label="Document loading behavior"
-      bind:value={config.fragments}
-    >
-      <option value="none">Complete OpenAPI or JSON Schema documents only</option>
-      <option value="root">Allow fragmentary OpenAPI documents if their root is referenced</option>
-      <option value="any">Allow any fragmentary OpenAPI document</option>
-    </select>
-    <OadForm {onRender} />
-  </div>
+  <div class="config-group">
+    <div class="doc-region">
+      <!-- Document-type selector, labeled to its left, above the documents it governs. The visible
+           "Document types" text is the select's accessible name (so no aria-label). -->
+      <label class="load-behavior-field">
+        <span class="load-behavior-label">Document types</span>
+        <select class="load-behavior" bind:value={config.fragments}>
+          <option value="none">Complete OpenAPI or JSON Schema documents only</option>
+          <option value="root"
+            >Allow fragmentary OpenAPI documents if their root is referenced</option
+          >
+          <option value="any">Allow any fragmentary OpenAPI document</option>
+        </select>
+      </label>
+      <OadForm {onRender} />
+    </div>
 
-  <div class="resolution-box">
-    <details class="resolution-options">
-      <summary>Resolution options</summary>
-      <div class="option-body">
-        <label class="option">
-          <span class="option-label">Discriminator <code>mapping</code> values resolve as</span>
-          <select class="option-select" bind:value={config.mappingPrecedence}>
-            <option value="name-first">a component name first (default)</option>
-            <option value="uri-first">a URI-reference first</option>
-          </select>
-        </label>
-        <label class="option">
-          <span class="option-label">Look up component names in</span>
-          <select class="option-select" bind:value={config.componentLookup}>
-            <option value="entry">the entry document (default)</option>
-            <option value="local">the local document</option>
-          </select>
-        </label>
-      </div>
-    </details>
-    <!-- Sits inside the options box and on its header line (shown whether the box is open or closed),
+    <div class="resolution-box">
+      <details class="resolution-options">
+        <summary>Resolution options</summary>
+        <div class="option-body">
+          <label class="option">
+            <span class="option-label">Discriminator <code>mapping</code> values resolve as</span>
+            <select class="option-select" bind:value={config.mappingPrecedence}>
+              <option value="name-first">a component name first (default)</option>
+              <option value="uri-first">a URI-reference first</option>
+            </select>
+          </label>
+          <label class="option">
+            <span class="option-label">Look up component names in</span>
+            <select class="option-select" bind:value={config.componentLookup}>
+              <option value="entry">the entry document (default)</option>
+              <option value="local">the local document</option>
+            </select>
+          </label>
+        </div>
+      </details>
+      <!-- Sits inside the options box and on its header line (shown whether the box is open or closed),
          but is a sibling of <details> rather than nested in <summary> — nesting interactive controls is
          a serious a11y violation. Submits the OadForm by its id. While a render is running it is
          disabled and a Cancel button (aborting the worker) sits beside it. -->
-    <div class="render-actions">
-      <button type="submit" form="oad-form" class="render" disabled={busy}>
-        {busy ? "Loading…" : "Render OAD"}
-      </button>
-      {#if busy}
-        <button type="button" class="render-cancel" onclick={cancelRender}>Cancel</button>
-      {/if}
+      <div class="render-actions">
+        <button type="submit" form="oad-form" class="render" disabled={busy}>
+          {busy ? "Loading…" : "Render OAD"}
+        </button>
+        {#if busy}
+          <button type="button" class="render-cancel" onclick={cancelRender}>Cancel</button>
+        {/if}
+      </div>
     </div>
   </div>
 
