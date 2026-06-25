@@ -14,7 +14,9 @@ _Produced by Henry Andrews using Claude Code._
   optional retrieval URL), **URL fetch**, **Load folder** (a whole directory at once,
   preserving each file's relative path), or a **built-in demo** — and an **Explore** page
   renders it. The Explore view is captured in a **bookmarkable, shareable URL** (the demo or
-  online-document URLs, plus the resolution options below).
+  online-document URLs, plus the resolution options below). Loading (parse, classify, validate,
+  and resolve) runs in a **background worker**, so the page stays responsive and a slow load can
+  be **cancelled** mid-flight.
 - Loads an OAD made of **one or more documents**: the **first document is the entry
   document** (use **Make entry** to promote another), any others are additional (referenced)
   documents.
@@ -59,7 +61,10 @@ _Produced by Henry Andrews using Claude Code._
   panel (JSON Pointer, OAS type, value, reference target, base URI). The trees are
   **keyboard-navigable and screen-reader-accessible** (a WAI-ARIA tree): arrow keys move
   between nodes and expand/collapse them, Home/End jump to the first/last, and Enter or Space
-  selects the focused node.
+  selects the focused node. A canvas toolbar offers **Fit**, **Top** / **Bottom** (jump to the
+  top or bottom of a tall tree), **Expand all** / **Collapse all**, and **Show all references**.
+  The tree is **windowed to the viewport** — only the rows currently in view are mounted — so
+  even a very large document stays responsive to pan, zoom, and expand.
 
 ### References
 
@@ -122,10 +127,13 @@ problems:
 - **Invalid Link** — a Link Object sets both `operationRef` and `operationId` (shown on its row).
 - **Duplicate `operationId`** — two Operations share an `operationId` anywhere in the OAD
   (shown above the form).
-- **Too large / too deeply nested** — a document past the size, node-count, or nesting limits is
-  refused up front rather than hanging the page, with a **Load anyway** override that retries with the
-  limits lifted (shown on its row). A very large tree also confirms before **Expand all** / **Show all
-  references** renders everything at once.
+- **Too deeply nested** — a document whose nesting exceeds the depth limit is refused up front, rather
+  than risking a stack-overflow crash downstream, with a **Load anyway** override that retries with the
+  limit lifted (shown on its row). Document size and node count are **no longer capped** — large
+  single-file descriptions (GitHub-/Stripe-scale) load directly, because loading runs off the main
+  thread and the tree mounts only the rows near the viewport. **Show all references** still confirms
+  before drawing a very large number of arcs at once, and warns that at that scale the near-vertical
+  arcs may render imperfectly (misangled arrowheads, or flicker while panning).
 
 The entry document is always the first one, so there are no "missing/duplicate entry" errors.
 
