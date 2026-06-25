@@ -5,6 +5,12 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] — 2026-06-25
+
+### Changed
+
+- Deploy directly from the repository.
+
 ## [0.8.0] — 2026-06-24
 
 ### Added
@@ -235,6 +241,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[0.8.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.5.0...v0.6.0
