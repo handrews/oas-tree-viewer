@@ -1,6 +1,6 @@
 {
   "name": "oas-tree-viewer",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Visualize the parent/child structure of OpenAPI Description (OAD) documents as node-link trees.",
   "type": "module",
   "files": [
