@@ -11,10 +11,21 @@ test("ConfigurePage shows the source form and one button per demo", async () => 
   expect(document.querySelector(".oad-form")).not.toBeNull();
   // The render action now lives inside the resolution-options box, outside the form (it submits the
   // form by id), and a load-behavior selector sits above the documents.
-  expect(document.querySelector(".load-behavior")).not.toBeNull();
+  const loadBehavior = document.querySelector(".load-behavior");
+  expect(loadBehavior).not.toBeNull();
   const renderBtn = document.querySelector(".resolution-box .render") as HTMLButtonElement | null;
   expect(renderBtn).not.toBeNull();
   expect(renderBtn!.getAttribute("form")).toBe("oad-form");
+
+  // The document list and the resolution options are framed together in one group box, and the
+  // load-behavior select carries a visible left-hand "Document types" label as its accessible name.
+  const group = document.querySelector(".config-group");
+  expect(group).not.toBeNull();
+  expect(group!.querySelector(".oad-form")).not.toBeNull();
+  expect(group!.querySelector(".resolution-box")).not.toBeNull();
+  expect(loadBehavior!.closest("label")?.querySelector(".load-behavior-label")?.textContent).toBe(
+    "Document types",
+  );
 
   const buttons = [...document.querySelectorAll(".demo-open")];
   expect(buttons).toHaveLength(demos.length);
