@@ -11,9 +11,12 @@
 //
 //   npx wrangler deploy            (CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID from the environment)
 //
-// `name` stays "oas-tree-viewer" (the existing Worker). The route must be configured on the henryandrews.net
-// zone so /projects/oas/* hits this Worker ahead of the main henry-web Worker's catch-all route — that zone
-// lives in the henry-web owner's Cloudflare account, so coordinate the route + API token with them.
+// `name` stays "oas-tree-viewer" (the existing Worker). The routes must be configured on the
+// henryandrews.net zone so /projects/oas (and everything under it) hits this Worker ahead of the main
+// henry-web Worker's catch-all route — that zone lives in the henry-web owner's Cloudflare account, so
+// coordinate the routes + API token with them. TWO patterns are needed: "/projects/oas/*" covers the app
+// and its assets, and the bare "/projects/oas" covers the no-trailing-slash entry (which "/*" does NOT
+// match) so it reaches this Worker, whose asset layer 307-redirects it to the canonical "/projects/oas/".
 {
   "name": "oas-tree-viewer",
   "main": "worker/index.js",
@@ -22,5 +25,8 @@
     "directory": "./dist",
     "binding": "ASSETS",
   },
-  "routes": [{ "pattern": "henryandrews.net/projects/oas/*", "zone_name": "henryandrews.net" }],
+  "routes": [
+    { "pattern": "henryandrews.net/projects/oas", "zone_name": "henryandrews.net" },
+    { "pattern": "henryandrews.net/projects/oas/*", "zone_name": "henryandrews.net" },
+  ],
 }
