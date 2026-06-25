@@ -118,9 +118,9 @@ and interaction stay bounded as a document grows.
 
 ## Preparing a release
 
-Releases are cut from `main` after the change has been merged. This repository is published as a
-git-installable package, and a build of it can be vendored into the repository of a web site that hosts it.
-Therefore both the **git tag** and a **correct `package-lock.json`** matter.
+Releases are cut from `main` after the change has been merged, and **pushing the version tag deploys the
+live site** (step 7). The running app bakes in its `package.json` version, and the deploy builds from the
+lockfile, so both the **git tag** and a **correct `package-lock.json`** matter.
 
 Prerequisites: **Node.js 24** and npm (the versions CI uses).
 
@@ -199,21 +199,40 @@ annotated tags, and every release tag to date is annotated — keep it that way.
 git push origin main --follow-tags
 ```
 
-`--follow-tags` is required: the `henry-web` deploy installs this repo **by tag**, and
-`npm install 'github:handrews/oas-tree-viewer#vX.Y.Z'` only resolves once the tag is on GitHub.
-(Quote the argument — an unquoted `#…` can be eaten by the shell.)
+`--follow-tags` pushes the annotated tag alongside `main`. Pushing the tag is what **triggers the
+production deploy** (step 7), so the tag has to reach GitHub for the site to update.
 
-### 7. Deploy to a site
+### 7. The deploy (automatic, on the tag)
 
-The live site is updated from a private repository, which vendors a prebuilt copy of the viewer. Two things to watch out for:
+Pushing the `vX.Y.Z` tag triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which
+runs `npm ci` → `npm run build` → `wrangler deploy` to publish the **`oas-tree-viewer`** Cloudflare
+Worker, live at **<https://henryandrews.net/projects/oas>**. Nothing is vendored or copied by hand.
 
-- Re-vendor with the **explicit tag** — a plain `npm install` reports "up to date" and keeps the old
-  build, because the lockfile pins a commit SHA:
-  ```bash
-  # in henry-web/tools
-  npm install 'github:handrews/oas-tree-viewer#vX.Y.Z' && npm run build
-  ```
-- `wrangler.oas-viewer.jsonc` must keep the SPA fallback — `not_found_handling:
-  "single-page-application"` (underscores) **inside** the `assets` block — or History-API routes
-  (`/configure`, `/view`) 404 on reload.
+Confirm it: watch the **Deploy** run under the repo's Actions tab, then load
+`https://henryandrews.net/projects/oas/` — and `https://henryandrews.net/projects/oas` (no trailing
+slash), which should 307-redirect to the slashed form. To re-run a deploy **without** cutting a new
+version (e.g. to retry a failed run), use **Actions → Deploy → Run workflow** — a `workflow_dispatch`
+that deploys the current `main`.
+
+**Required repo secrets** (Settings → Secrets and variables → Actions), for the Cloudflare account that
+owns the Worker and the `henryandrews.net` zone:
+
+- `CLOUDFLARE_API_TOKEN` — scopes **Workers Scripts: Edit** (account) + **Workers Routes: Edit** (zone).
+- `CLOUDFLARE_ACCOUNT_ID`.
+
+Deploy config lives in [`wrangler.jsonc`](wrangler.jsonc) + [`worker/index.js`](worker/index.js). Gotchas:
+
+- **Wrangler 4 is required.** `cloudflare/wrangler-action@v3` installs a 3.x Wrangler by default, which
+  predates Worker-with-assets-binding support and fails with _"Missing entry-point"_; `deploy.yml` pins
+  `wranglerVersion: "4"`.
+- **The app is served from a sub-path** (`/projects/oas/`), not a domain root — so `vite.config.ts` sets
+  `base: "/projects/oas/"` and nests the build under `dist/projects/oas/`, and any same-origin URL the
+  app builds (e.g. demo fixtures in `demos.ts`) must be prefixed with `import.meta.env.BASE_URL`. A bare
+  `/fixtures/…` escapes the sub-path, 404s, and falls through to the SPA shell.
+- **Two routes** are configured: `henryandrews.net/projects/oas/*` (the app + assets) and the exact
+  `henryandrews.net/projects/oas` (the bare path, which `/*` does not match — Cloudflare's asset layer
+  307-redirects it to the slashed form). Both must out-specify the main `henry-web` Worker's catch-all
+  (`henryandrews.net/*`); the more specific route wins.
+- **Deep links** (`/projects/oas/view?…`) are served by `worker/index.js`, which returns the app shell
+  for any path with no matching asset, so reloading a History-API route works.
 
