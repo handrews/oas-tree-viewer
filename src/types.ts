@@ -20,6 +20,22 @@ export interface ResolutionAdvisory {
   detail: string;
 }
 
+/** A 1-based position in a document's source text. */
+export interface SourcePos {
+  line: number;
+  col: number;
+}
+
+/**
+ * The source-text span of a node — from the start of its value to the end. Lets a diagnostic or a
+ * selected node show its line number alongside its JSON Pointer, and (being a full range, not just a
+ * start line) leaves room for a future "highlight the source" view.
+ */
+export interface SourceRange {
+  start: SourcePos;
+  end: SourcePos;
+}
+
 /** The JSON value categories a node can hold. */
 export type ValueKind = "object" | "array" | "string" | "number" | "boolean" | "null";
 
