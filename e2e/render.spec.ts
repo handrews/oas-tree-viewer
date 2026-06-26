@@ -420,6 +420,9 @@ test.describe("dialect resolution warnings", () => {
     // Selecting that $schema row shows the resolution note; the structure still rendered.
     await page.locator("svg.tree-canvas g.row", { hasText: "draft-03/schema" }).first().click();
     await expect(page.locator("#detail-panel .node-detail")).toContainText("isn't fully supported");
+
+    // The same caveat now also appears in the issue report (unified diagnostics), not just as a glyph.
+    await expect(page.locator("#issues")).toContainText("Reference-resolution advisories");
   });
 });
 
