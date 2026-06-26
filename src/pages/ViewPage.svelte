@@ -190,4 +190,7 @@
   {/if}
 </section>
 
-<IssueReport report={issueReport} />
+<IssueReport
+  report={issueReport}
+  onJump={(docId, nodeId) => treeCanvas?.navigateTo(docId, nodeId)}
+/>

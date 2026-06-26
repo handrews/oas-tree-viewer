@@ -69,3 +69,11 @@ test("Copy report writes the formatted text to the clipboard", async () => {
   await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
   expect(writeText.mock.calls[0]![0]).toContain("Unresolved references (1):");
 });
+
+test("a located row reveals its node via onJump when clicked", async () => {
+  const onJump = vi.fn();
+  render(IssueReport, { report, onJump });
+  // The first located row is the broken reference at doc "a", pointer "/paths/p".
+  (document.querySelector(".issue-loc.nav-ref") as HTMLButtonElement).click();
+  expect(onJump).toHaveBeenCalledWith("a", "/paths/p");
+});

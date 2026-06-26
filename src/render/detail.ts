@@ -2,7 +2,7 @@
 // the reference edges that touch a node. Kept out of the .svelte component so the logic
 // is unit-testable (the component is presentation, verified in-browser).
 
-import type { OadDocument } from "../types";
+import type { OadDocument, SourceRange, TreeNode } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
 import { dialectLabel } from "../oas/dialects";
@@ -21,6 +21,11 @@ export function docName(doc: OadDocument): string {
 /** Base URI shown for a document ($self takes precedence over the retrieval URI). */
 export function baseUri(doc: OadDocument): string | undefined {
   return doc.selfUri ?? doc.retrievalUri;
+}
+
+/** The source range of a node within its document, if the position pass located it. */
+export function nodeRange(doc: OadDocument, node: TreeNode): SourceRange | undefined {
+  return doc.positions?.get(node.id);
 }
 
 /**

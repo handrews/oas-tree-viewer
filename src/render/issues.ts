@@ -77,6 +77,11 @@ export interface IssueItemView {
   doc: string;
   /** Display JSON Pointer, or "" for a document-level finding (no pointer shown). */
   pointer: string;
+  /** Raw docId + node pointer (TreeNode.id form) for jumping into the tree. */
+  docId: string;
+  nodeId: string;
+  /** 1-based source line, when the diagnostic's location carried a range. */
+  line?: number;
   /** Reference field label (e.g. "operationRef"), present for reference findings. */
   fieldLabel?: string;
   refString?: string;
@@ -112,51 +117,49 @@ function itemFor(
   docLabels: Record<string, string>,
   idx: number,
 ): IssueItemView {
-  const doc = docLabels[d.location.docId] ?? d.location.docId;
-  const key = `${d.location.docId}:${d.location.pointer}:${d.code}:${idx}`;
+  const common = {
+    key: `${d.location.docId}:${d.location.pointer}:${d.code}:${idx}`,
+    doc: docLabels[d.location.docId] ?? d.location.docId,
+    docId: d.location.docId,
+    nodeId: d.location.pointer,
+    line: d.location.range?.start.line,
+    message: d.message,
+  };
   switch (section) {
     case "unresolved": {
       const status = STATUS_LABEL[d.code]!; // ref-broken / -type-mismatch / -external
       return {
-        key,
+        ...common,
         badge: status,
         badgeClass: `status-${status}`,
-        doc,
         pointer: displayPointer(d.location.pointer),
         fieldLabel: refLabel(d.ref?.kind),
         refString: d.ref?.refString,
-        message: d.message,
       };
     }
     case "advisories":
       return {
-        key,
+        ...common,
         badge: d.severity,
         badgeClass: `severity-${d.severity}`,
-        doc,
         pointer: displayPointer(d.location.pointer),
         fieldLabel: refLabel(d.ref?.kind),
         refString: d.ref?.refString,
-        message: d.message,
       };
     case "caveats":
       return {
-        key,
+        ...common,
         badge: d.severity,
         badgeClass: `severity-${d.severity}`,
-        doc,
         pointer: displayPointer(d.location.pointer),
-        message: d.message,
       };
     case "unreachable":
     case "unvalidated":
       return {
-        key,
+        ...common,
         badge: section === "unreachable" ? "unreachable" : "unvalidated",
         badgeClass: "status-unreachable",
-        doc,
         pointer: "",
-        message: d.message,
       };
   }
 }
@@ -200,7 +203,8 @@ export function formatIssueReport(report: IssueReport): string {
         lines.push(`  ${item.doc} — ${item.message}`);
         continue;
       }
-      lines.push(`  [${item.badge}] ${item.doc} ${item.pointer}`);
+      const at = item.line ? ` (line ${item.line})` : "";
+      lines.push(`  [${item.badge}] ${item.doc} ${item.pointer}${at}`);
       if (item.fieldLabel !== undefined && item.refString !== undefined) {
         lines.push(`      ${item.fieldLabel}: ${item.refString}`);
       }
