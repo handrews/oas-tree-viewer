@@ -10,7 +10,7 @@ import { ADVISORY_CODES as REF_ADVISORY_CODES, refKey } from "../refs/types";
 import type { Diagnostic, DiagnosticCode } from "../diagnostics/types";
 import { emittedSeverity, severityFor } from "../diagnostics/catalog";
 import { indexByPointer } from "../diagnostics/runner";
-import { resolutionStyles } from "./colors";
+import { arrowheadMarkerId, connectionClasses, isDoubleLine } from "../connections/style";
 import { MAX_RENDER_EDGES } from "../limits";
 import { DocumentView } from "./treeView";
 
@@ -35,11 +35,26 @@ const MAX_SCALE = 3;
 // Mount this fraction of the visible band as extra rows above and below it, so a fast pan or zoom doesn't
 // outrun the window before the next frame repaints (the band is hundreds of rows when zoomed out).
 const WINDOW_MARGIN = 0.6;
-// Reference arcs leave the source past its label (where ⚠ markers sit) and enter the
-// target from the left, with the arrowhead sitting clear to the left of the target's
-// disclosure triangle (which starts ~16px left of the node marker) rather than on top.
-const EDGE_SOURCE_GAP = 10;
+// Reference arcs enter the target from the left, with the arrowhead sitting clear to the left of the
+// target's disclosure triangle (which starts ~16px left of the node marker) rather than on top.
 const EDGE_TARGET_GAP = 20;
+
+// Right-gutter layout. Everything that sits past a row's label — the reference arc's source, the
+// unresolved/caveat ⚠, and the resolved-advisory ▲ — anchors at the same point (the label's right end,
+// `labelEndViewport`) and is placed by a fixed x offset from it. The offsets live together because the
+// one constraint that matters is that they not collide: the arc leaves at `edgeSourceX`, the ⚠ sits just
+// past it, and the ▲ further right so it clears the ⚠. (A future change could replace these hand-tuned
+// values with measured packing — see the deferred gutter-layout work.)
+const GUTTER = {
+  /** Where a reference edge leaves its source row. */
+  edgeSourceX: 10,
+  /** Unresolved-reference / resolution-caveat ⚠ glyph. */
+  warnX: 12,
+  warnY: 6,
+  /** Resolved-but-problematic advisory ▲ glyph (further right, clear of the ⚠). */
+  advisoryX: 30,
+  advisoryY: 5,
+} as const;
 
 export interface CanvasCallbacks {
   onSelect: (doc: OadDocument, node: TreeNode) => void;
@@ -354,30 +369,27 @@ export class Canvas {
     const set = this.showAll ? this.resolved.edges : focus;
     const geos = this.edgeGeometries(set, focusIds);
 
-    const baseClass = (d: EdgeGeo): string => {
-      const diag = arcDiagSeverity(d.edge);
-      return (
-        `ref-edge status-${d.edge.status}` +
-        (diag ? ` diag-${diag}` : "") +
-        // A tentative connection (a dynamic $dynamicRef) is drawn dotted.
-        (resolutionStyles[d.edge.resolution].dash === "dotted" ? " dotted" : "") +
-        (d.s.collapsed || d.t.collapsed ? " collapsed" : "") +
-        (d.focused ? " focused" : "")
-      );
-    };
+    // The connection style catalog (src/connections) selects the base look (line/dash/arrowhead/marker);
+    // the modifier axes — resolve status, advisory severity, collapsed/off-screen endpoint, focus — are
+    // render state layered on here. One pure helper builds the class list so the canvas and the legend
+    // can't drift.
+    const baseClass = (d: EdgeGeo): string =>
+      connectionClasses(d.edge.resolution, {
+        status: d.edge.status,
+        advisory: arcDiagSeverity(d.edge),
+        collapsed: d.s.collapsed || d.t.collapsed,
+        focused: d.focused,
+      }).join(" ");
     const d3path = (d: EdgeGeo): string => arcPath(d.s, d.t);
-    const markerEnd = (d: EdgeGeo): string =>
-      resolutionStyles[d.edge.resolution].arrowhead === "open"
-        ? "url(#ref-arrow-open)"
-        : "url(#ref-arrow)";
+    const markerEnd = (d: EdgeGeo): string => `url(#${arrowheadMarkerId(d.edge.resolution)})`;
     const onClick = (event: MouseEvent, d: EdgeGeo): void => {
       event.stopPropagation();
       if (d.edge.targetDocId != null && d.edge.targetNodeId != null) {
         this.navigateTo(d.edge.targetDocId, d.edge.targetNodeId);
       }
     };
-    const single = geos.filter((d) => resolutionStyles[d.edge.resolution].line === "single");
-    const double = geos.filter((d) => resolutionStyles[d.edge.resolution].line === "double");
+    const double = geos.filter((d) => isDoubleLine(d.edge.resolution));
+    const single = geos.filter((d) => !isDoubleLine(d.edge.resolution));
 
     // Single-line references: one stroke + the arrowhead.
     this.arcs
@@ -426,7 +438,7 @@ export class Canvas {
       const t = tv.anchorViewport(edge.targetNodeId);
       if (!sEnd || !sDot || !t) continue;
       // Source leaves from the right edge of its label; target enters at its left edge.
-      const s: Anchor = { x: sEnd.x + EDGE_SOURCE_GAP, y: sDot.y, collapsed: sDot.collapsed };
+      const s: Anchor = { x: sEnd.x + GUTTER.edgeSourceX, y: sDot.y, collapsed: sDot.collapsed };
       const target: Anchor = { x: t.x - EDGE_TARGET_GAP, y: t.y, collapsed: t.collapsed };
       out.push({ edge, s, t: target, focused: focusIds.has(edge.id) });
     }
@@ -485,8 +497,8 @@ export class Canvas {
           ? "warn-glyph status-dialect"
           : `warn-glyph status-${d.broken ? "broken" : "external"}`,
       )
-      .attr("x", (d) => d.x + 12)
-      .attr("y", (d) => d.y + 6)
+      .attr("x", (d) => d.x + GUTTER.warnX)
+      .attr("y", (d) => d.y + GUTTER.warnY)
       .attr("text-anchor", "start")
       .each(function (this: SVGTextElement, d) {
         const sel = select(this);
@@ -544,9 +556,8 @@ export class Canvas {
       .data(data, (d) => d.key)
       .join("text")
       .attr("class", (d) => `advisory-glyph severity-${d.error ? "error" : "warning"}`)
-      // Sit a little further right than the unresolved ⚠ (at +12), so the two don't collide.
-      .attr("x", (d) => d.x + 30)
-      .attr("y", (d) => d.y + 5)
+      .attr("x", (d) => d.x + GUTTER.advisoryX)
+      .attr("y", (d) => d.y + GUTTER.advisoryY)
       .attr("text-anchor", "start")
       .each(function (this: SVGTextElement, d) {
         const sel = select(this);
