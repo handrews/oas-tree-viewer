@@ -3,12 +3,14 @@
   // reactive props; the Canvas class owns all SVG rendering, zoom/pan and edge drawing.
   import type { Oad, OadDocument, TreeNode } from "../types";
   import type { ResolvedRefs } from "../refs/types";
+  import type { Diagnostic } from "../diagnostics/types";
   import { errorMessage } from "../errors";
   import { Canvas } from "./canvas";
 
   let {
     oad,
     refs,
+    diagnostics = [],
     unreachableDocIds = new Set<string>(),
     onselect,
     onbackground,
@@ -17,6 +19,8 @@
   }: {
     oad: Oad;
     refs: ResolvedRefs | null;
+    /** Unified non-blocking findings; the right-gutter warning/advisory glyphs derive from these. */
+    diagnostics?: Diagnostic[];
     unreachableDocIds?: ReadonlySet<string>;
     onselect: (doc: OadDocument, node: TreeNode) => void;
     onbackground: () => void;
@@ -42,6 +46,7 @@
         });
       canvas.render(oad, unreachableDocIds);
       if (refs) canvas.setReferences(refs);
+      canvas.setDiagnostics(diagnostics);
     } catch (e) {
       onRenderError?.(errorMessage(e));
     }

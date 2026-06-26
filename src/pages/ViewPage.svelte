@@ -147,6 +147,7 @@
     <TreeCanvas
       {oad}
       {refs}
+      diagnostics={issueReport?.diagnostics ?? []}
       {unreachableDocIds}
       onselect={(doc, node) => (selected = { doc, node })}
       onbackground={() => (selected = null)}
