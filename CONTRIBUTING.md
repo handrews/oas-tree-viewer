@@ -9,7 +9,7 @@ organized, and how to **prepare a release**.
 npm test         # run the suite once (Vitest)
 npm run test:watch
 npm run coverage # run with v8 coverage; writes coverage/ (HTML + lcov) and fails below threshold
-npm run bench    # render benchmark over large synthetic trees; a normal `npm test` collects it but skips it
+npm run bench    # render + pipeline benchmarks over large synthetic docs; a normal `npm test` collects them but skips them
 ```
 
 Specs live in [`test/`](test) mirroring `src/`, built on a `test/helpers.ts` that runs the
@@ -21,10 +21,12 @@ assembler — and a **browser** project (`vitest-browser-svelte`) for the Svelte
 excluded from the coverage denominator (they need real browser layout), but the browser
 project still drives the canvas directly to assert its **scalability invariant** — that a
 large tree mounts only a bounded number of rows — alongside the browser/preview workflow and
-the Playwright end-to-end suite (`npm run e2e`, which also runs axe accessibility checks). The
-`bench` harness (`test/browser/treeCanvas.bench.svelte.test.ts`) is gated behind `VITE_BENCH`
-so it stays out of the gating run; it reports wall-clock render/expand timings, which are
-machine-dependent and informational. Coverage is gated by thresholds in `vitest.config.ts`.
+the Playwright end-to-end suite (`npm run e2e`, which also runs axe accessibility checks). Two
+`bench` harnesses are gated behind `VITE_BENCH` so they stay out of the gating run, both reporting
+wall-clock timings that are machine-dependent and informational: a **render** bench
+(`test/browser/treeCanvas.bench.svelte.test.ts`, render/expand timings) and a **pipeline** bench
+(`test/pipeline.bench.test.ts`, the worker-side source-position and diagnostics stages versus the raw
+parse and the full single-document finalize). Coverage is gated by thresholds in `vitest.config.ts`.
 
 ## Linting and formatting
 
@@ -60,7 +62,7 @@ flowchart TD
         direction TB
         subgraph load["loadDocument — per document (loader)"]
             direction TB
-            parse["Parse — detectFormat"]
+            parse["Parse — detectFormat · positions"]
             model["Model — treeBuilder · jsonPointer"]
             classify["Classify — descriptor · classify · dialects"]
             validate["Validate — validateOad"]
@@ -94,7 +96,7 @@ flowchart TD
 | Layer | Files |
 | --- | --- |
 | Types | `src/types.ts`, `src/errors.ts`, `src/limits.ts` (resource caps) |
-| Parse | `src/parse/detectFormat.ts` |
+| Parse | `src/parse/detectFormat.ts`, `src/parse/positions.ts` (JSON Pointer → source line/column range) |
 | Model | `src/model/jsonPointer.ts`, `src/model/treeBuilder.ts` |
 | OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts`, `src/oas/dialects.ts` (JSON Schema dialect selection) |
 | Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
@@ -128,6 +130,12 @@ panel all read that one model, so they cannot drift, and only plain, cloneable d
 from the worker. *Blocking* errors that refuse a document stay separate — thrown exceptions in
 `errors.ts`. The model is shaped so an external linter could later be adapted into the same
 `Diagnostic[]` (a `source` discriminator, pointer-keyed locations), but none is integrated.
+
+**Line numbers** come from a separate, position-aware pass (`parse/positions.ts`) that re-reads each
+document's text with the `yaml` CST and maps every JSON Pointer to its source range, keyed by the same
+pointers as the tree. The detail panel and the issue report show a node's / a diagnostic's line beside
+its pointer, and a located issue jumps to its node. It is best-effort (a pointer the pass can't locate
+just shows no line) and runs in the worker after the size guards, so it never blocks the UI.
 
 ## Preparing a release
 

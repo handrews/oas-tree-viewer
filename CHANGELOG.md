@@ -7,6 +7,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **Source line numbers.** Each node's source line is shown next to its JSON Pointer in the detail
+  panel, every issue in the report shows its line, and clicking a located issue reveals that node in
+  the tree. Positions are computed off the main thread from the document's own text (best-effort,
+  for both JSON and YAML).
+
 ### Changed
 
 - **Non-blocking diagnostics are unified.** Unresolved or mis-typed references, reference

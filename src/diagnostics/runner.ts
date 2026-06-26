@@ -32,6 +32,12 @@ export function buildDiagnostics(
   unreachable: readonly OadDocument[],
 ): Diagnostic[] {
   const out: Diagnostic[] = [];
+  const positionsByDoc = new Map(oad.documents.map((d) => [d.id, d.positions]));
+  // Attach the source range for a location's pointer, when the document's position pass found one.
+  const located = (loc: DiagnosticLocation): DiagnosticLocation => {
+    const range = positionsByDoc.get(loc.docId)?.get(loc.pointer);
+    return range ? { ...loc, range } : loc;
+  };
   const emit = (
     code: DiagnosticCode,
     source: DiagnosticSource,
@@ -41,7 +47,10 @@ export function buildDiagnostics(
   ): void => {
     const severity = emittedSeverity(severityFor(code));
     if (severity === null) return; // policed to "off"
-    out.push({ code, severity, source, message, location, ...extra });
+    const diagnostic: Diagnostic = { code, severity, source, message, location: located(location) };
+    if (extra?.relatedLocations) diagnostic.relatedLocations = extra.relatedLocations.map(located);
+    if (extra?.ref) diagnostic.ref = extra.ref;
+    out.push(diagnostic);
   };
 
   // ── references: resolve status + per-edge advisories ──────────────────────

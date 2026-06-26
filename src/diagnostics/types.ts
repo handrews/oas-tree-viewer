@@ -6,6 +6,7 @@
 // future external linter — maps onto it via the `source` discriminator without reworking the model.
 
 import type { RefKind } from "../refs/types";
+import type { SourceRange } from "../types";
 
 /** Severity of an emitted diagnostic. (`info` is an FYI about how the document was interpreted.) */
 export type Severity = "error" | "warning" | "info";
@@ -25,6 +26,8 @@ export interface DiagnosticLocation {
   docId: string;
   /** JSON Pointer from the document root, in TreeNode.id form (root is ""). */
   pointer: string;
+  /** Source range of the pointer's value, when the document's position pass located it. */
+  range?: SourceRange;
 }
 
 /**

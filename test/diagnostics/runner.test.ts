@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildDiagnostics, indexByPointer } from "../../src/diagnostics/runner";
 import type { Diagnostic } from "../../src/diagnostics/types";
-import type { Oad, OadDocument, TreeNode } from "../../src/types";
+import type { Oad, OadDocument, SourceRange, TreeNode } from "../../src/types";
 import type { ReferenceEdge, ResolvedRefs } from "../../src/refs/types";
 
 function doc(id: string, filename: string, isEntry = false): OadDocument {
@@ -239,6 +239,67 @@ describe("buildDiagnostics", () => {
     expect(dialect.source).toBe("schema");
     expect(dialect.location).toEqual({ docId: "a", pointer: "/components/schemas/Z/$schema" });
     expect(dialect.message).toBe("resolved with 2020-12 rules");
+  });
+
+  it("stamps source ranges from the document's positions onto the location and related locations", () => {
+    const positions = new Map<string, SourceRange>([
+      ["/links/L", { start: { line: 3, col: 5 }, end: { line: 3, col: 9 } }],
+      ["/webhooks/hook/get", { start: { line: 9, col: 1 }, end: { line: 9, col: 4 } }],
+    ]);
+    const withPositions = {
+      id: "a",
+      filename: "o.yaml",
+      isEntry: true,
+      source: "upload",
+      positions,
+    } as OadDocument;
+    const ds = buildDiagnostics(
+      oadWith(withPositions),
+      refsOf([
+        {
+          status: "resolved",
+          kind: "operationRef",
+          sourceDocId: "a",
+          sourceObjectId: "/links/L",
+          refString: "#/webhooks/hook/get",
+          requiredType: "Operation",
+          targetDocId: "a",
+          targetNodeId: "/webhooks/hook/get",
+          diagnostics: [{ code: "operation-target-webhook", severity: "error", detail: "webhook" }],
+        },
+      ]),
+      [],
+    );
+    const d = codes(ds, "operation-target-webhook")[0]!;
+    expect(d.location.range).toEqual({ start: { line: 3, col: 5 }, end: { line: 3, col: 9 } });
+    expect(d.relatedLocations?.[0]!.range).toEqual({
+      start: { line: 9, col: 1 },
+      end: { line: 9, col: 4 },
+    });
+  });
+
+  it("leaves the range undefined when the document has no position for that pointer", () => {
+    const noPos = {
+      id: "a",
+      filename: "o.yaml",
+      isEntry: true,
+      source: "upload",
+      positions: new Map(),
+    } as OadDocument;
+    const ds = buildDiagnostics(
+      oadWith(noPos),
+      refsOf([
+        {
+          status: "broken",
+          kind: "$ref",
+          sourceDocId: "a",
+          sourceObjectId: "/x",
+          refString: "#/m",
+        },
+      ]),
+      [],
+    );
+    expect(codes(ds, "ref-broken")[0]!.location.range).toBeUndefined();
   });
 });
 

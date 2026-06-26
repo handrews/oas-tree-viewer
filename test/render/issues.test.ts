@@ -267,6 +267,28 @@ describe("issues report", () => {
     expect(collect({ documents: [], versionFamily: "3.1" }, refsOf([])).entry).toBe("(none)");
   });
 
+  it("carries the source line and raw location, and shows the line in the text report", () => {
+    const report = collectIssues(oad, [
+      {
+        code: "ref-broken",
+        severity: "error",
+        source: "reference",
+        message: "target not found",
+        location: {
+          docId: "a",
+          pointer: "/paths/p",
+          range: { start: { line: 7, col: 3 }, end: { line: 7, col: 9 } },
+        },
+        ref: { kind: "$ref", refString: "#/m" },
+      },
+    ]);
+    const item = section(report, "unresolved")[0]!;
+    expect(item.line).toBe(7);
+    expect(item.docId).toBe("a"); // raw docId/pointer for jumping (distinct from the display fields)
+    expect(item.nodeId).toBe("/paths/p");
+    expect(formatIssueReport(report)).toContain("(line 7)");
+  });
+
   it("orders sections and carries a unique key per row", () => {
     const report = collect(
       oad,

@@ -20,6 +20,22 @@ export interface ResolutionAdvisory {
   detail: string;
 }
 
+/** A 1-based position in a document's source text. */
+export interface SourcePos {
+  line: number;
+  col: number;
+}
+
+/**
+ * The source-text span of a node — from the start of its value to the end. Lets a diagnostic or a
+ * selected node show its line number alongside its JSON Pointer, and (being a full range, not just a
+ * start line) leaves room for a future "highlight the source" view.
+ */
+export interface SourceRange {
+  start: SourcePos;
+  end: SourcePos;
+}
+
 /** The JSON value categories a node can hold. */
 export type ValueKind = "object" | "array" | "string" | "number" | "boolean" | "null";
 
@@ -172,6 +188,12 @@ export interface OadDocument {
    * not. Surfaced as a non-blocking issue-report warning; absent when fully validated.
    */
   schemaDialectWarning?: string;
+  /**
+   * JSON Pointer → source range for this document (from the position pass, `parse/positions.ts`),
+   * keyed by the same pointers as `TreeNode.id`. Lets a selected node or a diagnostic show its line
+   * number; a node the pass couldn't locate is simply absent. Undefined when positions weren't computed.
+   */
+  positions?: Map<string, SourceRange>;
   root: TreeNode;
 }
 

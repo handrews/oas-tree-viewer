@@ -10,6 +10,7 @@
     baseUri,
     docVersionLabel,
     formatScalar,
+    nodeRange,
     outgoingRefs,
     incomingRefs,
     type DetailContext,
@@ -37,7 +38,11 @@
       </dd>
 
       <dt>Pointer</dt>
-      <dd><code>{displayPointer(node.id)}</code></dd>
+      <dd>
+        <code>{displayPointer(node.id)}</code>{#if nodeRange(doc, node)}<span class="dim">
+            · line {nodeRange(doc, node)?.start.line}</span
+          >{/if}
+      </dd>
 
       <dt>OAS type</dt>
       <dd>

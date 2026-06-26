@@ -5,6 +5,7 @@ import {
   baseUri,
   docVersionLabel,
   formatScalar,
+  nodeRange,
   outgoingRefs,
   incomingRefs,
 } from "../../src/render/detail";
@@ -59,6 +60,23 @@ describe("docVersionLabel", () => {
       "Fragment · partially typed",
     );
     expect(docVersionLabel(frag({}))).toBe("Fragment · type undetermined");
+  });
+});
+
+describe("nodeRange", () => {
+  it("returns a node's source range from the document positions (undefined when unlocated)", async () => {
+    const doc = await makeDoc(DOC, { isEntry: true });
+    // DOC begins with a blank line, so the root map (and the `openapi` value) start on line 2.
+    expect(nodeRange(doc, doc.root)?.start.line).toBe(2);
+    expect(nodeRange(doc, at(doc.root, "/openapi"))?.start.line).toBe(2);
+    const fake = {
+      id: "/not/here",
+      key: null,
+      keyKind: "property",
+      valueKind: "object",
+      children: [],
+    } as TreeNode;
+    expect(nodeRange(doc, fake)).toBeUndefined();
   });
 });
 
