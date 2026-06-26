@@ -1,0 +1,53 @@
+# Connection style catalog: the base visual for every kind of drawn connection, keyed by connection
+# kind. This is the single place to restyle a category — flip its line, dash, arrowhead, or marker and
+# rebuild; no code change. Every value is from a bounded vocabulary that maps to fixed CSS classes, so
+# this file never encodes raw CSS:
+#   family:    reference | relationship   (relationship connections are drawn, never "resolved")
+#   line:      single | double
+#   dash:      solid | dashed | dotted
+#   arrowhead: filled | open
+#   marker:    asterisk | diamond         (the tree-row glyph at the connection's source)
+# The `label` is the writer-reviewable legend text. The *modifier* axes layered on top of this base —
+# resolve status, advisory severity, collapsed/off-screen endpoints, focus — are not configured here;
+# they keep their existing CSS treatment.
+#
+# Keys and the runtime list in src/connections/types.ts must stay in lockstep — a test asserts the keys
+# here are exactly CONNECTION_KINDS and every token is in the known vocabulary. Today every connection
+# is a reference (family: reference); a future structural relationship is purely additive (a new key).
+
+uri-reference:
+  family: reference
+  line: single
+  dash: solid
+  arrowhead: filled
+  marker: asterisk
+  label: URI-reference ($ref, operationRef, or a mapping / security value used as a URI)
+
+component-name:
+  family: reference
+  line: double
+  dash: solid
+  arrowhead: open
+  marker: diamond
+  label: Implicit connection — component name (discriminator mapping, security requirement)
+
+# A Link's `operationId` is an implicit connection drawn exactly like a component name today; it shares
+# that visual but is reported under its own kind, so it can be styled apart by editing the rows below.
+operation-id:
+  family: reference
+  line: double
+  dash: solid
+  arrowhead: open
+  marker: diamond
+  label: Implicit connection — a Link operationId
+
+# A `$dynamicRef` that engages dynamic scope: tentative, since its real target depends on the evaluation
+# path. Same asterisk marker as a URI-reference (it is one syntactically), drawn dotted to every possible
+# `$dynamicAnchor`.
+dynamic:
+  family: reference
+  line: single
+  dash: dotted
+  arrowhead: open
+  marker: asterisk
+  label: Tentative — a $dynamicRef to a possible $dynamicAnchor (actual target is path-dependent)

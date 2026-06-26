@@ -7,7 +7,8 @@
 import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
 import type { OadDocument, TreeNode } from "../types";
-import { categoryClass, categoryShape, resolutionStyles } from "./colors";
+import { categoryClass, categoryShape } from "./colors";
+import { connectionMarker } from "../connections/style";
 import { docVersionLabel } from "./detail";
 import { treeKeyAction } from "./treeKeys";
 import {
@@ -650,7 +651,7 @@ function isRefField(d: RowDatum): boolean {
 }
 
 function refMarker(d: RowDatum): string {
-  return resolutionStyles[d.node.data.resolvedAs ?? "uri-reference"].marker;
+  return connectionMarker(d.node.data.resolvedAs ?? "uri-reference");
 }
 
 function markerClass(d: RowDatum): string {

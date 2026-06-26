@@ -6,12 +6,12 @@ import {
   legendGroups,
   shapeLegend,
   referenceLegend,
-  resolutionStyles,
   lineLegend,
   errorIconLegend,
   warningLegend,
 } from "../../src/render/colors";
-import type { NodeCategory, ResolutionKind } from "../../src/types";
+import { connectionStyle } from "../../src/connections/catalog";
+import type { NodeCategory } from "../../src/types";
 
 const ALL: NodeCategory[] = [
   "structural",
@@ -59,28 +59,6 @@ describe("colors", () => {
     expect(warningLegend.unreachable).toBeTruthy();
   });
 
-  it("resolutionStyles distinguish URI-reference (asterisk/single/filled) from the implicit visual (diamond/double/open)", () => {
-    expect(resolutionStyles["uri-reference"]).toMatchObject({
-      marker: "asterisk",
-      line: "single",
-      arrowhead: "filled",
-    });
-    // component-name and operation-id are both implicit connections — same diamond/double/open
-    // visual — distinguished only by which reference kind produced them.
-    const implicit = { marker: "diamond", line: "double", arrowhead: "open" } as const;
-    expect(resolutionStyles["component-name"]).toMatchObject(implicit);
-    expect(resolutionStyles["operation-id"]).toMatchObject(implicit);
-    // A dynamic $dynamicRef reuses the URI-reference asterisk but is dotted (tentative).
-    expect(resolutionStyles["dynamic"]).toMatchObject({
-      marker: "asterisk",
-      line: "single",
-      arrowhead: "open",
-      dash: "dotted",
-    });
-    const kinds: ResolutionKind[] = ["uri-reference", "component-name", "operation-id", "dynamic"];
-    for (const k of kinds) expect(resolutionStyles[k].label).toBeTruthy();
-  });
-
   it("referenceLegend folds operation-id into the implicit row and adds the dynamic row", () => {
     // operation-id shares the component-name visual, so the legend collapses it into the
     // implicit-connection row; the dynamic (dotted) $dynamicRef gets its own row.
@@ -89,8 +67,9 @@ describe("colors", () => {
       "component-name",
       "dynamic",
     ]);
+    // Each legend row's visual is sourced from the connection style catalog (so they can't drift).
     for (const r of referenceLegend) {
-      const { marker, line, arrowhead } = resolutionStyles[r.kind];
+      const { marker, line, arrowhead } = connectionStyle(r.kind);
       expect(r).toMatchObject({ marker, line, arrowhead });
       expect(r.label).toBeTruthy();
     }

@@ -168,7 +168,6 @@ describe("issues report", () => {
           diagnostics: [
             {
               code: "operation-target-webhook",
-              severity: "error",
               detail: "the target Operation is a webhook, which is not directly callable",
             },
           ],
@@ -308,9 +307,7 @@ describe("issues report", () => {
           sourceObjectId: "/l",
           refString: "#/p",
           requiredType: "Operation",
-          diagnostics: [
-            { code: "operation-target-fragile", severity: "warning", detail: "one path" },
-          ],
+          diagnostics: [{ code: "operation-target-fragile", detail: "one path" }],
         },
       ]),
       [other],

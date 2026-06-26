@@ -6,6 +6,7 @@ import {
   docVersionLabel,
   formatScalar,
   nodeRange,
+  advisorySeverity,
   outgoingRefs,
   incomingRefs,
 } from "../../src/render/detail";
@@ -91,6 +92,13 @@ function at(root: TreeNode, pointer: string): TreeNode {
   };
   return find(root)!;
 }
+
+describe("advisorySeverity", () => {
+  it("reads the advisory's color severity from the diagnostic catalog (error vs warning)", () => {
+    expect(advisorySeverity("operation-target-webhook")).toBe("error");
+    expect(advisorySeverity("operation-target-fragile")).toBe("warning");
+  });
+});
 
 describe("detail field helpers", () => {
   it("docName prefers filename, then retrievalUri, then a source fallback", () => {

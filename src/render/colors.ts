@@ -4,8 +4,8 @@
 // theme); code only selects the class, so markers and swatches recolor automatically when
 // the theme changes.
 
-import type { NodeCategory, ResolutionKind } from "../types";
-import type { EdgeDiagnostic } from "../refs/types";
+import type { NodeCategory } from "../types";
+import { connectionStyle } from "../connections/catalog";
 
 /** CSS class that selects a category's themed color (--cat-<category>). */
 export function categoryClass(category: NodeCategory | undefined): string {
@@ -40,75 +40,29 @@ export const categoryLabel: Record<NodeCategory, string> = {
 export const legendGroups: NodeCategory[] = ["structural", "metadata", "http", "data", "security"];
 
 /** Marker shapes. circle/square are node shapes; asterisk/diamond mark reference pointers
- *  (which one is used depends on how the reference resolved — see {@link resolutionStyles}). */
+ *  (which one is used depends on how the reference resolved — see the connection style catalog). */
 export type MarkerShape = "circle" | "square" | "asterisk" | "diamond";
 export const shapeLegend: ReadonlyArray<{ shape: MarkerShape; label: string }> = [
   { shape: "circle", label: "Typed OAS object (colored by group above)" },
   { shape: "square", label: "Generic JSON value — object, array, or scalar" },
 ];
 
-export type LineStyle = "single" | "double";
-
 /**
- * The visual treatment for each way a reference resolves. This one table drives the tree
- * marker, the edge arrow, and the legend, so they can't drift — and a future ResolutionKind
- * is purely additive (add an entry + the legend/marker/arrow follow automatically).
+ * The legend's "References" section: one row per *distinct visual*, built from the connection style
+ * catalog (content/connections.yaml via {@link connectionStyle}) so the legend, the tree marker, and the
+ * edge arrow can't drift. `component-name` and `operation-id` share the implicit-connection visual, so
+ * they collapse into one labeled row whose text names both meanings.
  */
-export interface ResolutionStyle {
-  marker: MarkerShape;
-  line: LineStyle;
-  arrowhead: "filled" | "open";
-  /** Dotted stroke for a *tentative* connection (a dynamic `$dynamicRef`); solid otherwise. */
-  dash?: "dotted";
-  label: string;
-}
-export const resolutionStyles: Record<ResolutionKind, ResolutionStyle> = {
-  "uri-reference": {
-    marker: "asterisk",
-    line: "single",
-    arrowhead: "filled",
-    label: "URI-reference ($ref, operationRef, or a mapping / security value used as a URI)",
-  },
-  "component-name": {
-    marker: "diamond",
-    line: "double",
-    arrowhead: "open",
-    label: "Implicit connection — component name (discriminator mapping, security requirement)",
-  },
-  // A Link's `operationId` is an implicit connection drawn exactly like a component name; it
-  // shares that visual but is reported under its own kind. The legend folds it into the single
-  // implicit-connection row below (see `referenceLegend`).
-  "operation-id": {
-    marker: "diamond",
-    line: "double",
-    arrowhead: "open",
-    label: "Implicit connection — a Link operationId",
-  },
-  // A `$dynamicRef` that engages dynamic scope: tentative, since its real target depends on the
-  // evaluation path. Same asterisk marker as a URI-reference (it is one syntactically), but drawn
-  // with a dotted line to all possible `$dynamicAnchor`s.
-  dynamic: {
-    marker: "asterisk",
-    line: "single",
-    arrowhead: "open",
-    dash: "dotted",
-    label:
-      "Tentative — a $dynamicRef to a possible $dynamicAnchor (actual target is path-dependent)",
-  },
-};
-
-/** The legend's "References" section: one row per *distinct visual*. `component-name` and
- *  `operation-id` share the implicit-connection visual, so they collapse into one labeled row. */
-export const referenceLegend: ReadonlyArray<{ kind: ResolutionKind } & ResolutionStyle> = [
-  { kind: "uri-reference", ...resolutionStyles["uri-reference"] },
+export const referenceLegend = [
+  { kind: "uri-reference", ...connectionStyle("uri-reference") },
   {
     kind: "component-name",
-    ...resolutionStyles["component-name"],
+    ...connectionStyle("component-name"),
     label:
       "Implicit connection — component name (discriminator mapping, security requirement) or a Link operationId",
   },
-  { kind: "dynamic", ...resolutionStyles["dynamic"] },
-];
+  { kind: "dynamic", ...connectionStyle("dynamic") },
+] as const;
 
 /** Arc styles that aren't a resolution kind, for the legend's "Connection lines" section:
  *  the collapsed/off-screen-endpoint state, and the type-mismatch arc (drawn dashed in the
@@ -140,12 +94,13 @@ export const warningLegend = {
 
 /**
  * Color treatment for a reference advisory (a reference that resolves but is semantically
- * problematic), keyed off its severity. Mirrors the {@link resolutionStyles} pattern: the legend,
+ * problematic), keyed off its severity. Mirrors the connection style catalog pattern: the legend,
  * the on-canvas glyph, and the arc tint all read this so they can't drift. Error = the softer of
  * the two error colors (orange `--error`, distinct from the vermillion `--ref-broken` reserved for
  * genuinely-broken refs); warning = yellow `--warn`.
  */
-export type DiagnosticSeverity = EdgeDiagnostic["severity"];
+/** The severities an advisory glyph/legend distinguishes (the unified `info` tier is not drawn here). */
+export type DiagnosticSeverity = "error" | "warning";
 export interface DiagnosticStyle {
   /** CSS class selecting the themed color (`diag-error` → --error, `diag-warning` → --warn). */
   colorClass: string;

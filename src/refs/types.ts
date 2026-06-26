@@ -27,23 +27,31 @@ export type RefStatus =
   | "external"; // the target resource is not among the loaded documents
 
 /**
- * A semantic problem with a reference that *does* resolve — orthogonal to {@link RefStatus}.
- * An `operationRef`/`operationId` can resolve to a real Operation yet point somewhere that
- * isn't (unambiguously) invocable, and a Path Item `$ref` can resolve yet undefined-merge with
- * its target. These are surfaced as advisories rather than folded into the resolve status.
+ * Codes for a semantic problem with a reference that *does* resolve — orthogonal to {@link RefStatus}.
+ * An `operationRef`/`operationId` can resolve to a real Operation yet point somewhere that isn't
+ * (unambiguously) invocable, and a Path Item `$ref` can resolve yet undefined-merge with its target.
+ * These are surfaced as advisories rather than folded into the resolve status. Defined here, once —
+ * they are intrinsically about references — and the unified diagnostic model (src/diagnostics/types.ts)
+ * composes its code set from this list, so an edge advisory's code is always a valid diagnostic code.
  */
-export type DiagnosticCode =
-  | "pathitem-field-overlap" // a field appears next to the $ref AND in the target Path Item
-  | "operation-target-webhook" // op ref → Operation under `webhooks` (not directly callable)
-  | "operation-target-callback" // op ref → Operation under a `callbacks` entry (runtime URL)
-  | "operation-target-ambiguous" // op ref → component Path Item reached by >1 path (which URL?)
-  | "operation-target-fragile" // op ref → component Path Item reached by exactly 1 path
-  | "operation-target-no-path"; // op ref → component Path Item reached by 0 paths (no URL)
+export const ADVISORY_CODES = [
+  "pathitem-field-overlap", // a field appears next to the $ref AND in the target Path Item
+  "operation-target-webhook", // op ref → Operation under `webhooks` (not directly callable)
+  "operation-target-callback", // op ref → Operation under a `callbacks` entry (runtime URL)
+  "operation-target-ambiguous", // op ref → component Path Item reached by >1 path (which URL?)
+  "operation-target-fragile", // op ref → component Path Item reached by exactly 1 path
+  "operation-target-no-path", // op ref → component Path Item reached by 0 paths (no URL)
+] as const;
+export type AdvisoryCode = (typeof ADVISORY_CODES)[number];
 
-export interface EdgeDiagnostic {
-  code: DiagnosticCode;
-  /** Report grouping; the on-canvas/legend color is keyed off this (see colors.ts). */
-  severity: "error" | "warning";
+/**
+ * A semantic advisory on a reference that resolved. Its *severity* lives in the diagnostic catalog
+ * (content/diagnostics.yaml), so it is configurable and shared with the issue report; this carries only
+ * the code and its dynamic detail text. The arc tint and the ▲ gutter glyph both derive their color
+ * from that one catalog policy.
+ */
+export interface EdgeAdvisory {
+  code: AdvisoryCode;
   /** Color-free human text, e.g. 'also defined in the target: summary, parameters'. */
   detail: string;
 }
@@ -72,7 +80,7 @@ export interface ReferenceEdge {
   /** The target's own expected type (for type-mismatch display). */
   targetType?: string;
   /** Semantic advisories on an otherwise-resolved reference (set by annotateDiagnostics). */
-  diagnostics?: EdgeDiagnostic[];
+  diagnostics?: EdgeAdvisory[];
 }
 
 export interface ResolvedRefs {

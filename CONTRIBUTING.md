@@ -78,7 +78,7 @@ flowchart TD
         direction TB
         view["Explore page — ViewPage"]
         canvas["Canvas / tree view<br/>canvas · treeView<br/>treeLayout (windowed) · treeKeys"]
-        panels["DetailPanel · Legend · IssueReport<br/>colors · issues · detail · reachability"]
+        panels["DetailPanel · Legend · IssueReport<br/>colors · connections · issues · detail · reachability"]
         view --> canvas
         view --> panels
     end
@@ -103,12 +103,13 @@ flowchart TD
 | Validation | `src/validation/validateOad.ts` (OAS schema + per-dialect JSON Schema validation) |
 | References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts`, `src/refs/diagnostics.ts` (per-edge advisories), `src/refs/dynamicScope.ts`, `src/refs/fragments.ts`, `src/refs/reachability.ts` |
 | Diagnostics | `src/diagnostics/types.ts` (the unified `Diagnostic` model), `src/diagnostics/catalog.ts` (loads the severity policy + copy), `src/diagnostics/runner.ts` (collects every non-blocking finding) |
+| Connections | `src/connections/types.ts` (the style vocabulary + `family` axis), `src/connections/catalog.ts` (loads `content/connections.yaml`), `src/connections/style.ts` (per-connection class/marker/arrowhead selection) |
 | Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/treeLayout.ts` (windowing + label widths), `src/render/treeKeys.ts` (keyboard model), `src/render/colors.ts`, `src/render/issues.ts`, `src/render/reachability.ts`, `src/render/detail.ts`; Svelte islands `TreeCanvas.svelte`, `DetailPanel.svelte`, `Legend.svelte`, `IssueReport.svelte` |
 | Worker pipeline | `src/app/pipelineClient.ts` (main-thread client), `src/app/pipeline.worker.ts` (off-thread load) |
 | App / routing | `src/app/router.svelte.ts`, `src/app/session.svelte.ts`, `src/app/viewUrl.ts`, `src/app/config.ts`, `src/app/demos.ts`, `src/app/bootstrap.ts` |
 | UI / shell | `src/main.ts`, `src/App.svelte`, `src/pages/ConfigurePage.svelte`, `src/pages/ViewPage.svelte`, `src/ui/OadForm.svelte`, `src/ui/ThemeToggle.svelte`, `src/ui/oadForm.ts`, `src/ui/fileDrop.ts`, `src/ui/theme.ts` |
 | Styles / pages | `src/styles.css`, `src/theme.css`, `src/docs.css`, `vite/doc-pages.ts` (renders `CHANGELOG.md` to a themed page) |
-| Content (editable, no code) | `content/demos.yaml` (demo labels + descriptions), `content/diagnostics.yaml` (diagnostic severity policy + titles/descriptions) — imported as data and merged in by id/code |
+| Content (editable, no code) | `content/demos.yaml` (demo labels + descriptions), `content/diagnostics.yaml` (diagnostic severity policy + titles/descriptions), `content/connections.yaml` (per-connection reference arrow/marker styles) — imported as data and keyed by id/code/kind |
 
 Each node keeps a stable **JSON Pointer** id and an `expectedType` (its grammar slot type),
 and each document keeps its **base URI** (`$self` / retrieval URI) — the foundation the
@@ -130,6 +131,14 @@ panel all read that one model, so they cannot drift, and only plain, cloneable d
 from the worker. *Blocking* errors that refuse a document stay separate — thrown exceptions in
 `errors.ts`. The model is shaped so an external linter could later be adapted into the same
 `Diagnostic[]` (a `source` discriminator, pointer-keyed locations), but none is integrated.
+
+**Connection styles are data.** Every drawn connection (today, references; the `family` axis leaves room
+for non-reference *structural relationships* a parser must reconcile — drawn, never performed) takes its
+base look from a catalog, `content/connections.yaml`, keyed by connection kind: line (single/double), dash
+(solid/dashed/dotted), arrowhead, and marker, each from a bounded vocabulary that maps to fixed CSS classes.
+One pure helper (`src/connections/style.ts`) turns a kind plus its render state (resolve status, advisory
+severity, collapsed, focused) into the arc's classes, and the tree marker, the arc, and the legend all read
+that one catalog — so restyling a category is a YAML edit, not a CSS change, and they cannot drift.
 
 **Line numbers** come from a separate, position-aware pass (`parse/positions.ts`) that re-reads each
 document's text with the `yaml` CST and maps every JSON Pointer to its source range, keyed by the same
