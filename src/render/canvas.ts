@@ -7,9 +7,30 @@ import type { Selection, ZoomBehavior } from "d3";
 import type { Oad, OadDocument, TreeNode } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
+import type { Diagnostic, DiagnosticCode } from "../diagnostics/types";
+import { indexByPointer } from "../diagnostics/runner";
 import { resolutionStyles } from "./colors";
 import { MAX_RENDER_EDGES } from "../limits";
 import { DocumentView } from "./treeView";
+
+// Which diagnostic codes drive each right-gutter glyph: a ⚠ for an unresolved reference, a ⚠ for a
+// node-level resolution caveat (unsupported dialect / draft-06-07 rule), and a ▲ for a resolved-but-
+// problematic reference advisory. Codes not listed here (type mismatches, document-level findings) get
+// no gutter glyph — they surface via the arc style, the header badge, or the issue report.
+const REF_WARN_CODES = new Set<DiagnosticCode>(["ref-broken", "ref-external"]);
+const CAVEAT_CODES = new Set<DiagnosticCode>([
+  "dialect-resolution-unsupported",
+  "ignored-ref-siblings",
+  "invalid-id-fragment",
+]);
+const ADVISORY_CODES = new Set<DiagnosticCode>([
+  "pathitem-field-overlap",
+  "operation-target-webhook",
+  "operation-target-callback",
+  "operation-target-ambiguous",
+  "operation-target-fragile",
+  "operation-target-no-path",
+]);
 
 const DOC_GAP = 56;
 // Zoom limits. The minimum also bounds windowing: the viewport can never show more than ~`viewport
@@ -58,6 +79,8 @@ export class Canvas {
   private warnG: Selection<SVGGElement, unknown, null, undefined> | null = null;
   private advisoryG: Selection<SVGGElement, unknown, null, undefined> | null = null;
   private resolved: ResolvedRefs | null = null;
+  /** Unified diagnostics indexed by docId → pointer → Diagnostic[]; the gutter glyphs derive from it. */
+  private diagnostics = new Map<string, Map<string, Diagnostic[]>>();
   private focusKey: string | null = null;
   private showAll = false;
   /** Pending requestAnimationFrame handle that coalesces a burst of zoom/pan events into one window pass. */
@@ -197,13 +220,18 @@ export class Canvas {
     this.fit();
   }
 
-  /** Provide resolved references; draws warning glyphs and any active edges. */
+  /** Provide resolved references; draws any active edges (arcs). */
   setReferences(resolved: ResolvedRefs): void {
     this.resolved = resolved;
     this.focusKey = null;
+    this.refreshEdges();
+  }
+
+  /** Provide the unified diagnostics; (re)draws the right-gutter warning + advisory glyphs from them. */
+  setDiagnostics(diagnostics: Diagnostic[]): void {
+    this.diagnostics = indexByPointer(diagnostics);
     this.drawWarnings();
     this.drawAdvisories();
-    this.refreshEdges();
   }
 
   /** Reveal, select, and recenter on a node (used by edge clicks and the detail panel). */
@@ -416,40 +444,41 @@ export class Canvas {
 
     const data: WarnDatum[] = [];
 
-    // Unresolved references — grouped by the row they land on (several can collapse onto the same
-    // ancestor row). Each group renders one glyph; `broken` outranks `external`.
-    const groups = new Map<string, { x: number; y: number; broken: boolean; count: number }>();
-    for (const edge of this.resolved?.edges ?? []) {
-      if (edge.status !== "external" && edge.status !== "broken") continue;
-      const sv = this.viewForDoc(edge.sourceDocId);
-      // Anchor in the right gutter, past the label, clear of the dot/triangle.
-      const p = sv?.labelEndViewport(edge.sourceNodeId);
-      if (!p) continue;
-      const key = `${Math.round(p.x)}:${Math.round(p.y)}`;
-      const g = groups.get(key);
-      if (g) {
-        g.count += 1;
-        if (edge.status === "broken") g.broken = true;
-      } else {
-        groups.set(key, { x: p.x, y: p.y, broken: edge.status === "broken", count: 1 });
-      }
-    }
-    for (const [key, g] of groups) data.push({ key, kind: "ref", ...g });
-
-    // Node-level resolution caveats — a property of the tree nodes, independent of references: an
-    // unsupported `$schema`/`jsonSchemaDialect`, or a draft-06/07 advisory (ignored `$ref` siblings,
-    // a wrong `$id` fragment).
+    // All glyphs derive from the unified diagnostics, located by JSON Pointer. Per document: unresolved-
+    // reference ⚠ glyphs are grouped by the row they land on (several can collapse onto the same ancestor
+    // row), `broken` outranking `external`; node-level resolution caveats each render their own ⚠.
     for (const view of this.views) {
-      for (const node of resolutionWarnNodes(view.doc.root)) {
-        const p = view.labelEndViewport(node.id);
+      const byPtr = this.diagnostics.get(view.doc.id);
+      if (!byPtr) continue;
+      const refGroups = new Map<string, { x: number; y: number; broken: boolean; count: number }>();
+      for (const [pointer, diags] of byPtr) {
+        const refWarns = diags.filter((d) => REF_WARN_CODES.has(d.code));
+        const caveats = diags.filter((d) => CAVEAT_CODES.has(d.code));
+        if (!refWarns.length && !caveats.length) continue;
+        // Anchor in the right gutter, past the label, clear of the dot/triangle.
+        const p = view.labelEndViewport(pointer);
         if (!p) continue;
-        data.push({
-          key: `dialect:${view.doc.id}:${node.id}`,
-          kind: "dialect",
-          x: p.x,
-          y: p.y,
-          title: resolutionWarnTitle(node),
-        });
+        if (refWarns.length) {
+          const key = `${Math.round(p.x)}:${Math.round(p.y)}`;
+          const g = refGroups.get(key) ?? { x: p.x, y: p.y, broken: false, count: 0 };
+          for (const d of refWarns) {
+            g.count += 1;
+            if (d.code === "ref-broken") g.broken = true;
+          }
+          refGroups.set(key, g);
+        }
+        if (caveats.length) {
+          data.push({
+            key: `caveat:${view.doc.id}:${pointer}`,
+            kind: "dialect",
+            x: p.x,
+            y: p.y,
+            title: caveats.map((d) => d.message).join("\n"),
+          });
+        }
+      }
+      for (const [key, g] of refGroups) {
+        data.push({ key: `ref:${view.doc.id}:${key}`, kind: "ref", ...g });
       }
     }
 
@@ -493,26 +522,26 @@ export class Canvas {
   /** Advisory glyphs (▲) for resolved references carrying a semantic problem, in the row gutter. */
   private drawAdvisories(): void {
     if (!this.advisoryG) return;
-    if (!this.resolved) {
-      this.advisoryG.selectAll("text").remove();
-      return;
-    }
-    // Group by landing row (several advisories can collapse onto one ancestor row); error
-    // outranks warning for the glyph color, and every detail goes into the tooltip.
+    // Resolved-but-problematic reference advisories, from the unified diagnostics. Group by landing row
+    // (several can collapse onto one ancestor row); error outranks warning for the glyph color, and every
+    // detail goes into the tooltip.
     const groups = new Map<string, { x: number; y: number; error: boolean; details: string[] }>();
-    for (const edge of this.resolved.edges) {
-      if (!edge.diagnostics?.length) continue;
-      const sv = this.viewForDoc(edge.sourceDocId);
-      if (!sv) continue;
-      const p = sv.labelEndViewport(edge.sourceNodeId);
-      if (!p) continue;
-      const key = `${Math.round(p.x)}:${Math.round(p.y)}`;
-      const g = groups.get(key) ?? { x: p.x, y: p.y, error: false, details: [] };
-      for (const d of edge.diagnostics) {
-        if (d.severity === "error") g.error = true;
-        g.details.push(d.detail);
+    for (const view of this.views) {
+      const byPtr = this.diagnostics.get(view.doc.id);
+      if (!byPtr) continue;
+      for (const [pointer, diags] of byPtr) {
+        const advs = diags.filter((d) => ADVISORY_CODES.has(d.code));
+        if (!advs.length) continue;
+        const p = view.labelEndViewport(pointer);
+        if (!p) continue;
+        const key = `${view.doc.id}:${Math.round(p.x)}:${Math.round(p.y)}`;
+        const g = groups.get(key) ?? { x: p.x, y: p.y, error: false, details: [] };
+        for (const d of advs) {
+          if (d.severity === "error") g.error = true;
+          g.details.push(d.message);
+        }
+        groups.set(key, g);
       }
-      groups.set(key, g);
     }
     const data = [...groups].map(([key, g]) => ({ key, ...g }));
 
@@ -609,25 +638,6 @@ export class Canvas {
 type WarnDatum =
   | { key: string; kind: "ref"; x: number; y: number; broken: boolean; count: number }
   | { key: string; kind: "dialect"; x: number; y: number; title: string };
-
-/** Nodes carrying a node-level resolution caveat (dialect warning or draft-06/07 advisory). */
-function resolutionWarnNodes(root: TreeNode): TreeNode[] {
-  const out: TreeNode[] = [];
-  const visit = (node: TreeNode): void => {
-    if (node.dialectResolutionWarning || node.resolutionAdvisories?.length) out.push(node);
-    for (const child of node.children) visit(child);
-  };
-  visit(root);
-  return out;
-}
-
-/** The glyph tooltip for such a node: its dialect warning and/or every draft-06/07 advisory. */
-function resolutionWarnTitle(node: TreeNode): string {
-  const parts: string[] = [];
-  if (node.dialectResolutionWarning) parts.push(node.dialectResolutionWarning);
-  for (const a of node.resolutionAdvisories ?? []) parts.push(a.detail);
-  return parts.join("\n");
-}
 
 /**
  * The arc tint for an edge's advisories, or null. Path Item field overlaps are deliberately

@@ -1,0 +1,103 @@
+# Diagnostic catalog: the severity policy and the human-readable title/description for every
+# non-blocking diagnostic, keyed by code. This is the single place to tweak how loud a check is —
+# change a `severity` here and rebuild; no code change. `severity` is one of: error | warning | info |
+# off ("off" silences the rule). The dynamic part of each message is built by the rule that emits the
+# code; the `title`/`description` here are the static, writer-reviewable copy.
+#
+# Codes and the runtime list in src/diagnostics/types.ts must stay in lockstep — a test asserts the
+# keys here are exactly the DIAGNOSTIC_CODES set and every severity is valid.
+
+ref-broken:
+  severity: error
+  title: Unresolved reference
+  description: >-
+    The reference's target resource was found, but the fragment names nothing in it.
+
+ref-type-mismatch:
+  severity: error
+  title: Reference type mismatch
+  description: >-
+    The reference resolved to a real node, but of a different type than the slot expects.
+
+ref-external:
+  severity: warning
+  title: External reference not loaded
+  description: >-
+    The reference points at a document that is not among the loaded documents, so its target
+    cannot be checked.
+
+pathitem-field-overlap:
+  severity: error
+  title: Path Item field overlap
+  description: >-
+    A Path Item $ref whose sibling fields also appear in the referenced Path Item; the OAS leaves
+    the merge behavior undefined.
+
+operation-target-webhook:
+  severity: error
+  title: Operation target is a webhook
+  description: >-
+    An operation reference whose target Operation lives under webhooks, which is not directly
+    callable.
+
+operation-target-callback:
+  severity: error
+  title: Operation target is a callback
+  description: >-
+    An operation reference whose target Operation lives under a callback; its URL is a runtime
+    expression, not directly callable.
+
+operation-target-ambiguous:
+  severity: error
+  title: Operation target reached by multiple paths
+  description: >-
+    An operation reference whose target Operation's Path Item is reached by more than one path, so
+    which URL invokes it is ambiguous.
+
+operation-target-fragile:
+  severity: warning
+  title: Operation target reached by one path
+  description: >-
+    An operation reference whose target Operation's Path Item is reached by exactly one path;
+    another path referencing it would make the target ambiguous.
+
+operation-target-no-path:
+  severity: error
+  title: Operation target reached by no path
+  description: >-
+    An operation reference whose target Operation's Path Item is reached by no path, so there is no
+    URL to invoke it.
+
+ignored-ref-siblings:
+  severity: warning
+  title: Ignored $ref siblings
+  description: >-
+    A numbered-draft (draft-04/06/07) Schema Object whose $ref has sibling keywords that those
+    drafts ignore.
+
+invalid-id-fragment:
+  severity: warning
+  title: Invalid $id fragment
+  description: >-
+    An $id whose JSON-Pointer fragment is not the schema's own location, so it names nothing and is
+    dropped.
+
+dialect-resolution-unsupported:
+  severity: warning
+  title: Unsupported dialect for resolution
+  description: >-
+    A Schema Object on a dialect the viewer cannot fully resolve (anything but the OAS dialect or
+    2020-12); it still validates, but its references are resolved with 2020-12 rules.
+
+document-unreachable:
+  severity: warning
+  title: Unreachable document
+  description: >-
+    A loaded document that is not reachable from the entry document by following resolved references.
+
+schema-unvalidated:
+  severity: warning
+  title: Unvalidated Schema Objects
+  description: >-
+    A document whose Schema Objects use a dialect the validator does not support; its structure was
+    validated, its Schema Objects were not.

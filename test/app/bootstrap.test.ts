@@ -14,6 +14,19 @@ describe("runPipeline", () => {
     if (r.ok) {
       expect(r.oad.documents).toHaveLength(1);
       expect(r.refs).toBeTruthy();
+      // The pipeline runs the diagnostic rules in-worker and returns the unified findings.
+      expect(Array.isArray(r.diagnostics)).toBe(true);
+    }
+  });
+
+  it("returns a document-unreachable diagnostic for an orphan document", async () => {
+    const r = await runPipeline([
+      { source: "upload", filename: "a.yaml", text: valid("A"), isEntry: true },
+      { source: "upload", filename: "b.yaml", text: valid("B"), isEntry: false },
+    ]);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.diagnostics.some((d) => d.code === "document-unreachable")).toBe(true);
     }
   });
 

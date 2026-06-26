@@ -5,11 +5,14 @@
 import type { DetectedDoc, DocInput } from "../loader";
 import type { Oad, OadDocument, VersionFamily } from "../types";
 import type { ResolvedRefs } from "../refs/types";
+import type { Diagnostic } from "../diagnostics/types";
 import { type ViewerConfig, defaultConfig } from "./config";
 import { detectDocument, determineVersionFamily, finalizeDocument } from "../loader";
 import { assembleOad } from "../oad";
 import { resolveOad } from "../refs/resolver";
 import { typeFragments, markFragmentEdges } from "../refs/fragments";
+import { reachableDocIds } from "../refs/reachability";
+import { buildDiagnostics } from "../diagnostics/runner";
 import { ResourceLimitError, errorMessage } from "../errors";
 import { defaultLimits, noLimits } from "../limits";
 
@@ -22,7 +25,7 @@ export interface PipelineOptions {
 /** Outcome of running the pipeline: a rendered OAD, or per-row / OAD-level errors. `limited` flags a
  *  failure caused by a resource guard, so the UI can offer a "Load anyway" retry. */
 export type PipelineResult =
-  | { ok: true; oad: Oad; refs: ResolvedRefs }
+  | { ok: true; oad: Oad; refs: ResolvedRefs; diagnostics: Diagnostic[] }
   | { ok: false; rowErrors?: Record<number, string>; oadError?: string; limited?: boolean };
 
 /**
@@ -79,7 +82,12 @@ export async function runPipeline(
     if (fragmentError) return { ok: false, oadError: fragmentError };
     const refs = resolveOad(oad, config);
     markFragmentEdges(oad, refs);
-    return { ok: true, oad, refs };
+    // Run the diagnostic rules here (in the worker): collect every non-blocking finding into the
+    // unified, cloneable Diagnostic[] so only plain data crosses back to the UI.
+    const reachable = reachableDocIds(oad, refs.edges);
+    const unreachable = oad.documents.filter((d) => !reachable.has(d.id));
+    const diagnostics = buildDiagnostics(oad, refs, unreachable);
+    return { ok: true, oad, refs, diagnostics };
   } catch (e) {
     return { ok: false, oadError: errorMessage(e) };
   }

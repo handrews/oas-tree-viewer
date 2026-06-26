@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Oad, OadDocument, TreeNode } from "../types";
   import type { ResolvedRefs } from "../refs/types";
+  import type { Diagnostic } from "../diagnostics/types";
   import type { DocInput } from "../loader";
   import type { ViewRequest } from "../app/viewUrl";
   import type { ViewerConfig } from "../app/config";
@@ -27,6 +28,8 @@
 
   let oad = $state<Oad | null>(null);
   let refs = $state<ResolvedRefs | null>(null);
+  // Unified non-blocking findings, computed in the worker (runPipeline) and carried in the result.
+  let diagnostics = $state<Diagnostic[]>([]);
   let selected = $state<{ doc: OadDocument; node: TreeNode } | null>(null);
 
   type Status = "loading" | "ready" | "empty" | "error";
@@ -39,7 +42,7 @@
   const unreachable = $derived(oad && refs ? unreachableDocs(oad, refs) : []);
   const unreachableDocIds = $derived(new Set(unreachable.map((d) => d.id)));
   const issueReport = $derived<IssueReportData | null>(
-    oad && refs ? collectIssues(oad, refs, unreachable) : null,
+    oad ? collectIssues(oad, diagnostics) : null,
   );
 
   const detailCtx = $derived<DetailContext | null>(
@@ -56,16 +59,18 @@
   // Guard against an out-of-order async load when the request changes mid-flight.
   let loadToken = 0;
 
-  function show(oadResult: Oad, refsResult: ResolvedRefs): void {
+  function show(oadResult: Oad, refsResult: ResolvedRefs, diagnosticsResult: Diagnostic[]): void {
     selected = null;
     oad = oadResult;
     refs = refsResult;
+    diagnostics = diagnosticsResult;
     status = "ready";
   }
 
   function fail(message: string): void {
     oad = null;
     refs = null;
+    diagnostics = [];
     selected = null;
     loadError = message;
     status = "error";
@@ -98,7 +103,7 @@
       fail(parts.join(" ") || "Could not load the requested documents.");
       return;
     }
-    show(result.oad, result.refs);
+    show(result.oad, result.refs, result.diagnostics);
   }
 
   // "Load anyway": re-run the same documents with the resource limits lifted.
@@ -117,7 +122,7 @@
     loadError = null;
     if (req.kind === "session") {
       const handed = session.result;
-      if (handed) void show(handed.oad, handed.refs);
+      if (handed) void show(handed.oad, handed.refs, handed.diagnostics);
       else {
         oad = null;
         refs = null;
@@ -147,6 +152,7 @@
     <TreeCanvas
       {oad}
       {refs}
+      {diagnostics}
       {unreachableDocIds}
       onselect={(doc, node) => (selected = { doc, node })}
       onbackground={() => (selected = null)}

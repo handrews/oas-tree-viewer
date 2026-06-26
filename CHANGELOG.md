@@ -5,6 +5,19 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Non-blocking diagnostics are unified.** Unresolved or mis-typed references, reference
+  advisories, node-level resolution caveats, unreachable documents, and unvalidated Schema Objects
+  are now one model, located by JSON Pointer and computed in the load worker. As a visible result,
+  the **unsupported-dialect resolution caveat now also appears in the issue report** (previously it
+  was only a tree glyph and a detail-panel note).
+- **The diagnostic severity policy and the demo copy are editable as data, with no code change.**
+  Each diagnostic's severity, title, and description live in `content/diagnostics.yaml`, and each
+  built-in demo's label and description live in `content/demos.yaml`.
+
 ## [0.8.3] - 2026-06-25
 
 ### Fixed
@@ -253,6 +266,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[Unreleased]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.3...HEAD
 [0.8.3]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.0...v0.8.1

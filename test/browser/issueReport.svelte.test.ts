@@ -5,42 +5,37 @@ import type { IssueReport as IssueReportData } from "../../src/render/issues";
 
 const report: IssueReportData = {
   entry: "openapi.yaml",
-  refIssues: [
+  docLabels: { a: "openapi.yaml", b: "extra.yaml" },
+  diagnostics: [
     {
+      code: "ref-broken",
       severity: "error",
-      status: "broken",
-      sourceDoc: "openapi.yaml",
-      sourcePointer: "#/paths/p",
-      refString: "#/missing",
-      detail: "target not found (the fragment names nothing)",
+      source: "reference",
+      message: "target not found (the fragment names nothing)",
+      location: { docId: "a", pointer: "/paths/p" },
+      ref: { kind: "$ref", refString: "#/missing" },
     },
-  ],
-  advisories: [
     {
-      severity: "error",
       code: "operation-target-webhook",
-      kind: "operationRef",
-      sourceDoc: "openapi.yaml",
-      sourcePointer: "#/paths/p/get/responses/200/links/x",
-      refString: "#/webhooks/hook/get",
-      detail: "the target Operation is a webhook, which is not directly callable",
+      severity: "error",
+      source: "reference",
+      message: "the target Operation is a webhook, which is not directly callable",
+      location: { docId: "a", pointer: "/paths/p/get/responses/200/links/x" },
+      ref: { kind: "operationRef", refString: "#/webhooks/hook/get" },
     },
-  ],
-  docIssues: [
     {
-      severity: "warning",
-      kind: "unreachable",
-      doc: "extra.yaml",
-      detail: "not reachable from the entry document",
-    },
-  ],
-  nodeAdvisories: [
-    {
-      severity: "warning",
       code: "ignored-ref-siblings",
-      doc: "openapi.yaml",
-      pointer: "#/components/schemas/X/$ref",
-      detail: "In draft-06/07, keywords beside $ref are ignored: type.",
+      severity: "warning",
+      source: "reference",
+      message: "In draft-06/07, keywords beside $ref are ignored: type.",
+      location: { docId: "a", pointer: "/components/schemas/X/$ref" },
+    },
+    {
+      code: "document-unreachable",
+      severity: "warning",
+      source: "reference",
+      message: "not reachable from the entry document",
+      location: { docId: "b", pointer: "" },
     },
   ],
   total: 4,
