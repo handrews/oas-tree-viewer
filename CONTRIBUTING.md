@@ -78,7 +78,7 @@ flowchart TD
         direction TB
         view["Explore page — ViewPage"]
         canvas["Canvas / tree view<br/>canvas · treeView<br/>treeLayout (windowed) · treeKeys"]
-        panels["DetailPanel · Legend · IssueReport<br/>colors · issues · detail · reachability"]
+        panels["DetailPanel · Legend · IssueReport<br/>colors · connections · issues · detail · reachability"]
         view --> canvas
         view --> panels
     end
