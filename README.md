@@ -1,14 +1,35 @@
 # OpenAPI Description Structure Viewer
 
+_Produced by Henry Andrews using Claude Code._
+
+This tool takes an [OpenAPI Description](https://learn.openapis.org/glossary.html) (OAD)
+or JSON Schema and shows how all of its pieces connect to each other.  It was particularly
+designed to show how multi-document OADs work, with full coverage of all OpenAPI Specification
+(OAS) referencing and similar features.
+
+The resulting visualization does not "resolve" the OAD in the sense of transforming it into
+a more directly-usable state.  Rather, it demonstrates the expected behavior so that tool
+developers and users can compare it to what their tool currently supports, and authors
+can explore potential errors visually, with both JSON Pointer and line number identification.
+
+OAS 3.0+ and JSON Schema draft-04+ are supported, although the focus is on the recommended
+full-document-style parsing of OAS 3.1+ and JSON Schema draft 2020-12.  Other parsing
+styles can be configured at OAD load time.
+
+Schema validation (including support for changing JSON Schema dialects within a document)
+is incorporated using @hyperjump/json-schema (note that AJV does not have sufficient
+support for draft 2020-12 at the time of this writing).
+
+The current visual design is prototype-level and undergoing review.
+Support for Arazzo and Overlays is planned once the visual design is stabilized.
+
+## What it does
+
 A TypeScript web app that reads an **OpenAPI Description (OAD)** and renders its parsed
 structure as collapsible **indented trees** — every object, array, and scalar shown as a
 row, with each node labeled by its OpenAPI Specification (OAS) type — and resolves
 references, drawing them as **on-demand arcs** between the referencing field and its target
 (including across documents).
-
-_Produced by Henry Andrews using Claude Code._
-
-## What it does
 
 - Presents two pages: a **Configure** page collects the OAD — by **file upload** (with an
   optional retrieval URL), **URL fetch**, **Load folder** (a whole directory at once,
