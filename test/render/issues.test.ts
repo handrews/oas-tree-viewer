@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { collectIssues, formatIssueReport, issueSections } from "../../src/render/issues";
+import { buildDiagnostics } from "../../src/diagnostics/runner";
 import type { Oad, OadDocument, TreeNode } from "../../src/types";
 import type { ReferenceEdge, ResolvedRefs } from "../../src/refs/types";
 
@@ -17,13 +18,17 @@ const entry = doc("a", "openapi.yaml", true);
 const other = doc("b", "common.yaml");
 const oad: Oad = { documents: [entry, other], versionFamily: "3.1" };
 
+/** Assemble the report the way the pipeline does: worker-built diagnostics → report. */
+const collect = (o: Oad, refs: ResolvedRefs, unreachable: OadDocument[] = []) =>
+  collectIssues(o, buildDiagnostics(o, refs, unreachable));
+
 /** The item rows under a given section id (or []), for a collected report. */
 const section = (report: ReturnType<typeof collectIssues>, id: string) =>
   issueSections(report).find((s) => s.id === id)?.items ?? [];
 
 describe("issues report", () => {
   it("reports nothing when clean", () => {
-    const report = collectIssues(
+    const report = collect(
       oad,
       refsOf([
         {
@@ -34,7 +39,6 @@ describe("issues report", () => {
           refString: "#/y",
         },
       ]),
-      [],
     );
     expect(report.total).toBe(0);
     expect(report.diagnostics).toEqual([]);
@@ -45,7 +49,7 @@ describe("issues report", () => {
   });
 
   it("groups broken/external/type-mismatch under 'Unresolved references' with status badges + located text", () => {
-    const report = collectIssues(
+    const report = collect(
       oad,
       refsOf([
         {
@@ -74,7 +78,6 @@ describe("issues report", () => {
           targetType: "Schema",
         },
       ]),
-      [],
     );
     const items = section(report, "unresolved");
     expect(items.map((i) => i.badge)).toEqual(["broken", "external", "type-mismatch"]);
@@ -95,7 +98,7 @@ describe("issues report", () => {
   });
 
   it("labels each reference kind in the text report", () => {
-    const report = collectIssues(
+    const report = collect(
       oad,
       refsOf([
         {
@@ -141,7 +144,6 @@ describe("issues report", () => {
           requiredType: "Schema",
         },
       ]),
-      [],
     );
     const text = formatIssueReport(report);
     expect(text).toContain('no Security Scheme component named "apiKey"');
@@ -153,7 +155,7 @@ describe("issues report", () => {
   });
 
   it("groups edge advisories under 'Reference advisories' by severity", () => {
-    const report = collectIssues(
+    const report = collect(
       oad,
       refsOf([
         {
@@ -172,7 +174,6 @@ describe("issues report", () => {
           ],
         },
       ]),
-      [],
     );
     expect(section(report, "unresolved")).toHaveLength(0); // the reference itself resolved
     const adv = section(report, "advisories");
@@ -208,11 +209,7 @@ describe("issues report", () => {
       source: "upload",
       root,
     } as OadDocument;
-    const report = collectIssues(
-      { documents: [withCaveats], versionFamily: "3.1" },
-      refsOf([]),
-      [],
-    );
+    const report = collect({ documents: [withCaveats], versionFamily: "3.1" }, refsOf([]));
 
     const caveats = section(report, "caveats");
     expect(caveats.map((i) => i.badge)).toEqual(["warning", "warning"]);
@@ -233,7 +230,7 @@ describe("issues report", () => {
       source: "upload",
       schemaDialectWarning: "draft-07 Schema Objects were not validated",
     } as OadDocument;
-    const report = collectIssues(
+    const report = collect(
       { documents: [entry, other, warned], versionFamily: "3.1" },
       refsOf([]),
       [other],
@@ -251,7 +248,7 @@ describe("issues report", () => {
   });
 
   it("renders the root pointer as # and labels the entry (none) for an empty OAD", () => {
-    const report = collectIssues(
+    const report = collect(
       oad,
       refsOf([
         {
@@ -263,18 +260,15 @@ describe("issues report", () => {
           requiredType: "Schema",
         },
       ]),
-      [],
     );
     expect(section(report, "unresolved")[0]!.pointer).toBe("#");
     expect(formatIssueReport(report)).toContain("[broken] openapi.yaml #");
 
-    expect(collectIssues({ documents: [], versionFamily: "3.1" }, refsOf([]), []).entry).toBe(
-      "(none)",
-    );
+    expect(collect({ documents: [], versionFamily: "3.1" }, refsOf([])).entry).toBe("(none)");
   });
 
   it("orders sections and carries a unique key per row", () => {
-    const report = collectIssues(
+    const report = collect(
       oad,
       refsOf([
         {

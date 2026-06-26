@@ -3,10 +3,9 @@
 // component and the plain-text formatter so they can't drift — plus a copy-paste text form that names
 // documents, JSON Pointers, and reasons without any reliance on color or icons.
 
-import type { Oad, OadDocument } from "../types";
-import type { RefKind, ResolvedRefs } from "../refs/types";
+import type { Oad } from "../types";
+import type { RefKind } from "../refs/types";
 import type { Diagnostic, DiagnosticCode } from "../diagnostics/types";
-import { buildDiagnostics } from "../diagnostics/runner";
 import { displayPointer } from "../model/jsonPointer";
 import { docLabel } from "../app/bootstrap";
 
@@ -18,13 +17,8 @@ export interface IssueReport {
   total: number;
 }
 
-/** Gather every post-render finding into one report. `unreachable` comes from reachability.ts. */
-export function collectIssues(
-  oad: Oad,
-  refs: ResolvedRefs,
-  unreachable: readonly OadDocument[],
-): IssueReport {
-  const diagnostics = buildDiagnostics(oad, refs, unreachable);
+/** Assemble the report from the worker-computed diagnostics (see buildDiagnostics in src/diagnostics). */
+export function collectIssues(oad: Oad, diagnostics: Diagnostic[]): IssueReport {
   const docLabels: Record<string, string> = {};
   for (const d of oad.documents) docLabels[d.id] = docLabel(d, d.id);
   const entryDoc = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];

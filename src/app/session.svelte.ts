@@ -5,10 +5,12 @@
 
 import type { Oad } from "../types";
 import type { ResolvedRefs } from "../refs/types";
+import type { Diagnostic } from "../diagnostics/types";
 
 export interface SessionResult {
   oad: Oad;
   refs: ResolvedRefs;
+  diagnostics: Diagnostic[];
 }
 
 export const session = $state<{ result: SessionResult | null }>({ result: null });

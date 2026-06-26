@@ -46,7 +46,11 @@
           oadError: result.oadError,
           limited: result.limited,
         };
-      session.result = { oad: result.oad, refs: result.refs };
+      session.result = {
+        oad: result.oad,
+        refs: result.refs,
+        diagnostics: result.diagnostics,
+      };
       navigate(viewPath({ kind: "session" }, config));
       return { ok: true };
     } catch (e) {
