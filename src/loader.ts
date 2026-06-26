@@ -17,6 +17,7 @@ import {
 } from "./errors";
 import { defaultLimits, formatBytes, type Limits } from "./limits";
 import { parseDocument } from "./parse/detectFormat";
+import { documentPositions } from "./parse/positions";
 import { buildTree } from "./model/treeBuilder";
 import { classifyDocument } from "./oas/classify";
 import { annotateDialectSupport, oasDialectUri } from "./oas/dialects";
@@ -227,6 +228,9 @@ export async function finalizeDocument(
     oasVersion: d.oasVersion,
     schemaDialect,
     schemaDialectWarning: dialectWarning,
+    // Source positions for line numbers (best-effort; a separate CST pass over the raw text). Runs
+    // after the depth/size guards in detect, so the document is already known to be a safe size.
+    positions: documentPositions(d.raw),
     root: d.root,
   };
 }

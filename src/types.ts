@@ -188,6 +188,12 @@ export interface OadDocument {
    * not. Surfaced as a non-blocking issue-report warning; absent when fully validated.
    */
   schemaDialectWarning?: string;
+  /**
+   * JSON Pointer → source range for this document (from the position pass, `parse/positions.ts`),
+   * keyed by the same pointers as `TreeNode.id`. Lets a selected node or a diagnostic show its line
+   * number; a node the pass couldn't locate is simply absent. Undefined when positions weren't computed.
+   */
+  positions?: Map<string, SourceRange>;
   root: TreeNode;
 }
 
