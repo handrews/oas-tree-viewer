@@ -21,9 +21,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   are now one model, located by JSON Pointer and computed in the load worker. As a visible result,
   the **unsupported-dialect resolution caveat now also appears in the issue report** (previously it
   was only a tree glyph and a detail-panel note).
-- **The diagnostic severity policy and the demo copy are editable as data, with no code change.**
-  Each diagnostic's severity, title, and description live in `content/diagnostics.yaml`, and each
-  built-in demo's label and description live in `content/demos.yaml`.
+- **The diagnostic severity policy, the connection styles, and the demo copy are editable as data, with
+  no code change.** Each diagnostic's severity, title, and description live in `content/diagnostics.yaml`;
+  each connection kind's reference arrow/marker style (line, dash, arrowhead, marker) lives in
+  `content/connections.yaml`; and each built-in demo's label and description live in `content/demos.yaml`.
+- **A reference advisory's color is now one configurable source.** The arc tint, the ▲ gutter glyph, and
+  the detail-panel note all take their severity from the diagnostic catalog policy, so changing an
+  advisory's severity (or turning it `off`) moves all three together.
 
 ## [0.8.3] - 2026-06-25
 
