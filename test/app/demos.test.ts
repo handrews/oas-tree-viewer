@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+import { parse } from "yaml";
 import { demos, demoById, demoInputs, fixtureUrl } from "../../src/app/demos";
+import demosCopyText from "../../content/demos.yaml?raw";
 
 describe("demos", () => {
   it("every demo has a unique id, a label, a description, and an entry document", () => {
@@ -12,6 +14,15 @@ describe("demos", () => {
       const entries = d.inputs.filter((i) => i.isEntry);
       expect(entries).toHaveLength(1);
       expect(d.inputs[0]!.isEntry).toBe(true); // entry first
+    }
+  });
+
+  it("content/demos.yaml has copy for exactly the demo ids (none missing, no orphans)", () => {
+    const copy = parse(demosCopyText) as Record<string, { label: string; description: string }>;
+    expect(Object.keys(copy).sort()).toEqual(demos.map((d) => d.id).sort());
+    for (const d of demos) {
+      expect(copy[d.id]!.label.trim()).not.toBe("");
+      expect(copy[d.id]!.description.trim()).not.toBe("");
     }
   });
 

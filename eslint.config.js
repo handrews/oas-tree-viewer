@@ -23,6 +23,8 @@ export default tseslint.config(
       "public/",
       "playwright-report/",
       "test-results/",
+      // Wrangler local state (`wrangler dev`/`deploy`) — gitignored build artifacts, not source.
+      ".wrangler/",
     ],
   },
   js.configs.recommended,
