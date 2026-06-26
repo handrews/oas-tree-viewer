@@ -62,7 +62,7 @@ flowchart TD
         direction TB
         subgraph load["loadDocument — per document (loader)"]
             direction TB
-            parse["Parse — detectFormat"]
+            parse["Parse — detectFormat · positions"]
             model["Model — treeBuilder · jsonPointer"]
             classify["Classify — descriptor · classify · dialects"]
             validate["Validate — validateOad"]
