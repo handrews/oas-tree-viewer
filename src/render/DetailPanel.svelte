@@ -11,6 +11,7 @@
     docVersionLabel,
     formatScalar,
     nodeRange,
+    advisorySeverity,
     outgoingRefs,
     incomingRefs,
     type DetailContext,
@@ -109,7 +110,9 @@
                   </div>
                 {/if}
                 {#each e.diagnostics ?? [] as d (d.code)}
-                  <div class="ref-note advisory severity-{d.severity}">{d.detail}</div>
+                  <div class="ref-note advisory severity-{advisorySeverity(d.code)}">
+                    {d.detail}
+                  </div>
                 {/each}
               {:else}
                 <code>{e.refString}</code>

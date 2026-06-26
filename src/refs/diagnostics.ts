@@ -13,7 +13,7 @@
 // path, not a webhook. Pure and node-testable.
 
 import type { Oad, OadDocument, TreeNode } from "../types";
-import type { EdgeDiagnostic, ReferenceEdge } from "./types";
+import type { EdgeAdvisory, ReferenceEdge } from "./types";
 import { refKey } from "./types";
 
 /** Where a Path Item Object (and the Operations under it) lives in the document grammar. */
@@ -176,7 +176,6 @@ function pathItemOverlap(e: ReferenceEdge, pointerIndex: Map<string, Map<string,
   if (shared.length) {
     addDiagnostic(e, {
       code: "pathitem-field-overlap",
-      severity: "error",
       detail: `also defined in the referenced Path Item: ${shared.join(", ")} (merge behavior is undefined)`,
     });
   }
@@ -198,20 +197,18 @@ function operationTarget(
   if (diag) addDiagnostic(e, diag);
 }
 
-function targetDiagnostic(info: OpInfo, reach: Map<string, number>): EdgeDiagnostic | null {
+function targetDiagnostic(info: OpInfo, reach: Map<string, number>): EdgeAdvisory | null {
   switch (info.habitat) {
     case "path":
       return null;
     case "webhook":
       return {
         code: "operation-target-webhook",
-        severity: "error",
         detail: "the target Operation is a webhook, which is not directly callable",
       };
     case "callback":
       return {
         code: "operation-target-callback",
-        severity: "error",
         detail:
           "the target Operation is a callback; its URL is a runtime expression, not directly callable",
       };
@@ -220,21 +217,18 @@ function targetDiagnostic(info: OpInfo, reach: Map<string, number>): EdgeDiagnos
       if (count >= 2) {
         return {
           code: "operation-target-ambiguous",
-          severity: "error",
           detail: `the target Operation's Path Item is reached by ${count} paths, so which URL invokes it is ambiguous`,
         };
       }
       if (count === 1) {
         return {
           code: "operation-target-fragile",
-          severity: "warning",
           detail:
             "the target Operation's Path Item is reached by exactly one path; another path referencing it would make the target ambiguous",
         };
       }
       return {
         code: "operation-target-no-path",
-        severity: "error",
         detail:
           "the target Operation's Path Item is not reached by any path, so there is no URL to invoke it",
       };
@@ -242,6 +236,6 @@ function targetDiagnostic(info: OpInfo, reach: Map<string, number>): EdgeDiagnos
   }
 }
 
-function addDiagnostic(e: ReferenceEdge, d: EdgeDiagnostic): void {
+function addDiagnostic(e: ReferenceEdge, d: EdgeAdvisory): void {
   (e.diagnostics ??= []).push(d);
 }

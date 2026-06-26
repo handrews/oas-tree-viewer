@@ -5,7 +5,7 @@
 // located by JSON Pointer (Phase 2 adds a source range), so any pointer-emitting tool — including a
 // future external linter — maps onto it via the `source` discriminator without reworking the model.
 
-import type { RefKind } from "../refs/types";
+import { ADVISORY_CODES, type RefKind } from "../refs/types";
 import type { SourceRange } from "../types";
 
 /** Severity of an emitted diagnostic. (`info` is an FYI about how the document was interpreted.) */
@@ -40,13 +40,9 @@ export const DIAGNOSTIC_CODES = [
   "ref-broken",
   "ref-type-mismatch",
   "ref-external",
-  // Advisories on a reference that *did* resolve but points somewhere problematic.
-  "pathitem-field-overlap",
-  "operation-target-webhook",
-  "operation-target-callback",
-  "operation-target-ambiguous",
-  "operation-target-fragile",
-  "operation-target-no-path",
+  // Advisories on a reference that *did* resolve but points somewhere problematic. Owned by
+  // refs/types.ts (they are intrinsically about references) and spread in here so the two never drift.
+  ...ADVISORY_CODES,
   // Node-level reference-resolution caveats.
   "ignored-ref-siblings",
   "invalid-id-fragment",

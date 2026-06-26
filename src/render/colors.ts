@@ -5,7 +5,6 @@
 // the theme changes.
 
 import type { NodeCategory, ResolutionKind } from "../types";
-import type { EdgeDiagnostic } from "../refs/types";
 
 /** CSS class that selects a category's themed color (--cat-<category>). */
 export function categoryClass(category: NodeCategory | undefined): string {
@@ -145,7 +144,8 @@ export const warningLegend = {
  * the two error colors (orange `--error`, distinct from the vermillion `--ref-broken` reserved for
  * genuinely-broken refs); warning = yellow `--warn`.
  */
-export type DiagnosticSeverity = EdgeDiagnostic["severity"];
+/** The severities an advisory glyph/legend distinguishes (the unified `info` tier is not drawn here). */
+export type DiagnosticSeverity = "error" | "warning";
 export interface DiagnosticStyle {
   /** CSS class selecting the themed color (`diag-error` → --error, `diag-warning` → --warn). */
   colorClass: string;

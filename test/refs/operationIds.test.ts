@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { resolveOad } from "../../src/refs/resolver";
-import type { ReferenceEdge, ResolvedRefs } from "../../src/refs/types";
-import type { DiagnosticCode } from "../../src/refs/types";
+import type { AdvisoryCode, ReferenceEdge, ResolvedRefs } from "../../src/refs/types";
 import { unreachableDocs } from "../../src/render/reachability";
 import { makeDoc, makeOad } from "../helpers";
 import type { Oad } from "../../src/types";
@@ -76,7 +75,7 @@ function opEdge(id: string): ReferenceEdge | undefined {
   return refs.edges.find((e) => e.kind === "operationId" && e.refString === id);
 }
 
-function codes(id: string): DiagnosticCode[] {
+function codes(id: string): AdvisoryCode[] {
   return (opEdge(id)?.diagnostics ?? []).map((d) => d.code);
 }
 

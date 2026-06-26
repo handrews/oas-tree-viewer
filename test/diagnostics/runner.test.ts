@@ -138,15 +138,9 @@ describe("buildDiagnostics", () => {
           requiredType: "Operation",
           targetDocId: "a",
           targetNodeId: "/webhooks/hook/get",
-          // The edge claims "warning"; the catalog says operation-target-webhook is an error — the
-          // catalog is the single source of truth, so the emitted severity must be "error".
-          diagnostics: [
-            {
-              code: "operation-target-webhook",
-              severity: "warning",
-              detail: "points at a webhook",
-            },
-          ],
+          // The edge carries only the code + detail; severity comes from the catalog
+          // (operation-target-webhook is an error), so that is the emitted severity.
+          diagnostics: [{ code: "operation-target-webhook", detail: "points at a webhook" }],
         },
       ]),
       [],
@@ -171,9 +165,7 @@ describe("buildDiagnostics", () => {
           sourceObjectId: "/links/F",
           refString: "#/components/pathItems/x/get",
           requiredType: "Operation",
-          diagnostics: [
-            { code: "operation-target-fragile", severity: "warning", detail: "one path" },
-          ],
+          diagnostics: [{ code: "operation-target-fragile", detail: "one path" }],
         },
       ]),
       [],
@@ -265,7 +257,7 @@ describe("buildDiagnostics", () => {
           requiredType: "Operation",
           targetDocId: "a",
           targetNodeId: "/webhooks/hook/get",
-          diagnostics: [{ code: "operation-target-webhook", severity: "error", detail: "webhook" }],
+          diagnostics: [{ code: "operation-target-webhook", detail: "webhook" }],
         },
       ]),
       [],

@@ -6,8 +6,9 @@ import { select, zoom, zoomIdentity, zoomTransform } from "d3";
 import type { Selection, ZoomBehavior } from "d3";
 import type { Oad, OadDocument, TreeNode } from "../types";
 import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
-import { refKey } from "../refs/types";
+import { ADVISORY_CODES as REF_ADVISORY_CODES, refKey } from "../refs/types";
 import type { Diagnostic, DiagnosticCode } from "../diagnostics/types";
+import { emittedSeverity, severityFor } from "../diagnostics/catalog";
 import { indexByPointer } from "../diagnostics/runner";
 import { resolutionStyles } from "./colors";
 import { MAX_RENDER_EDGES } from "../limits";
@@ -23,14 +24,7 @@ const CAVEAT_CODES = new Set<DiagnosticCode>([
   "ignored-ref-siblings",
   "invalid-id-fragment",
 ]);
-const ADVISORY_CODES = new Set<DiagnosticCode>([
-  "pathitem-field-overlap",
-  "operation-target-webhook",
-  "operation-target-callback",
-  "operation-target-ambiguous",
-  "operation-target-fragile",
-  "operation-target-no-path",
-]);
+const ADVISORY_CODES = new Set<DiagnosticCode>(REF_ADVISORY_CODES);
 
 const DOC_GAP = 56;
 // Zoom limits. The minimum also bounds windowing: the viewport can never show more than ~`viewport
@@ -640,16 +634,20 @@ type WarnDatum =
   | { key: string; kind: "dialect"; x: number; y: number; title: string };
 
 /**
- * The arc tint for an edge's advisories, or null. Path Item field overlaps are deliberately
- * excluded — that arc is a normal resolved `$ref` and is flagged by the gutter glyph alone; only
- * operation-target advisories (which are *about* where the arc points) tint the line.
+ * The arc tint for an edge's advisories, or null. Severity comes from the diagnostic catalog policy —
+ * the same configurable source the ▲ gutter glyph reads — so a severity change (or `off`) moves the arc
+ * and the glyph together. Path Item field overlaps are deliberately excluded: that arc is a normal
+ * resolved `$ref` and is flagged by the gutter glyph alone; only operation-target advisories (which are
+ * *about* where the arc points) tint the line.
  */
 function arcDiagSeverity(edge: ReferenceEdge): "error" | "warning" | null {
   let severity: "error" | "warning" | null = null;
   for (const d of edge.diagnostics ?? []) {
     if (d.code === "pathitem-field-overlap") continue;
-    if (d.severity === "error") return "error";
-    severity = "warning";
+    const sev = emittedSeverity(severityFor(d.code));
+    if (sev === "error") return "error";
+    if (sev === "warning") severity = "warning";
+    // `off` (null) or `info` contributes no tint.
   }
   return severity;
 }

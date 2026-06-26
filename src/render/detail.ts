@@ -3,8 +3,9 @@
 // is unit-testable (the component is presentation, verified in-browser).
 
 import type { OadDocument, SourceRange, TreeNode } from "../types";
-import type { ReferenceEdge, ResolvedRefs } from "../refs/types";
+import type { AdvisoryCode, ReferenceEdge, ResolvedRefs } from "../refs/types";
 import { refKey } from "../refs/types";
+import { emittedSeverity, severityFor } from "../diagnostics/catalog";
 import { dialectLabel } from "../oas/dialects";
 
 export interface DetailContext {
@@ -16,6 +17,13 @@ export interface DetailContext {
 /** Display name for a document. */
 export function docName(doc: OadDocument): string {
   return doc.filename ?? doc.retrievalUri ?? `(${doc.source} document)`;
+}
+
+/** The color class for an edge advisory in the detail panel — its severity from the diagnostic catalog
+ *  policy, the same source the arc tint and the ▲ gutter glyph use, so all three agree. A non-error
+ *  policy (warning / info / off) reads as "warning" for a stable color. */
+export function advisorySeverity(code: AdvisoryCode): "error" | "warning" {
+  return emittedSeverity(severityFor(code)) === "error" ? "error" : "warning";
 }
 
 /** Base URI shown for a document ($self takes precedence over the retrieval URI). */
