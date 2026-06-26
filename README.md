@@ -15,8 +15,8 @@ _Produced by Henry Andrews using Claude Code._
   preserving each file's relative path), or a **built-in demo** — and an **Explore** page
   renders it. The Explore view is captured in a **bookmarkable, shareable URL** (the demo or
   online-document URLs, plus the resolution options below). Loading (parse, classify, validate,
-  and resolve) runs in a **background worker**, so the page stays responsive and a slow load can
-  be **cancelled** mid-flight.
+  resolve, and diagnose) runs in a **background worker**, so the page stays responsive and a slow
+  load can be **cancelled** mid-flight.
 - Loads an OAD made of **one or more documents**: the **first document is the entry
   document** (use **Make entry** to promote another), any others are additional (referenced)
   documents.
@@ -58,7 +58,7 @@ _Produced by Henry Andrews using Claude Code._
   children indented under their parent), with the documents laid out **side by side** on a
   shared zoom/pan canvas (entry document leftmost). Click a row's **disclosure triangle**
   (or double-click the row) to expand/collapse; click a row to inspect it in the detail
-  panel (JSON Pointer, OAS type, value, reference target, base URI). The trees are
+  panel (JSON Pointer with its **source line**, OAS type, value, reference target, base URI). The trees are
   **keyboard-navigable and screen-reader-accessible** (a WAI-ARIA tree): arrow keys move
   between nodes and expand/collapse them, Home/End jump to the first/last, and Enter or Space
   selects the focused node. A canvas toolbar offers **Fit**, **Top** / **Bottom** (jump to the
@@ -101,8 +101,10 @@ the whole web. A reference must land on a slot of the matching **expected type**
 Object inherits the type of the slot it occupies; an operation reference must hit an
 Operation). Outcomes: **resolved**, **type-mismatch** (red error arc + "expected X, found
 Y"), **broken** (fragment not found), and **external** (target document not loaded) — the
-last two show a ⚠ marker on the row instead of a dangling line. Unresolved references and
-unreachable documents are collected in a copy-pasteable **issue report**.
+last two show a ⚠ marker on the row instead of a dangling line. Unresolved references, reference
+advisories, resolution caveats, unreachable documents, and unvalidated Schema Objects are collected
+in a copy-pasteable **issue report**; each node-level finding shows its **source line**, and clicking
+it jumps to that node in the tree.
 
 - **Base URI** of an uploaded file: a provided retrieval URL, else `$self`, else a `file://`
   URL built from the file's path. A **Load folder** upload preserves each file's relative
