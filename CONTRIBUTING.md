@@ -94,7 +94,7 @@ flowchart TD
 | Layer | Files |
 | --- | --- |
 | Types | `src/types.ts`, `src/errors.ts`, `src/limits.ts` (resource caps) |
-| Parse | `src/parse/detectFormat.ts` |
+| Parse | `src/parse/detectFormat.ts`, `src/parse/positions.ts` (JSON Pointer → source line/column range) |
 | Model | `src/model/jsonPointer.ts`, `src/model/treeBuilder.ts` |
 | OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts`, `src/oas/dialects.ts` (JSON Schema dialect selection) |
 | Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
@@ -128,6 +128,12 @@ panel all read that one model, so they cannot drift, and only plain, cloneable d
 from the worker. *Blocking* errors that refuse a document stay separate — thrown exceptions in
 `errors.ts`. The model is shaped so an external linter could later be adapted into the same
 `Diagnostic[]` (a `source` discriminator, pointer-keyed locations), but none is integrated.
+
+**Line numbers** come from a separate, position-aware pass (`parse/positions.ts`) that re-reads each
+document's text with the `yaml` CST and maps every JSON Pointer to its source range, keyed by the same
+pointers as the tree. The detail panel and the issue report show a node's / a diagnostic's line beside
+its pointer, and a located issue jumps to its node. It is best-effort (a pointer the pass can't locate
+just shows no line) and runs in the worker after the size guards, so it never blocks the UI.
 
 ## Preparing a release
 

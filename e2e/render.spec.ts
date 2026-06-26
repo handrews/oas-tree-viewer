@@ -51,6 +51,14 @@ test.describe("references", () => {
     await expect(issues).toContainText("Unresolved references");
     await expect(issues.locator(".copy-report")).toBeVisible();
     await expect(issues.locator(".issue").first()).toBeVisible();
+
+    // Each located row shows its source line, and clicking it reveals the node — whose detail panel
+    // shows the same pointer + line.
+    await expect(issues).toContainText(/· line \d+/);
+    await issues.locator(".issue-loc.nav-ref").first().click();
+    const detail = page.locator("#detail-panel .node-detail");
+    await expect(detail).toContainText("Pointer");
+    await expect(detail).toContainText(/line \d+/);
   });
 });
 
