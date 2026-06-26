@@ -68,7 +68,8 @@ flowchart TD
         end
         assemble["assembleOad — oad"]
         refs["resolveOad — references<br/>resolver · baseUri · dynamicScope<br/>fragments · reachability"]
-        load --> assemble --> refs
+        diag["buildDiagnostics — diagnostics<br/>runner · catalog (content/diagnostics.yaml)"]
+        load --> assemble --> refs --> diag
     end
 
     subgraph mainOut["Main thread (render, model-decoupled)"]
@@ -84,7 +85,7 @@ flowchart TD
 
     cfg -->|inputs| client
     client -->|postMessage| load
-    refs -->|resolved Oad| view
+    diag -->|resolved Oad + diagnostics| view
     routing -. bookmarkable URL .-> view
     routing -.-> cfg
     limits -. guards .-> load
@@ -98,23 +99,35 @@ flowchart TD
 | OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts`, `src/oas/dialects.ts` (JSON Schema dialect selection) |
 | Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
 | Validation | `src/validation/validateOad.ts` (OAS schema + per-dialect JSON Schema validation) |
-| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts`, `src/refs/diagnostics.ts`, `src/refs/dynamicScope.ts`, `src/refs/fragments.ts`, `src/refs/reachability.ts` |
+| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts`, `src/refs/diagnostics.ts` (per-edge advisories), `src/refs/dynamicScope.ts`, `src/refs/fragments.ts`, `src/refs/reachability.ts` |
+| Diagnostics | `src/diagnostics/types.ts` (the unified `Diagnostic` model), `src/diagnostics/catalog.ts` (loads the severity policy + copy), `src/diagnostics/runner.ts` (collects every non-blocking finding) |
 | Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/treeLayout.ts` (windowing + label widths), `src/render/treeKeys.ts` (keyboard model), `src/render/colors.ts`, `src/render/issues.ts`, `src/render/reachability.ts`, `src/render/detail.ts`; Svelte islands `TreeCanvas.svelte`, `DetailPanel.svelte`, `Legend.svelte`, `IssueReport.svelte` |
 | Worker pipeline | `src/app/pipelineClient.ts` (main-thread client), `src/app/pipeline.worker.ts` (off-thread load) |
 | App / routing | `src/app/router.svelte.ts`, `src/app/session.svelte.ts`, `src/app/viewUrl.ts`, `src/app/config.ts`, `src/app/demos.ts`, `src/app/bootstrap.ts` |
 | UI / shell | `src/main.ts`, `src/App.svelte`, `src/pages/ConfigurePage.svelte`, `src/pages/ViewPage.svelte`, `src/ui/OadForm.svelte`, `src/ui/ThemeToggle.svelte`, `src/ui/oadForm.ts`, `src/ui/fileDrop.ts`, `src/ui/theme.ts` |
 | Styles / pages | `src/styles.css`, `src/theme.css`, `src/docs.css`, `vite/doc-pages.ts` (renders `CHANGELOG.md` to a themed page) |
+| Content (editable, no code) | `content/demos.yaml` (demo labels + descriptions), `content/diagnostics.yaml` (diagnostic severity policy + titles/descriptions) — imported as data and merged in by id/code |
 
 Each node keeps a stable **JSON Pointer** id and an `expectedType` (its grammar slot type),
 and each document keeps its **base URI** (`$self` / retrieval URI) — the foundation the
 resolver uses. Documents and `$id` schemas are indexed together as URI-identified
 **resources**, so a reference resolves its target resource once and then locates the node.
 
-The whole load pipeline (parse → classify → validate → resolve) runs in a **Web Worker**
-(`pipelineClient` on the main thread driving `pipeline.worker`), so a large or slow document
-never freezes the UI and a load can be cancelled. The tree renderer is **windowed**: it mounts
-only the rows near the viewport and tracks the rest analytically (`treeLayout.ts`), so render
-and interaction stay bounded as a document grows.
+The whole load pipeline (parse → classify → validate → resolve → diagnose) runs in a **Web
+Worker** (`pipelineClient` on the main thread driving `pipeline.worker`), so a large or slow
+document never freezes the UI and a load can be cancelled. The tree renderer is **windowed**: it
+mounts only the rows near the viewport and tracks the rest analytically (`treeLayout.ts`), so
+render and interaction stay bounded as a document grows.
+
+**Diagnostics are unified.** Every *non-blocking* finding — an unresolved or mis-typed reference,
+a reference advisory, a node-level resolution caveat, an unreachable document, an unvalidated
+Schema Object — is collected by `buildDiagnostics` (in the worker, after resolution) into one flat
+`Diagnostic[]`, each located by **JSON Pointer** and stamped with the severity its code carries in
+`content/diagnostics.yaml`. The issue report, the canvas warning/advisory glyphs, and the detail
+panel all read that one model, so they cannot drift, and only plain, cloneable data crosses back
+from the worker. *Blocking* errors that refuse a document stay separate — thrown exceptions in
+`errors.ts`. The model is shaped so an external linter could later be adapted into the same
+`Diagnostic[]` (a `source` discriminator, pointer-keyed locations), but none is integrated.
 
 ## Preparing a release
 
