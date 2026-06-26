@@ -1,18 +1,15 @@
 <script lang="ts">
-  // Full-width collapsible drawer listing every post-render issue (unresolved references and
-  // unreachable documents), with a Copy button that yields the same plain-text report. Svelte
+  // Full-width collapsible drawer listing every post-render issue, grouped into the same sections as
+  // the plain-text report (issueSections), with a Copy button that yields that text. Svelte
   // auto-escapes interpolated text, so doc labels / ref strings are safe by construction.
   import type { IssueReport } from "./issues";
-  import { formatIssueReport } from "./issues";
+  import { formatIssueReport, issueSections } from "./issues";
 
   let { report }: { report: IssueReport | null } = $props();
 
   let copied = $state(false);
 
-  const unreachableDocs = $derived(report?.docIssues.filter((i) => i.kind === "unreachable") ?? []);
-  const unvalidatedDocs = $derived(
-    report?.docIssues.filter((i) => i.kind === "unvalidated-schema") ?? [],
-  );
+  const sections = $derived(report ? issueSections(report) : []);
 
   async function copy(): Promise<void> {
     if (!report) return;
@@ -45,72 +42,21 @@
           </button>
         </div>
 
-        {#if report.refIssues.length}
-          <h3>Unresolved references ({report.refIssues.length})</h3>
+        {#each sections as section (section.id)}
+          <h3>{section.label} ({section.items.length})</h3>
           <ul class="issue-list">
-            {#each report.refIssues as i (i.sourceDoc + i.sourcePointer + i.refString)}
-              <li class="issue status-{i.status}">
-                <span class="issue-status status-{i.status}">{i.status}</span>
-                <span class="issue-loc">{i.sourceDoc} <code>{i.sourcePointer}</code></span>
-                <code class="issue-ref">{i.refString}</code>
-                <span class="issue-detail">{i.detail}</span>
+            {#each section.items as item (item.key)}
+              <li class="issue {item.badgeClass}">
+                <span class="issue-status {item.badgeClass}">{item.badge}</span>
+                <span class="issue-loc"
+                  >{item.doc}{#if item.pointer}&nbsp;<code>{item.pointer}</code>{/if}</span
+                >
+                {#if item.refString}<code class="issue-ref">{item.refString}</code>{/if}
+                <span class="issue-detail">{item.message}</span>
               </li>
             {/each}
           </ul>
-        {/if}
-
-        {#if report.advisories.length}
-          <h3>Reference advisories ({report.advisories.length})</h3>
-          <ul class="issue-list">
-            {#each report.advisories as a (a.sourceDoc + a.sourcePointer + a.code + a.refString)}
-              <li class="issue severity-{a.severity}">
-                <span class="issue-status severity-{a.severity}">{a.severity}</span>
-                <span class="issue-loc">{a.sourceDoc} <code>{a.sourcePointer}</code></span>
-                <code class="issue-ref">{a.refString}</code>
-                <span class="issue-detail">{a.detail}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-
-        {#if report.nodeAdvisories.length}
-          <h3>Reference-resolution advisories ({report.nodeAdvisories.length})</h3>
-          <ul class="issue-list">
-            {#each report.nodeAdvisories as a (a.doc + a.pointer + a.code + a.detail)}
-              <li class="issue severity-warning">
-                <span class="issue-status severity-warning">warning</span>
-                <span class="issue-loc">{a.doc} <code>{a.pointer}</code></span>
-                <span class="issue-detail">{a.detail}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-
-        {#if unreachableDocs.length}
-          <h3>Unreachable documents ({unreachableDocs.length})</h3>
-          <ul class="issue-list">
-            {#each unreachableDocs as i (i.doc)}
-              <li class="issue status-unreachable">
-                <span class="issue-status status-unreachable">unreachable</span>
-                <span class="issue-loc">{i.doc}</span>
-                <span class="issue-detail">{i.detail}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
-
-        {#if unvalidatedDocs.length}
-          <h3>Unvalidated Schema Objects ({unvalidatedDocs.length})</h3>
-          <ul class="issue-list">
-            {#each unvalidatedDocs as i (i.doc)}
-              <li class="issue status-unreachable">
-                <span class="issue-status status-unreachable">unvalidated</span>
-                <span class="issue-loc">{i.doc}</span>
-                <span class="issue-detail">{i.detail}</span>
-              </li>
-            {/each}
-          </ul>
-        {/if}
+        {/each}
       {/if}
     </div>
   </details>

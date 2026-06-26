@@ -1,184 +1,173 @@
-// A flat, self-describing model of everything wrong with an OAD after it renders — unresolved
-// references and unreachable documents — plus a plain-text formatter. The text form names
-// documents, JSON Pointers, and reasons without any reliance on color or icons, so it can be
-// pasted to a maintainer who can't see the diagram.
+// The post-render issue report, derived from the unified Diagnostic[] (src/diagnostics). It groups the
+// diagnostics into the report's display sections — one grouping (issueSections) shared by the drawer
+// component and the plain-text formatter so they can't drift — plus a copy-paste text form that names
+// documents, JSON Pointers, and reasons without any reliance on color or icons.
 
-import type { Oad, OadDocument, ResolutionAdvisoryCode, TreeNode } from "../types";
-import type { DiagnosticCode, ReferenceEdge, RefKind, ResolvedRefs } from "../refs/types";
+import type { Oad, OadDocument } from "../types";
+import type { RefKind, ResolvedRefs } from "../refs/types";
+import type { Diagnostic, DiagnosticCode } from "../diagnostics/types";
+import { buildDiagnostics } from "../diagnostics/runner";
 import { displayPointer } from "../model/jsonPointer";
 import { docLabel } from "../app/bootstrap";
 
-export type IssueSeverity = "error" | "warning";
-
-/** An unresolved (or mis-resolved) reference. */
-export interface RefIssue {
-  severity: IssueSeverity;
-  status: "broken" | "external" | "type-mismatch";
-  /** Which reference field (selects the human label in the text report). */
-  kind?: RefKind;
-  sourceDoc: string;
-  sourcePointer: string;
-  refString: string;
-  detail: string;
-}
-
-/** A semantic advisory on a reference that *did* resolve (operation-target / Path Item overlap). */
-export interface RefAdvisory {
-  severity: IssueSeverity;
-  code: DiagnosticCode;
-  kind?: RefKind;
-  sourceDoc: string;
-  sourcePointer: string;
-  refString: string;
-  detail: string;
-}
-
-/** A document-level problem: unreachable from the entry, or Schema Objects left unvalidated. */
-export interface DocIssue {
-  severity: "warning";
-  kind: "unreachable" | "unvalidated-schema";
-  doc: string;
-  detail: string;
-}
-
-/** A node-level reference-resolution advisory (draft-06/07 `$ref` siblings or a bad `$id` fragment). */
-export interface NodeAdvisory {
-  severity: "warning";
-  code: ResolutionAdvisoryCode;
-  doc: string;
-  pointer: string;
-  detail: string;
-}
-
 export interface IssueReport {
   entry: string;
-  refIssues: RefIssue[];
-  advisories: RefAdvisory[];
-  docIssues: DocIssue[];
-  nodeAdvisories: NodeAdvisory[];
+  diagnostics: Diagnostic[];
+  /** docId → display label, so each diagnostic's location can be named. */
+  docLabels: Record<string, string>;
   total: number;
 }
 
-const STATUS_SEVERITY: Record<RefIssue["status"], IssueSeverity> = {
-  broken: "error",
-  "type-mismatch": "error",
-  external: "warning",
-};
-
-/** Gather every post-render issue into one report. `unreachable` comes from reachability.ts. */
+/** Gather every post-render finding into one report. `unreachable` comes from reachability.ts. */
 export function collectIssues(
   oad: Oad,
   refs: ResolvedRefs,
   unreachable: readonly OadDocument[],
 ): IssueReport {
-  const byId = new Map(oad.documents.map((d) => [d.id, d]));
-  const label = (id: string): string => docLabel(byId.get(id), id);
-
-  const refIssues: RefIssue[] = [];
-  const advisories: RefAdvisory[] = [];
-  for (const e of refs.edges) {
-    if (e.status !== "resolved") {
-      refIssues.push({
-        severity: STATUS_SEVERITY[e.status],
-        status: e.status,
-        kind: e.kind,
-        sourceDoc: label(e.sourceDocId),
-        sourcePointer: displayPointer(e.sourceObjectId),
-        refString: e.refString,
-        detail: refDetail(e),
-      });
-    }
-    // A reference can resolve yet still carry advisories (e.g. an operationRef to a webhook).
-    for (const d of e.diagnostics ?? []) {
-      advisories.push({
-        severity: d.severity,
-        code: d.code,
-        kind: e.kind,
-        sourceDoc: label(e.sourceDocId),
-        sourcePointer: displayPointer(e.sourceObjectId),
-        refString: e.refString,
-        detail: d.detail,
-      });
-    }
-  }
-
+  const diagnostics = buildDiagnostics(oad, refs, unreachable);
+  const docLabels: Record<string, string> = {};
+  for (const d of oad.documents) docLabels[d.id] = docLabel(d, d.id);
   const entryDoc = oad.documents.find((d) => d.isEntry) ?? oad.documents[0];
-  const docIssues: DocIssue[] = unreachable.map((d) => ({
-    severity: "warning",
-    kind: "unreachable",
-    doc: docLabel(d, d.id),
-    detail: "not reachable from the entry document",
-  }));
-  // Documents whose Schema Objects use a dialect the validator doesn't support (loose fallback).
-  for (const d of oad.documents) {
-    if (d.schemaDialectWarning) {
-      docIssues.push({
-        severity: "warning",
-        kind: "unvalidated-schema",
-        doc: docLabel(d, d.id),
-        detail: d.schemaDialectWarning,
-      });
-    }
-  }
-
-  // Node-level draft-06/07 advisories (ignored `$ref` siblings, wrong `$id` fragment), set by the
-  // resolver while walking each document's tree.
-  const nodeAdvisories: NodeAdvisory[] = [];
-  for (const d of oad.documents) {
-    if (d.root) collectNodeAdvisories(d.root, docLabel(d, d.id), nodeAdvisories);
-  }
-
   return {
-    entry: entryDoc ? docLabel(entryDoc, entryDoc.id) : "(none)",
-    refIssues,
-    advisories,
-    docIssues,
-    nodeAdvisories,
-    total: refIssues.length + advisories.length + docIssues.length + nodeAdvisories.length,
+    entry: entryDoc ? docLabels[entryDoc.id] : "(none)",
+    diagnostics,
+    docLabels,
+    total: diagnostics.length,
   };
 }
 
-/** Walk a document tree, lifting every node's `resolutionAdvisories` into located report entries. */
-function collectNodeAdvisories(node: TreeNode, doc: string, out: NodeAdvisory[]): void {
-  for (const a of node.resolutionAdvisories ?? []) {
-    out.push({
-      severity: "warning",
-      code: a.code,
-      doc,
-      pointer: displayPointer(node.id),
-      detail: a.detail,
-    });
+// ── display grouping ────────────────────────────────────────────────────────
+
+export type SectionId = "unresolved" | "advisories" | "caveats" | "unreachable" | "unvalidated";
+
+/** Which report section each diagnostic code belongs to. */
+const SECTION: Record<DiagnosticCode, SectionId> = {
+  "ref-broken": "unresolved",
+  "ref-type-mismatch": "unresolved",
+  "ref-external": "unresolved",
+  "pathitem-field-overlap": "advisories",
+  "operation-target-webhook": "advisories",
+  "operation-target-callback": "advisories",
+  "operation-target-ambiguous": "advisories",
+  "operation-target-fragile": "advisories",
+  "operation-target-no-path": "advisories",
+  "ignored-ref-siblings": "caveats",
+  "invalid-id-fragment": "caveats",
+  "dialect-resolution-unsupported": "caveats",
+  "document-unreachable": "unreachable",
+  "schema-unvalidated": "unvalidated",
+};
+
+const SECTION_ORDER: ReadonlyArray<{ id: SectionId; label: string }> = [
+  { id: "unresolved", label: "Unresolved references" },
+  { id: "advisories", label: "Reference advisories" },
+  { id: "caveats", label: "Reference-resolution advisories" },
+  { id: "unreachable", label: "Unreachable documents" },
+  { id: "unvalidated", label: "Unvalidated Schema Objects" },
+];
+
+/** The badge shown for an unresolved-reference diagnostic (the old resolve "status"). */
+const STATUS_LABEL: Partial<Record<DiagnosticCode, string>> = {
+  "ref-broken": "broken",
+  "ref-type-mismatch": "type-mismatch",
+  "ref-external": "external",
+};
+
+/** One report row, with everything the drawer and the text formatter need to render it. */
+export interface IssueItemView {
+  key: string;
+  /** Badge text: a resolve status, a severity, or a document-level kind. */
+  badge: string;
+  /** CSS class suffix for the badge color. */
+  badgeClass: string;
+  doc: string;
+  /** Display JSON Pointer, or "" for a document-level finding (no pointer shown). */
+  pointer: string;
+  /** Reference field label (e.g. "operationRef"), present for reference findings. */
+  fieldLabel?: string;
+  refString?: string;
+  message: string;
+}
+
+export interface IssueSection {
+  id: SectionId;
+  label: string;
+  items: IssueItemView[];
+}
+
+/** Group a report's diagnostics into ordered, non-empty display sections. */
+export function issueSections(report: IssueReport): IssueSection[] {
+  const buckets = new Map<SectionId, IssueItemView[]>();
+  report.diagnostics.forEach((d, idx) => {
+    const section = SECTION[d.code];
+    const items = buckets.get(section) ?? [];
+    items.push(itemFor(d, section, report.docLabels, idx));
+    buckets.set(section, items);
+  });
+  const out: IssueSection[] = [];
+  for (const { id, label } of SECTION_ORDER) {
+    const items = buckets.get(id);
+    if (items?.length) out.push({ id, label, items });
   }
-  for (const child of node.children) collectNodeAdvisories(child, doc, out);
+  return out;
 }
 
-function refDetail(
-  e: Pick<ReferenceEdge, "status" | "resolution" | "requiredType" | "targetType" | "refString">,
-): string {
-  switch (e.status) {
-    case "broken":
-      if (e.resolution === "component-name") {
-        return `no ${typeName(e.requiredType)} component named "${e.refString}"`;
-      }
-      if (e.resolution === "operation-id") {
-        return `no Operation declares operationId "${e.refString}"`;
-      }
-      return "target not found (the fragment names nothing)";
-    case "external":
-      return "external document not loaded";
-    case "type-mismatch":
-      return `expected ${e.requiredType}, found ${e.targetType ?? "?"}`;
-    default:
-      return "";
+function itemFor(
+  d: Diagnostic,
+  section: SectionId,
+  docLabels: Record<string, string>,
+  idx: number,
+): IssueItemView {
+  const doc = docLabels[d.location.docId] ?? d.location.docId;
+  const key = `${d.location.docId}:${d.location.pointer}:${d.code}:${idx}`;
+  switch (section) {
+    case "unresolved": {
+      const status = STATUS_LABEL[d.code]!; // ref-broken / -type-mismatch / -external
+      return {
+        key,
+        badge: status,
+        badgeClass: `status-${status}`,
+        doc,
+        pointer: displayPointer(d.location.pointer),
+        fieldLabel: refLabel(d.ref?.kind),
+        refString: d.ref?.refString,
+        message: d.message,
+      };
+    }
+    case "advisories":
+      return {
+        key,
+        badge: d.severity,
+        badgeClass: `severity-${d.severity}`,
+        doc,
+        pointer: displayPointer(d.location.pointer),
+        fieldLabel: refLabel(d.ref?.kind),
+        refString: d.ref?.refString,
+        message: d.message,
+      };
+    case "caveats":
+      return {
+        key,
+        badge: d.severity,
+        badgeClass: `severity-${d.severity}`,
+        doc,
+        pointer: displayPointer(d.location.pointer),
+        message: d.message,
+      };
+    case "unreachable":
+    case "unvalidated":
+      return {
+        key,
+        badge: section === "unreachable" ? "unreachable" : "unvalidated",
+        badgeClass: "status-unreachable",
+        doc,
+        pointer: "",
+        message: d.message,
+      };
   }
 }
 
-/** Human label for a component type (`SecurityScheme` reads as two words). */
-function typeName(requiredType: string): string {
-  return requiredType === "SecurityScheme" ? "Security Scheme" : requiredType || "target";
-}
-
-/** Human label for a reference field, for the plain-text report. */
+/** Human label for a reference field, for the report. */
 function refLabel(kind: RefKind | undefined): string {
   switch (kind) {
     case "operationRef":
@@ -210,45 +199,18 @@ export function formatIssueReport(report: IssueReport): string {
     return lines.join("\n");
   }
 
-  if (report.refIssues.length) {
-    lines.push("", `Unresolved references (${report.refIssues.length}):`);
-    for (const i of report.refIssues) {
-      lines.push(`  [${i.status}] ${i.sourceDoc} ${i.sourcePointer}`);
-      lines.push(`      ${refLabel(i.kind)}: ${i.refString}`);
-      lines.push(`      ${i.detail}`);
-    }
-  }
-
-  if (report.advisories.length) {
-    lines.push("", `Reference advisories (${report.advisories.length}):`);
-    for (const a of report.advisories) {
-      lines.push(`  [${a.severity}] ${a.sourceDoc} ${a.sourcePointer}`);
-      lines.push(`      ${refLabel(a.kind)}: ${a.refString}`);
-      lines.push(`      ${a.detail}`);
-    }
-  }
-
-  if (report.nodeAdvisories.length) {
-    lines.push("", `Reference-resolution advisories (${report.nodeAdvisories.length}):`);
-    for (const a of report.nodeAdvisories) {
-      lines.push(`  [${a.severity}] ${a.doc} ${a.pointer}`);
-      lines.push(`      ${a.detail}`);
-    }
-  }
-
-  const unreachable = report.docIssues.filter((i) => i.kind === "unreachable");
-  if (unreachable.length) {
-    lines.push("", `Unreachable documents (${unreachable.length}):`);
-    for (const i of unreachable) {
-      lines.push(`  ${i.doc} — ${i.detail}`);
-    }
-  }
-
-  const unvalidated = report.docIssues.filter((i) => i.kind === "unvalidated-schema");
-  if (unvalidated.length) {
-    lines.push("", `Unvalidated Schema Objects (${unvalidated.length}):`);
-    for (const i of unvalidated) {
-      lines.push(`  ${i.doc} — ${i.detail}`);
+  for (const section of issueSections(report)) {
+    lines.push("", `${section.label} (${section.items.length}):`);
+    for (const item of section.items) {
+      if (section.id === "unreachable" || section.id === "unvalidated") {
+        lines.push(`  ${item.doc} — ${item.message}`);
+        continue;
+      }
+      lines.push(`  [${item.badge}] ${item.doc} ${item.pointer}`);
+      if (item.fieldLabel !== undefined && item.refString !== undefined) {
+        lines.push(`      ${item.fieldLabel}: ${item.refString}`);
+      }
+      lines.push(`      ${item.message}`);
     }
   }
 
