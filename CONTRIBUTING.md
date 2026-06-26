@@ -9,7 +9,7 @@ organized, and how to **prepare a release**.
 npm test         # run the suite once (Vitest)
 npm run test:watch
 npm run coverage # run with v8 coverage; writes coverage/ (HTML + lcov) and fails below threshold
-npm run bench    # render benchmark over large synthetic trees; a normal `npm test` collects it but skips it
+npm run bench    # render + pipeline benchmarks over large synthetic docs; a normal `npm test` collects them but skips them
 ```
 
 Specs live in [`test/`](test) mirroring `src/`, built on a `test/helpers.ts` that runs the
@@ -21,10 +21,12 @@ assembler — and a **browser** project (`vitest-browser-svelte`) for the Svelte
 excluded from the coverage denominator (they need real browser layout), but the browser
 project still drives the canvas directly to assert its **scalability invariant** — that a
 large tree mounts only a bounded number of rows — alongside the browser/preview workflow and
-the Playwright end-to-end suite (`npm run e2e`, which also runs axe accessibility checks). The
-`bench` harness (`test/browser/treeCanvas.bench.svelte.test.ts`) is gated behind `VITE_BENCH`
-so it stays out of the gating run; it reports wall-clock render/expand timings, which are
-machine-dependent and informational. Coverage is gated by thresholds in `vitest.config.ts`.
+the Playwright end-to-end suite (`npm run e2e`, which also runs axe accessibility checks). Two
+`bench` harnesses are gated behind `VITE_BENCH` so they stay out of the gating run, both reporting
+wall-clock timings that are machine-dependent and informational: a **render** bench
+(`test/browser/treeCanvas.bench.svelte.test.ts`, render/expand timings) and a **pipeline** bench
+(`test/pipeline.bench.test.ts`, the worker-side source-position and diagnostics stages versus the raw
+parse and the full single-document finalize). Coverage is gated by thresholds in `vitest.config.ts`.
 
 ## Linting and formatting
 
