@@ -1,7 +1,9 @@
 # Contributing
 
-This guide covers the project's **architecture**, how its **tests, linting, and formatting** are
-organized, and how to **prepare a release**.
+This guide covers how the project's **tests, linting, and formatting** are organized and how to
+**prepare a release**. For the system design — the model layer, the off-thread worker pipeline,
+reference resolution, windowed rendering, and diagnostics — see
+[docs/architecture.md](docs/architecture.md).
 
 ## Tests
 
@@ -62,112 +64,6 @@ Both `npm run lint` and `npm run format:check` are **CI gates** — a dedicated 
 `.github/workflows/ci.yml` — so run them locally before pushing. Prettier owns formatting and
 ESLint is configured with `eslint-config-prettier`, so the two never fight over style.
 
-## Architecture
-
-A clean **model layer** (plain TypeScript) decoupled from rendering. The UI is **Svelte 5**,
-with **History-API routing** splitting a Configure page from an Explore page; the d3/SVG
-canvas is an imperative island wrapped by a Svelte component.
-
-Inputs are collected on the Configure page, the whole load pipeline runs off-thread in a Web
-Worker, and the resolved model drives the render layer (GitHub renders this Mermaid diagram):
-
-```mermaid
-flowchart TD
-    subgraph mainIn["Main thread (UI / orchestration)"]
-        direction TB
-        cfg["Configure page<br/>OadForm · fileDrop<br/>(upload · URL · folder · demo)"]
-        client["pipelineClient"]
-        routing["App / routing<br/>router · session · viewUrl<br/>bootstrap · config · demos"]
-    end
-
-    subgraph wk["pipeline.worker — Web Worker (off-thread, cancellable)"]
-        direction TB
-        subgraph load["loadDocument — per document (loader)"]
-            direction TB
-            parse["Parse — detectFormat · positions"]
-            model["Model — treeBuilder · jsonPointer"]
-            classify["Classify — descriptor · classify · dialects"]
-            validate["Validate — validateOad"]
-            parse --> model --> classify --> validate
-        end
-        assemble["assembleOad — oad"]
-        refs["resolveOad — references<br/>resolver · baseUri · dynamicScope<br/>fragments · reachability"]
-        diag["buildDiagnostics — diagnostics<br/>runner · catalog (content/diagnostics.yaml)"]
-        load --> assemble --> refs --> diag
-    end
-
-    subgraph mainOut["Main thread (render, model-decoupled)"]
-        direction TB
-        view["Explore page — ViewPage"]
-        canvas["Canvas / tree view<br/>canvas · treeView<br/>treeLayout (windowed) · treeKeys"]
-        panels["DetailPanel · Legend · IssueReport<br/>colors · connections · issues · detail · reachability"]
-        view --> canvas
-        view --> panels
-    end
-
-    limits["Resource caps<br/>limits (depth) · errors · types"]
-
-    cfg -->|inputs| client
-    client -->|postMessage| load
-    diag -->|resolved Oad + diagnostics| view
-    routing -. bookmarkable URL .-> view
-    routing -.-> cfg
-    limits -. guards .-> load
-```
-
-| Layer | Files |
-| --- | --- |
-| Types | `src/types.ts`, `src/errors.ts`, `src/limits.ts` (resource caps) |
-| Parse | `src/parse/detectFormat.ts`, `src/parse/positions.ts` (JSON Pointer → source line/column range) |
-| Model | `src/model/jsonPointer.ts`, `src/model/treeBuilder.ts` |
-| OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts`, `src/oas/dialects.ts` (JSON Schema dialect selection) |
-| Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
-| Validation | `src/validation/validateOad.ts` (OAS schema + per-dialect JSON Schema validation) |
-| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts`, `src/refs/diagnostics.ts` (per-edge advisories), `src/refs/dynamicScope.ts`, `src/refs/fragments.ts`, `src/refs/reachability.ts` |
-| Diagnostics | `src/diagnostics/types.ts` (the unified `Diagnostic` model), `src/diagnostics/catalog.ts` (loads the severity policy + copy), `src/diagnostics/runner.ts` (collects every non-blocking finding) |
-| Connections | `src/connections/types.ts` (the style vocabulary + `family` axis), `src/connections/catalog.ts` (loads `content/connections.yaml`), `src/connections/style.ts` (per-connection class/marker/arrowhead selection) |
-| Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/treeLayout.ts` (windowing, label-width estimate + right-gutter glyph packing), `src/render/treeKeys.ts` (keyboard model), `src/render/colors.ts`, `src/render/issues.ts`, `src/render/reachability.ts`, `src/render/detail.ts`; Svelte islands `TreeCanvas.svelte`, `DetailPanel.svelte`, `Legend.svelte`, `IssueReport.svelte` |
-| Worker pipeline | `src/app/pipelineClient.ts` (main-thread client), `src/app/pipeline.worker.ts` (off-thread load) |
-| App / routing | `src/app/router.svelte.ts`, `src/app/session.svelte.ts`, `src/app/viewUrl.ts`, `src/app/config.ts`, `src/app/demos.ts`, `src/app/bootstrap.ts` |
-| UI / shell | `src/main.ts`, `src/App.svelte`, `src/pages/ConfigurePage.svelte`, `src/pages/ViewPage.svelte`, `src/ui/OadForm.svelte`, `src/ui/ThemeToggle.svelte`, `src/ui/oadForm.ts`, `src/ui/fileDrop.ts`, `src/ui/theme.ts` |
-| Styles / pages | `src/styles.css`, `src/theme.css`, `src/docs.css`, `vite/doc-pages.ts` (renders `CHANGELOG.md` to a themed page) |
-| Content (editable, no code) | `content/demos.yaml` (demo labels + descriptions), `content/diagnostics.yaml` (diagnostic severity policy + titles/descriptions), `content/connections.yaml` (per-connection reference arrow/marker styles) — imported as data and keyed by id/code/kind |
-
-Each node keeps a stable **JSON Pointer** id and an `expectedType` (its grammar slot type),
-and each document keeps its **base URI** (`$self` / retrieval URI) — the foundation the
-resolver uses. Documents and `$id` schemas are indexed together as URI-identified
-**resources**, so a reference resolves its target resource once and then locates the node.
-
-The whole load pipeline (parse → classify → validate → resolve → diagnose) runs in a **Web
-Worker** (`pipelineClient` on the main thread driving `pipeline.worker`), so a large or slow
-document never freezes the UI and a load can be cancelled. The tree renderer is **windowed**: it
-mounts only the rows near the viewport and tracks the rest analytically (`treeLayout.ts`), so
-render and interaction stay bounded as a document grows.
-
-**Diagnostics are unified.** Every *non-blocking* finding — an unresolved or mis-typed reference,
-a reference advisory, a node-level resolution caveat, an unreachable document, an unvalidated
-Schema Object — is collected by `buildDiagnostics` (in the worker, after resolution) into one flat
-`Diagnostic[]`, each located by **JSON Pointer** and stamped with the severity its code carries in
-`content/diagnostics.yaml`. The issue report, the canvas warning/advisory glyphs, and the detail
-panel all read that one model, so they cannot drift, and only plain, cloneable data crosses back
-from the worker. *Blocking* errors that refuse a document stay separate — thrown exceptions in
-`errors.ts`. The model is shaped so an external linter could later be adapted into the same
-`Diagnostic[]` (a `source` discriminator, pointer-keyed locations), but none is integrated.
-
-**Connection styles are data.** Every drawn connection (today, references; the `family` axis leaves room
-for non-reference *structural relationships* a parser must reconcile — drawn, never performed) takes its
-base look from a catalog, `content/connections.yaml`, keyed by connection kind: line (single/double), dash
-(solid/dashed/dotted), arrowhead, and marker, each from a bounded vocabulary that maps to fixed CSS classes.
-One pure helper (`src/connections/style.ts`) turns a kind plus its render state (resolve status, advisory
-severity, collapsed, focused) into the arc's classes, and the tree marker, the arc, and the legend all read
-that one catalog — so restyling a category is a YAML edit, not a CSS change, and they cannot drift.
-
-**Line numbers** come from a separate, position-aware pass (`parse/positions.ts`) that re-reads each
-document's text with the `yaml` CST and maps every JSON Pointer to its source range, keyed by the same
-pointers as the tree. The detail panel and the issue report show a node's / a diagnostic's line beside
-its pointer, and a located issue jumps to its node. It is best-effort (a pointer the pass can't locate
-just shows no line) and runs in the worker after the size guards, so it never blocks the UI.
-
 ## Preparing a release
 
 Releases are cut from `main` after the change has been merged, and **pushing the version tag deploys the
@@ -193,7 +89,8 @@ is easy to forget:
 - Compare link at the **bottom** of the file:
   `[X.Y.Z]: https://github.com/handrews/oas-tree-viewer/compare/v<previous>...vX.Y.Z`
 
-If the release changes user-facing behavior, update [`README.md`](README.md) to match.
+If the release changes user-facing behavior, update [`README.md`](README.md) to match; if it
+changes the design, update [`docs/architecture.md`](docs/architecture.md) too.
 
 Leave these edits **uncommitted** — they go into the single release commit in step 5.
 
