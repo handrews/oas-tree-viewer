@@ -70,6 +70,15 @@ are handled as JSON Schema and may change dialect with `$schema`.
 
 ## Reference Resolution
 
+`src/refs/resolver.ts` orchestrates resolution. The resolver-specific modules are:
+
+- `indexer.ts`: document/resource/anchor indexes and reference-source collection.
+- `uriRef.ts`: URI-reference target lookup and type check.
+- `componentRef.ts`: Discriminator mapping and Security Requirement component-or-URI rules.
+- `operationId.ts`: Link `operationId` indexing and lookup.
+- `dynamicRef.ts`: `$dynamicRef` / `$recursiveRef` classification and fan-out.
+- `scopeGraph.ts`: reachability and resource-transition graph construction for dynamic scope.
+
 The resolver covers:
 
 - `$ref` in Reference, Path Item, and Schema contexts.

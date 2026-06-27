@@ -10,6 +10,8 @@ The viewer does not bundle or transform an OpenAPI Description into a resolved o
 document structure and relationships so authors and tool developers can compare expected behavior with
 what other tools do.
 
+Live demo: <https://henryandrews.net/projects/oas/>
+
 ## Features
 
 - Load documents by file upload, folder upload, URL, or built-in demo.
