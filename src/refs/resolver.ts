@@ -19,7 +19,6 @@ import type { AnchorRef, DynamicScopeAnalysis } from "./dynamicScope";
 import { decodeFragment, resolveUri, splitFragment } from "./baseUri";
 import {
   RECURSIVE_SENTINEL,
-  childString,
   docBase,
   indexDocResource,
   isDefsBoundary,
@@ -33,6 +32,7 @@ import {
 } from "./indexer";
 import { resolveUriRef } from "./uriRef";
 import { resolveComponentEdge, type ResolveCtx } from "./componentRef";
+import { buildOperationIdIndex, resolveOperationId } from "./operationId";
 
 export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): ResolvedRefs {
   const indexes: Indexes = {
@@ -175,54 +175,6 @@ function resolveSource(
 
   // Record how this field resolved so the tree marker can reflect it (uri vs component-name).
   src.fieldNode.resolvedAs = edge.resolution;
-  return edge;
-}
-
-/** Index every Operation by its `operationId` (unique across the OAD — `assembleOad` guards). */
-function buildOperationIdIndex(
-  pointerIndex: Map<string, Map<string, TreeNode>>,
-): Map<string, { docId: string; node: TreeNode }> {
-  const index = new Map<string, { docId: string; node: TreeNode }>();
-  for (const [docId, pidx] of pointerIndex) {
-    for (const node of pidx.values()) {
-      if (node.oasType !== "Operation Object") continue;
-      const operationId = childString(node, "operationId");
-      if (operationId !== undefined && !index.has(operationId))
-        index.set(operationId, { docId, node });
-    }
-  }
-  return index;
-}
-
-/**
- * Resolve a Link's `operationId` into an implicit `operation-id` edge (drawn like a component
- * name). Exactly one match → resolved; none → broken. Duplicates can't reach here — they are an
- * OAD-level load error — so there is no ambiguous outcome.
- */
-function resolveOperationId(
-  src: OpIdSource,
-  index: Map<string, { docId: string; node: TreeNode }>,
-  id: string,
-): ReferenceEdge {
-  src.fieldNode.resolvedAs = "operation-id";
-  const target = index.get(src.operationId);
-  const edge: ReferenceEdge = {
-    id,
-    sourceDocId: src.doc.id,
-    sourceNodeId: src.fieldNode.id,
-    sourceObjectId: src.linkNode.id,
-    refString: src.operationId,
-    kind: "operationId",
-    context: "link",
-    resolution: "operation-id",
-    status: target ? "resolved" : "broken",
-    requiredType: "Operation",
-  };
-  if (target) {
-    edge.targetDocId = target.docId;
-    edge.targetNodeId = target.node.id;
-    edge.targetType = target.node.expectedType;
-  }
   return edge;
 }
 
