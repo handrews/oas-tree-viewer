@@ -247,3 +247,39 @@ test("Top / Bottom jump the viewport to the ends of a tall tree", async () => {
   vi.restoreAllMocks();
   await settle();
 });
+
+test("a hostile document string value renders as inert text, not markup (no XSS)", async () => {
+  // The tree shows scalar values as label text. A value crafted to break out of the <text> element and
+  // inject a <script> must be rendered as textContent (d3 `.text()`), never parsed as markup or executed.
+  // Marker first so it survives the label's length truncation; the breakout attempt follows it.
+  const MARKER = "XSSMARKER_d4f9";
+  const payload = `${MARKER}</text><script>globalThis.__xss_ran=true</script>`;
+  const oad = makeOad(
+    await makeDoc(
+      JSON.stringify({
+        openapi: "3.1.0",
+        info: { title: payload, version: "1" },
+        paths: {},
+      }),
+      { isEntry: true, filename: "evil.json" },
+    ),
+  );
+  render(TreeCanvas, { oad, refs: resolveOad(oad), onselect: () => {}, onbackground: () => {} });
+  await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
+  (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
+
+  // The value reached the DOM as literal text…
+  await expect
+    .poll(() =>
+      [...document.querySelectorAll("svg .node-label")].some((n) =>
+        n.textContent?.includes(MARKER),
+      ),
+    )
+    .toBe(true);
+  // …with no injected <script> element and nothing executed.
+  expect(document.querySelectorAll("svg script, svg.tree-canvas script")).toHaveLength(0);
+  expect((globalThis as Record<string, unknown>).__xss_ran).toBeUndefined();
+
+  delete (globalThis as Record<string, unknown>).__xss_ran;
+  await settle();
+});
