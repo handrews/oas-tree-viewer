@@ -7,8 +7,10 @@ import type { ReferenceEdge } from "./types";
 import type { AnchorRef } from "./dynamicScope";
 import { isDefsBoundary } from "./indexer";
 
+// NUL separates the two ids unambiguously: a JSON-Pointer segment can contain a space, so a space
+// separator could let two distinct (docId, nodeId) pairs collide on one key; NUL cannot occur in either.
 export function nodeKey(docId: string, nodeId: string): string {
-  return `${docId} ${nodeId}`;
+  return `${docId}\0${nodeId}`;
 }
 
 /**
