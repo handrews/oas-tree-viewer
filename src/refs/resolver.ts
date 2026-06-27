@@ -1,20 +1,33 @@
 import type { Oad, OadDocument, ResolutionAdvisory, TreeNode, VersionFamily } from "../types";
-import type { ReferenceEdge, RefContext, RefStatus, ResolvedRefs } from "./types";
+import type { ReferenceEdge, RefContext, ResolvedRefs } from "./types";
 import { refKey } from "./types";
 import { type ViewerConfig, defaultConfig } from "../app/config";
 import { annotateDiagnostics } from "./diagnostics";
 import { analyzeDynamicScope } from "./dynamicScope";
-import type { AnchorRef, DynamicScopeAnalysis } from "./dynamicScope";
-import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
+import { decodeFragment, resolveUri, splitFragment } from "./baseUri";
 import { dynamicScopeKeywords, idKeyword, referenceModel } from "../oas/dialects";
-
-// Anonymous 2019-09 recursive anchors must not be exposed as URI fragments.
-const RECURSIVE_SENTINEL = "$recursive";
-
-interface Resource {
-  rootNode: TreeNode;
-  doc: OadDocument;
-}
+import {
+  childBool,
+  childByKey,
+  childString,
+  docBase,
+  indexDocResource,
+  isDefsBoundary,
+  nodeKey,
+  push,
+  resolveUriRef,
+  type DescentEdge,
+  type DynRefSource,
+  type Indexes,
+} from "./resolverShared";
+import {
+  classifyDynamicRef,
+  classifyRecursiveRef,
+  RECURSIVE_SENTINEL,
+  resolveDynamicRef,
+  resolveRecursiveRef,
+} from "./resolverDynamic";
+import { buildAnchorsByName, buildResourceEdges, reachableNodes } from "./resolverReachability";
 
 interface ComponentSpec {
   expectedType: "Schema" | "SecurityScheme";
@@ -33,28 +46,10 @@ interface RefSource {
   component?: ComponentSpec;
 }
 
-interface Indexes {
-  pointerIndex: Map<string, Map<string, TreeNode>>;
-  resourceByUri: Map<string, Resource>;
-  anchorByUri: Map<string, TreeNode>;
-  dynamicAnchorByUri: Map<string, TreeNode>;
-  dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>;
-  resourceOf: Map<string, Map<string, string>>;
-  recursiveAnchorResources: Set<string>;
-}
-
 interface ResolveCtx {
   entryDocId: string;
   config: ViewerConfig;
   version: VersionFamily;
-}
-
-interface UriResult {
-  status: RefStatus;
-  targetDocId?: string;
-  targetNodeId?: string;
-  targetType?: string;
-  resolvedUri?: string;
 }
 
 interface OpIdSource {
@@ -62,21 +57,6 @@ interface OpIdSource {
   linkNode: TreeNode;
   fieldNode: TreeNode;
   operationId: string;
-}
-
-interface DescentEdge {
-  from: string;
-  to: string;
-  docId: string;
-  nodeId: string;
-}
-
-interface DynRefSource {
-  doc: OadDocument;
-  schemaNode: TreeNode;
-  fieldNode: TreeNode;
-  refString: string;
-  base: string;
 }
 
 export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): ResolvedRefs {
@@ -174,25 +154,6 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
   }
 
   return { edges, bySource, byTarget };
-}
-
-function docBase(doc: OadDocument): string {
-  if (doc.selfUri) {
-    const resolved = resolveUri(doc.selfUri, doc.retrievalUri);
-    if (resolved) return resolved;
-  }
-  if (doc.retrievalUri) return normalizeUri(doc.retrievalUri);
-  return `urn:oad:${doc.id}`;
-}
-
-function indexDocResource(doc: OadDocument, indexes: Indexes): void {
-  const resource: Resource = { rootNode: doc.root, doc };
-  indexes.resourceByUri.set(docBase(doc), resource);
-  if (doc.retrievalUri) indexes.resourceByUri.set(normalizeUri(doc.retrievalUri), resource);
-  if (doc.selfUri) {
-    const self = resolveUri(doc.selfUri, doc.retrievalUri);
-    if (self) indexes.resourceByUri.set(self, resource);
-  }
 }
 
 function walkDoc(
@@ -396,10 +357,6 @@ function clearAdvisories(node: TreeNode): void {
   for (const child of node.children) clearAdvisories(child);
 }
 
-function isDefsBoundary(node: TreeNode): boolean {
-  return node.key === "$defs" || node.key === "definitions" || node.key === "components";
-}
-
 function resolveSource(
   src: RefSource,
   indexes: Indexes,
@@ -469,224 +426,6 @@ function resolveOperationId(
   return edge;
 }
 
-// A `$dynamicRef` engages dynamic scope only when its static target is a `$dynamicAnchor`.
-function classifyDynamicRef(
-  refString: string,
-  base: string,
-  dynamicAnchorByUri: Map<string, TreeNode>,
-): { dynamic: true; name: string } | { dynamic: false } {
-  const { uriPart, fragment } = splitFragment(refString);
-  const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
-  const decoded = fragment !== null ? decodeFragment(fragment) : null;
-  const isPlainName = decoded !== null && decoded !== "" && !decoded.startsWith("/");
-  if (resourceUri && isPlainName && dynamicAnchorByUri.has(`${resourceUri}#${decoded}`)) {
-    return { dynamic: true, name: decoded };
-  }
-  return { dynamic: false };
-}
-
-function resolveDynamicRef(
-  src: DynRefSource,
-  indexes: Indexes,
-  analysis: DynamicScopeAnalysis,
-  nextId: () => string,
-): ReferenceEdge[] {
-  const makeEdge = (overrides: Partial<ReferenceEdge>): ReferenceEdge => ({
-    id: nextId(),
-    sourceDocId: src.doc.id,
-    sourceNodeId: src.fieldNode.id,
-    sourceObjectId: src.schemaNode.id,
-    refString: src.refString,
-    kind: "$dynamicRef",
-    context: "schema",
-    resolution: "uri-reference",
-    status: "external",
-    requiredType: "Schema",
-    ...overrides,
-  });
-
-  const classified = classifyDynamicRef(src.refString, src.base, indexes.dynamicAnchorByUri);
-  if (classified.dynamic) {
-    src.fieldNode.resolvedAs = "dynamic";
-    return analysis.winners(src.base, classified.name).map((t) =>
-      makeEdge({
-        resolution: "dynamic",
-        status: "resolved",
-        targetDocId: t.docId,
-        targetNodeId: t.node.id,
-        targetType: t.node.expectedType,
-      }),
-    );
-  }
-
-  src.fieldNode.resolvedAs = "uri-reference";
-  return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
-}
-
-// A 2019-09 `$recursiveRef` engages recursive scope only at a recursive-anchored resource root.
-function classifyRecursiveRef(
-  refString: string,
-  base: string,
-  recursiveAnchorResources: Set<string>,
-): { recursive: boolean } {
-  const { uriPart, fragment } = splitFragment(refString);
-  const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
-  const atResourceRoot = fragment === null || fragment === "";
-  return {
-    recursive: !!resourceUri && atResourceRoot && recursiveAnchorResources.has(resourceUri),
-  };
-}
-
-function resolveRecursiveRef(
-  src: DynRefSource,
-  indexes: Indexes,
-  analysis: DynamicScopeAnalysis,
-  nextId: () => string,
-): ReferenceEdge[] {
-  const makeEdge = (overrides: Partial<ReferenceEdge>): ReferenceEdge => ({
-    id: nextId(),
-    sourceDocId: src.doc.id,
-    sourceNodeId: src.fieldNode.id,
-    sourceObjectId: src.schemaNode.id,
-    refString: src.refString,
-    kind: "$recursiveRef",
-    context: "schema",
-    resolution: "uri-reference",
-    status: "external",
-    requiredType: "Schema",
-    ...overrides,
-  });
-
-  if (classifyRecursiveRef(src.refString, src.base, indexes.recursiveAnchorResources).recursive) {
-    src.fieldNode.resolvedAs = "dynamic";
-    return analysis.winners(src.base, RECURSIVE_SENTINEL).map((t) =>
-      makeEdge({
-        resolution: "dynamic",
-        status: "resolved",
-        targetDocId: t.docId,
-        targetNodeId: t.node.id,
-        targetType: t.node.expectedType,
-      }),
-    );
-  }
-
-  src.fieldNode.resolvedAs = "uri-reference";
-  return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
-}
-
-function nodeKey(docId: string, nodeId: string): string {
-  return `${docId} ${nodeId}`;
-}
-
-// Dynamic-scope transitions only count from nodes evaluated on an entry-rooted path.
-function reachableNodes(
-  entry: OadDocument | undefined,
-  edges: ReferenceEdge[],
-  pointerIndex: Map<string, Map<string, TreeNode>>,
-): Set<string> {
-  const reachable = new Set<string>();
-  if (!entry) return reachable;
-  const refAdj = new Map<string, Array<{ docId: string; nodeId: string }>>();
-  for (const e of edges) {
-    if (e.targetDocId == null || e.targetNodeId == null) continue;
-    const k = nodeKey(e.sourceDocId, e.sourceObjectId);
-    (refAdj.get(k) ?? refAdj.set(k, []).get(k)!).push({
-      docId: e.targetDocId,
-      nodeId: e.targetNodeId,
-    });
-  }
-  const queue: Array<{ docId: string; node: TreeNode }> = [{ docId: entry.id, node: entry.root }];
-  reachable.add(nodeKey(entry.id, entry.root.id));
-  while (queue.length) {
-    const { docId, node } = queue.shift()!;
-    for (const child of node.children) {
-      if (isDefsBoundary(child)) continue;
-      const ck = nodeKey(docId, child.id);
-      if (!reachable.has(ck)) {
-        reachable.add(ck);
-        queue.push({ docId, node: child });
-      }
-    }
-    for (const t of refAdj.get(nodeKey(docId, node.id)) ?? []) {
-      const tk = nodeKey(t.docId, t.nodeId);
-      if (reachable.has(tk)) continue;
-      const tnode = pointerIndex.get(t.docId)?.get(t.nodeId);
-      if (tnode) {
-        reachable.add(tk);
-        queue.push({ docId: t.docId, node: tnode });
-      }
-    }
-  }
-  return reachable;
-}
-
-function buildResourceEdges(
-  edges: ReferenceEdge[],
-  resourceOf: Map<string, Map<string, string>>,
-  reachable: Set<string>,
-): Array<{ from: string; to: string }> {
-  const out: Array<{ from: string; to: string }> = [];
-  const seen = new Set<string>();
-  for (const e of edges) {
-    if (e.targetDocId == null || e.targetNodeId == null) continue;
-    if (!reachable.has(nodeKey(e.sourceDocId, e.sourceObjectId))) continue;
-    const from = resourceOf.get(e.sourceDocId)?.get(e.sourceObjectId);
-    const to = resourceOf.get(e.targetDocId)?.get(e.targetNodeId);
-    if (from == null || to == null || from === to) continue;
-    const key = `${from}\n${to}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({ from, to });
-  }
-  return out;
-}
-
-function buildAnchorsByName(
-  dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>,
-  resourceOf: Map<string, Map<string, string>>,
-): Map<string, AnchorRef[]> {
-  const out = new Map<string, AnchorRef[]>();
-  for (const [name, list] of dynamicAnchorsByName) {
-    const refs: AnchorRef[] = [];
-    for (const { docId, node } of list) {
-      const resourceUri = resourceOf.get(docId)?.get(node.id);
-      if (resourceUri != null) refs.push({ resourceUri, docId, node });
-    }
-    out.set(name, refs);
-  }
-  return out;
-}
-
-function resolveUriRef(
-  refString: string,
-  base: string,
-  requiredType: string,
-  indexes: Indexes,
-): UriResult {
-  const { uriPart, fragment } = splitFragment(refString);
-  const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
-  if (!resourceUri) return { status: "external" };
-
-  const resolvedUri = withFragment(resourceUri, fragment);
-  const resource = indexes.resourceByUri.get(resourceUri);
-  if (!resource) return { status: "external", resolvedUri };
-
-  const target = resolveFragment(fragment, resource, resourceUri, indexes);
-  if (!target) return { status: "broken", targetDocId: resource.doc.id, resolvedUri };
-
-  const typeOk =
-    target.expectedType === undefined ||
-    requiredType === "" ||
-    target.expectedType === requiredType;
-  return {
-    status: typeOk ? "resolved" : "type-mismatch",
-    targetDocId: resource.doc.id,
-    targetNodeId: target.id,
-    targetType: target.expectedType,
-    resolvedUri,
-  };
-}
-
 function resolveComponentEdge(
   base: ReferenceEdge,
   src: RefSource,
@@ -731,53 +470,13 @@ function resolveComponentEdge(
   return nameTarget ? asName() : uri;
 }
 
-function resolveFragment(
-  fragment: string | null,
-  resource: Resource,
-  resourceUri: string,
-  indexes: Indexes,
-): TreeNode | undefined {
-  if (fragment === null || fragment === "") return resource.rootNode;
-
-  const decoded = decodeFragment(fragment);
-  if (decoded.startsWith("/")) {
-    const pointer = resource.rootNode.id + decoded;
-    return indexes.pointerIndex.get(resource.doc.id)?.get(pointer);
-  }
-  return indexes.anchorByUri.get(`${resourceUri}#${decoded}`);
-}
-
 function contextOf(node: TreeNode): RefContext {
   if (node.expectedType === "Schema") return "schema";
   if (node.expectedType === "PathItem") return "pathItem";
   return "reference";
 }
 
-function withFragment(uri: string, fragment: string | null): string {
-  return fragment === null ? uri : `${uri}#${fragment}`;
-}
-
-function childByKey(node: TreeNode, key: string): TreeNode | undefined {
-  return node.children.find((c) => c.key === key);
-}
-
-function childString(node: TreeNode, key: string): string | undefined {
-  const child = childByKey(node, key);
-  return child && child.valueKind === "string" ? (child.scalarValue as string) : undefined;
-}
-
-function childBool(node: TreeNode, key: string): boolean | undefined {
-  const child = childByKey(node, key);
-  return child && child.valueKind === "boolean" ? (child.scalarValue as boolean) : undefined;
-}
-
 function addAdvisory(schemaNode: TreeNode, childKey: string, advisory: ResolutionAdvisory): void {
   const target = childByKey(schemaNode, childKey) ?? schemaNode;
   (target.resolutionAdvisories ??= []).push(advisory);
-}
-
-function push<T>(map: Map<string, T[]>, key: string, value: T): void {
-  const list = map.get(key);
-  if (list) list.push(value);
-  else map.set(key, [value]);
 }
