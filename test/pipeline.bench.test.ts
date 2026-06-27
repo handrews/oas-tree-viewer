@@ -21,7 +21,10 @@ import { documentPositions } from "../src/parse/positions";
 import { buildDiagnostics } from "../src/diagnostics/runner";
 import { resolveOad } from "../src/refs/resolver";
 import { reachableDocIds } from "../src/refs/reachability";
-import { bigOadText, dimsFor, countNodes } from "./bigTree";
+import { analyzeDynamicScope } from "../src/refs/dynamicScope";
+import type { AnchorRef } from "../src/refs/dynamicScope";
+import type { TreeNode } from "../src/types";
+import { bigOadText, bigRefOadText, dimsFor, countNodes } from "./bigTree";
 import { makeDoc, makeOad } from "./helpers";
 
 const RUN = Boolean(process.env.VITE_BENCH ?? import.meta.env.VITE_BENCH);
@@ -131,6 +134,78 @@ test.runIf(RUN)(
     // Surfaced under "stdout |" by the verbose reporter the `bench` script pins; the default reporter
     // stays quiet for passing tests.
     console.log(formatTable(rows));
+  },
+  180_000,
+);
+
+// Reference resolution is the core path the sweep above can't see (its document is reference-free). This
+// stresses it two ways: `resolveOad` over a reference-heavy document (≈ schemas × branching edges), and the
+// `$dynamicRef` scope analyzer driven directly over a synthetic resource graph with many same-named anchors
+// (the O(resources) reverse-reachability fixpoint that only `$dynamicRef` documents reach).
+test.runIf(RUN)(
+  "resolution + dynamic-scope benchmark sweep",
+  async () => {
+    const REF_BRANCHING = 8;
+    const resRows: { schemas: number; edges: number; resolveMs: number }[] = [];
+    for (const targetEdges of [200, 600, 1_500]) {
+      const schemas = Math.max(2, Math.round(targetEdges / REF_BRANCHING));
+      const oad = makeOad(await makeDoc(bigRefOadText(schemas, REF_BRANCHING), { isEntry: true }));
+      const edges = resolveOad(oad).edges.length;
+      const resolveMs = bestOf(() => void resolveOad(oad), REPS);
+      resRows.push({ schemas, edges, resolveMs });
+    }
+
+    // Synthetic dynamic-scope input: a chain ER → R0 → … → R(n-1), every resource declaring the same
+    // `$dynamicAnchor` and holding a `$dynamicRef` — the worst case for the eligibility/reachability passes.
+    const stubNode = (id: string): TreeNode => ({
+      id,
+      key: null,
+      keyKind: "root",
+      valueKind: "object",
+      children: [],
+    });
+    // Small sizes by design: every resource shares one anchor name, the analyzer's worst case (a dense
+    // same-named fan-out, ~O(n²) dynamic edges), so this surfaces that growth without the run itself
+    // blowing up.
+    const dynRows: { resources: number; buildMs: number; queryAllMs: number }[] = [];
+    for (const n of [50, 150, 400]) {
+      const resourceEdges = [{ from: "ER", to: "R0" }];
+      const anchors: AnchorRef[] = [];
+      for (let i = 0; i < n; i++) {
+        if (i > 0) resourceEdges.push({ from: `R${i - 1}`, to: `R${i}` });
+        anchors.push({ resourceUri: `R${i}`, docId: "d", node: stubNode(`R${i}#a`) });
+      }
+      const params = {
+        entryRoot: "ER",
+        resourceEdges,
+        dynamicRefs: anchors.map((a) => ({ resourceUri: a.resourceUri, name: "item" })),
+        anchorsByName: new Map([["item", anchors]]),
+      };
+      const buildMs = bestOf(() => void analyzeDynamicScope(params), REPS);
+      const queryAllMs = bestOf(() => {
+        const a = analyzeDynamicScope(params);
+        for (let i = 0; i < n; i++) a.winners(`R${i}`, "item");
+      }, REPS);
+      dynRows.push({ resources: n, buildMs, queryAllMs });
+    }
+
+    const res = [
+      "",
+      "Resolution benchmark (resolveOad over a reference-heavy document; min of runs, informational):",
+      "  schemas  edges  resolve ms",
+      ...resRows.map(
+        (r) =>
+          `  ${String(r.schemas).padStart(7)}  ${String(r.edges).padStart(5)}  ${r.resolveMs.toFixed(1).padStart(10)}`,
+      ),
+      "",
+      "Dynamic-scope benchmark (analyzeDynamicScope over a same-named-anchor chain):",
+      "  resources  build ms  query-all ms",
+      ...dynRows.map(
+        (r) =>
+          `  ${String(r.resources).padStart(9)}  ${r.buildMs.toFixed(1).padStart(8)}  ${r.queryAllMs.toFixed(1).padStart(12)}`,
+      ),
+    ].join("\n");
+    console.log(res);
   },
   180_000,
 );
