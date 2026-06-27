@@ -91,3 +91,31 @@ describe("analyzeDynamicScope — strict winners", () => {
     expect(winnerResources(orphan, "B", "item")).toEqual([]);
   });
 });
+
+describe("analyzeDynamicScope — caches and unknown names", () => {
+  it("reuses the eligibility/reachability caches across repeated winners() calls", () => {
+    // The existing specs build a fresh analyzer per call, so the per-name eligibility cache and the
+    // per-resource reverse-reachability cache are only hit when one analyzer answers the same query twice.
+    const params: Parameters<typeof analyzeDynamicScope>[0] = {
+      entryRoot: "ER",
+      resourceEdges: [{ from: "ER", to: "B" }],
+      dynamicRefs: [{ resourceUri: "B", name: "item" }],
+      anchorsByName: new Map([["item", [anchor("B")]]]),
+    };
+    const analyzer = analyzeDynamicScope(params);
+    const first = analyzer.winners("B", "item");
+    const second = analyzer.winners("B", "item"); // same (resourceUri, name) → both caches hit
+    expect(first.map((t) => t.node.id)).toEqual(["B#anchor"]);
+    expect(second).toEqual(first);
+  });
+
+  it("a $dynamicRef whose name has no matching anchors resolves to no winners", () => {
+    const params: Parameters<typeof analyzeDynamicScope>[0] = {
+      entryRoot: "ER",
+      resourceEdges: [{ from: "ER", to: "B" }],
+      dynamicRefs: [{ resourceUri: "B", name: "ghost" }], // name absent from anchorsByName
+      anchorsByName: new Map([["item", [anchor("B")]]]),
+    };
+    expect(analyzeDynamicScope(params).winners("B", "ghost")).toEqual([]);
+  });
+});

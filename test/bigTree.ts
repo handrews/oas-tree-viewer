@@ -26,6 +26,29 @@ export function bigOadText(schemas: number, branching: number): string {
   });
 }
 
+/**
+ * A reference-heavy OAS 3.1 document: `schemas` component schemas, each with `branching` properties that
+ * are `$ref`s to other component schemas (a rotating fan-out). Produces ≈ `schemas × branching` reference
+ * edges — the work that stresses `resolveOad`, which the reference-free {@link bigOadText} never exercises.
+ */
+export function bigRefOadText(schemas: number, branching: number): string {
+  const sch: Record<string, unknown> = {};
+  for (let s = 0; s < schemas; s++) {
+    const properties: Record<string, unknown> = {};
+    for (let p = 0; p < branching; p++) {
+      const target = (s + p + 1) % schemas; // each property points at a different schema
+      properties[`p${p}`] = { $ref: `#/components/schemas/S${target}` };
+    }
+    sch[`S${s}`] = { type: "object", properties };
+  }
+  return JSON.stringify({
+    openapi: "3.1.0",
+    info: { title: "BigRef", version: "1" },
+    paths: {},
+    components: { schemas: sch },
+  });
+}
+
 /** Pick a (schemas, branching) pair landing near `targetNodes`, keeping a moderate branching factor so the
  *  tree has realistic depth rather than one giant fan-out. */
 export function dimsFor(
