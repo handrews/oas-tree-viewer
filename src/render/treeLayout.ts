@@ -46,6 +46,61 @@ export function estimateLabelWidth(
   return Math.ceil(width);
 }
 
+// --- Right-gutter occupant placement -------------------------------------------------------------
+// Past a row's measured label end sit, left to right: the reference-arc source (placed by the canvas,
+// unconditionally, since it's just where a line leaves the row), then the glyphs this helper places —
+// the unresolved-reference ⚠, the resolution-caveat ⚠, and the resolved-advisory ▲. Each glyph takes a
+// fixed-width slot and the next one is pushed past it, so a row carrying several never overlaps. Common
+// rows are unchanged: a lone ⚠ stays at WARN_X0, a lone ▲ at ADVISORY_MIN_X (which clears the arc source
+// that leaves a resolved row); only the colliding combinations move.
+
+/** First ⚠ slot, measured from the label end (matches the historical single-glyph offset). */
+const WARN_X0 = 12;
+/** Advance to the next glyph slot — enough to clear one ⚠ (18px bold) or ▲ (15px) plus a small gap. */
+const GLYPH_STEP = 18;
+/** Extra width per digit of a ⚠'s "(+N)" count badge, so a following glyph clears the digits. */
+const COUNT_STEP = 8;
+/** The ▲ never sits closer than this: it clears the arc source (a resolved row is an arc source) and a
+ *  lone ⚠. Matches the historical advisory offset, so a lone ▲ is unchanged. */
+const ADVISORY_MIN_X = 30;
+
+/** Which right-gutter glyphs a single row carries (collapsed from all diagnostics landing on it). */
+export interface GutterOccupancy {
+  /** An unresolved-reference ⚠ (broken/external). */
+  refWarn: boolean;
+  /** How many unresolved references collapsed onto the row — drives the "(+N)" badge width. */
+  refCount: number;
+  /** A resolution-caveat ⚠ (dialect / ignored siblings / invalid $id fragment). */
+  caveat: boolean;
+  /** A resolved-but-problematic advisory ▲. */
+  advisory: boolean;
+}
+
+/** X offsets (from the label end) for each glyph a row may carry; each is meaningful only when present. */
+export interface GutterSlots {
+  refWarnX: number;
+  caveatX: number;
+  advisoryX: number;
+}
+
+/**
+ * Pack a row's right-gutter glyphs into non-overlapping slots, left to right (refWarn ⚠ → caveat ⚠ →
+ * advisory ▲), skipping any the row doesn't have and widening past a multi-digit "(+N)" count. Pure so it
+ * is node-testable; the canvas adds each offset to the row's measured label end.
+ */
+export function gutterSlots(occ: GutterOccupancy): GutterSlots {
+  const refWarnX = WARN_X0;
+  let cursor = WARN_X0;
+  if (occ.refWarn) {
+    const digits = occ.refCount > 1 ? String(occ.refCount).length : 0;
+    cursor += GLYPH_STEP + digits * COUNT_STEP;
+  }
+  const caveatX = cursor;
+  if (occ.caveat) cursor += GLYPH_STEP;
+  const advisoryX = Math.max(cursor, ADVISORY_MIN_X);
+  return { refWarnX, caveatX, advisoryX };
+}
+
 /** Above this many rows a document's tree is windowed (only the rows near the viewport are mounted).
  *  Below it the whole tree renders, exactly as before — comfortably above any ordinary document. */
 export const VIRTUALIZE_ABOVE = 2000;

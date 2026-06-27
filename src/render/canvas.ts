@@ -11,6 +11,8 @@ import type { Diagnostic, DiagnosticCode } from "../diagnostics/types";
 import { emittedSeverity, severityFor } from "../diagnostics/catalog";
 import { indexByPointer } from "../diagnostics/runner";
 import { arrowheadMarkerId, connectionClasses, isDoubleLine } from "../connections/style";
+import { gutterSlots } from "./treeLayout";
+import type { GutterOccupancy } from "./treeLayout";
 import { MAX_RENDER_EDGES } from "../limits";
 import { DocumentView } from "./treeView";
 
@@ -39,20 +41,17 @@ const WINDOW_MARGIN = 0.6;
 // target's disclosure triangle (which starts ~16px left of the node marker) rather than on top.
 const EDGE_TARGET_GAP = 20;
 
-// Right-gutter layout. Everything that sits past a row's label — the reference arc's source, the
-// unresolved/caveat ⚠, and the resolved-advisory ▲ — anchors at the same point (the label's right end,
-// `labelEndViewport`) and is placed by a fixed x offset from it. The offsets live together because the
-// one constraint that matters is that they not collide: the arc leaves at `edgeSourceX`, the ⚠ sits just
-// past it, and the ▲ further right so it clears the ⚠. (A future change could replace these hand-tuned
-// values with measured packing — see the deferred gutter-layout work.)
+// Right-gutter layout. Everything that sits past a row's label anchors at the same point — the label's
+// measured right end, `labelEndViewport`. The reference arc's source leaves at a fixed `edgeSourceX`
+// (unconditional — it's just where a line departs the row); the glyphs' *horizontal* slots come from the
+// pure `gutterSlots` helper, which packs the ⚠/▲ per row so they never collide (see treeLayout.ts). Only
+// the glyphs' vertical nudges live here.
 const GUTTER = {
   /** Where a reference edge leaves its source row. */
   edgeSourceX: 10,
-  /** Unresolved-reference / resolution-caveat ⚠ glyph. */
-  warnX: 12,
+  /** Vertical nudge for the ⚠ glyphs (unresolved reference / resolution caveat). */
   warnY: 6,
-  /** Resolved-but-problematic advisory ▲ glyph (further right, clear of the ⚠). */
-  advisoryX: 30,
+  /** Vertical nudge for the resolved-advisory ▲ glyph. */
   advisoryY: 5,
 } as const;
 
@@ -315,7 +314,18 @@ export class Canvas {
   private updateWindows(): void {
     const bounds = this.currentViewBounds();
     if (!bounds) return;
-    for (const view of this.views) view.setViewport(bounds.top, bounds.bottom);
+    let repainted = false;
+    for (const view of this.views) {
+      if (view.setViewport(bounds.top, bounds.bottom)) repainted = true;
+    }
+    // A repaint mounted (and re-measured) new rows; their gutter occupants — the arc source and the
+    // ⚠/▲ glyphs — must be recomputed from the fresh measured label ends rather than left at the
+    // off-screen estimate they were first drawn with. (No-op before refs/diagnostics arrive.)
+    if (repainted) {
+      this.refreshEdges();
+      this.drawWarnings();
+      this.drawAdvisories();
+    }
   }
 
   /** Coalesce a burst of zoom/pan events into a single window pass on the next frame. */
@@ -445,9 +455,46 @@ export class Canvas {
     return out;
   }
 
+  /**
+   * Which right-gutter glyphs each row carries, keyed by `${docId}:${roundedX}:${roundedY}` — the same row
+   * identity the ⚠ and ▲ layers group by (several diagnostics can collapse onto one ancestor row). Built
+   * once so both glyph layers place themselves with the shared `gutterSlots` packing and can't overlap.
+   */
+  private gutterOccupancy(): Map<string, GutterOccupancy> {
+    const occ = new Map<string, GutterOccupancy>();
+    for (const view of this.views) {
+      const byPtr = this.diagnostics.get(view.doc.id);
+      if (!byPtr) continue;
+      for (const [pointer, diags] of byPtr) {
+        let refCount = 0;
+        let caveat = false;
+        let advisory = false;
+        for (const d of diags) {
+          if (REF_WARN_CODES.has(d.code)) refCount += 1;
+          if (CAVEAT_CODES.has(d.code)) caveat = true;
+          if (ADVISORY_CODES.has(d.code)) advisory = true;
+        }
+        if (!refCount && !caveat && !advisory) continue;
+        const p = view.labelEndViewport(pointer);
+        if (!p) continue;
+        const key = `${view.doc.id}:${Math.round(p.x)}:${Math.round(p.y)}`;
+        const cur = occ.get(key) ?? { refWarn: false, refCount: 0, caveat: false, advisory: false };
+        if (refCount) {
+          cur.refWarn = true;
+          cur.refCount += refCount;
+        }
+        if (caveat) cur.caveat = true;
+        if (advisory) cur.advisory = true;
+        occ.set(key, cur);
+      }
+    }
+    return occ;
+  }
+
   private drawWarnings(): void {
     if (!this.warnG) return;
 
+    const occ = this.gutterOccupancy();
     const data: WarnDatum[] = [];
 
     // All glyphs derive from the unified diagnostics, located by JSON Pointer. Per document: unresolved-
@@ -474,17 +521,21 @@ export class Canvas {
           refGroups.set(key, g);
         }
         if (caveats.length) {
+          const slots = gutterSlots(
+            occ.get(`${view.doc.id}:${Math.round(p.x)}:${Math.round(p.y)}`)!,
+          );
           data.push({
             key: `caveat:${view.doc.id}:${pointer}`,
             kind: "dialect",
-            x: p.x,
+            x: p.x + slots.caveatX,
             y: p.y,
             title: caveats.map((d) => d.message).join("\n"),
           });
         }
       }
       for (const [key, g] of refGroups) {
-        data.push({ key: `ref:${view.doc.id}:${key}`, kind: "ref", ...g });
+        const slots = gutterSlots(occ.get(`${view.doc.id}:${key}`)!);
+        data.push({ key: `ref:${view.doc.id}:${key}`, kind: "ref", ...g, x: g.x + slots.refWarnX });
       }
     }
 
@@ -497,7 +548,7 @@ export class Canvas {
           ? "warn-glyph status-dialect"
           : `warn-glyph status-${d.broken ? "broken" : "external"}`,
       )
-      .attr("x", (d) => d.x + GUTTER.warnX)
+      .attr("x", (d) => d.x)
       .attr("y", (d) => d.y + GUTTER.warnY)
       .attr("text-anchor", "start")
       .each(function (this: SVGTextElement, d) {
@@ -531,6 +582,7 @@ export class Canvas {
     // Resolved-but-problematic reference advisories, from the unified diagnostics. Group by landing row
     // (several can collapse onto one ancestor row); error outranks warning for the glyph color, and every
     // detail goes into the tooltip.
+    const occ = this.gutterOccupancy();
     const groups = new Map<string, { x: number; y: number; error: boolean; details: string[] }>();
     for (const view of this.views) {
       const byPtr = this.diagnostics.get(view.doc.id);
@@ -549,14 +601,18 @@ export class Canvas {
         groups.set(key, g);
       }
     }
-    const data = [...groups].map(([key, g]) => ({ key, ...g }));
+    const data = [...groups].map(([key, g]) => ({
+      key,
+      ...g,
+      x: g.x + gutterSlots(occ.get(key)!).advisoryX,
+    }));
 
     this.advisoryG
       .selectAll<SVGTextElement, (typeof data)[number]>("text")
       .data(data, (d) => d.key)
       .join("text")
       .attr("class", (d) => `advisory-glyph severity-${d.error ? "error" : "warning"}`)
-      .attr("x", (d) => d.x + GUTTER.advisoryX)
+      .attr("x", (d) => d.x)
       .attr("y", (d) => d.y + GUTTER.advisoryY)
       .attr("text-anchor", "start")
       .each(function (this: SVGTextElement, d) {

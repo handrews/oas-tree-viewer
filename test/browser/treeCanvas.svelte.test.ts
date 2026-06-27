@@ -2,6 +2,7 @@ import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-svelte";
 import TreeCanvas from "../../src/render/TreeCanvas.svelte";
 import { resolveOad } from "../../src/refs/resolver";
+import { buildDiagnostics } from "../../src/diagnostics/runner";
 import { makeDoc, makeOad } from "../helpers";
 import { makeBigOad } from "../bigTree";
 
@@ -162,6 +163,60 @@ test("Expand all does not confirm for a normally-sized tree, and expands it", as
   expect(confirmSpy).not.toHaveBeenCalled();
   await expect.poll(() => document.querySelectorAll("g.row").length).toBeGreaterThan(before);
   confirmSpy.mockRestore();
+  await settle();
+});
+
+test("right-gutter glyphs anchor to each row's measured label end (no length-dependent drift)", async () => {
+  // Two broken $refs on property rows of very different label widths. Each gets a ⚠ in the right gutter;
+  // the regression was that the glyph anchored to an analytic *estimate* of the label width, so its gap to
+  // the text grew with the label length. With the anchor measured from the rendered text, both glyphs sit
+  // the same small distance past their own row's label end — regardless of how long that label is.
+  const DOC2 = `
+openapi: 3.1.0
+info: { title: T, version: '1' }
+paths: {}
+components:
+  schemas:
+    M:
+      type: object
+      properties:
+        a:
+          $ref: '#/components/schemas/Nope'
+        aVeryLongPropertyNameUsedToProveTheAnchorTracksTheText:
+          $ref: '#/components/schemas/AlsoNope'
+`;
+  const oad = makeOad(await makeDoc(DOC2, { isEntry: true }));
+  const refs = resolveOad(oad);
+  const diagnostics = buildDiagnostics(oad, refs, []);
+  render(TreeCanvas, { oad, refs, diagnostics, onselect: () => {}, onbackground: () => {} });
+  await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
+  (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
+
+  await expect.poll(() => document.querySelectorAll(".warn-glyph").length).toBe(2);
+
+  // For each ⚠, the gap to its own row's label end (nearest label by vertical center; rows are well
+  // separated at the tiny tree's fit zoom).
+  const gapFor = (glyph: SVGTextElement): number => {
+    const gr = glyph.getBoundingClientRect();
+    const gy = gr.top + gr.height / 2;
+    let best: DOMRect | null = null;
+    let bestDy = Infinity;
+    for (const l of document.querySelectorAll<SVGTextElement>("text.node-label")) {
+      const lr = l.getBoundingClientRect();
+      const dy = Math.abs(lr.top + lr.height / 2 - gy);
+      if (dy < bestDy) {
+        bestDy = dy;
+        best = lr;
+      }
+    }
+    return gr.left - best!.right;
+  };
+  const gaps = [...document.querySelectorAll<SVGTextElement>(".warn-glyph")].map(gapFor);
+
+  // Each glyph sits just past (not on top of) its text, and the two gaps match despite the labels'
+  // very different lengths — the length-proportional drift is gone.
+  for (const gap of gaps) expect(gap).toBeGreaterThan(-2);
+  expect(Math.abs(gaps[0]! - gaps[1]!)).toBeLessThan(4);
   await settle();
 });
 
