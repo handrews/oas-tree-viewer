@@ -1,5 +1,5 @@
 import type { Oad, OadDocument, TreeNode, VersionFamily } from "../types";
-import type { ReferenceEdge, RefStatus, ResolvedRefs } from "./types";
+import type { ReferenceEdge, ResolvedRefs } from "./types";
 import { refKey } from "./types";
 import { type ViewerConfig, defaultConfig } from "../app/config";
 import { annotateDiagnostics } from "./diagnostics";
@@ -20,22 +20,14 @@ import {
   type Indexes,
   type OpIdSource,
   type RefSource,
-  type Resource,
 } from "./indexer";
+import { resolveUriRef } from "./uriRef";
 
 /** Per-resolution context for the version- and config-dependent component rules. */
 interface ResolveCtx {
   entryDocId: string;
   config: ViewerConfig;
   version: VersionFamily;
-}
-
-interface UriResult {
-  status: RefStatus;
-  targetDocId?: string;
-  targetNodeId?: string;
-  targetType?: string;
-  resolvedUri?: string;
 }
 
 export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): ResolvedRefs {
@@ -436,36 +428,6 @@ function buildAnchorsByName(
   return out;
 }
 
-function resolveUriRef(
-  refString: string,
-  base: string,
-  requiredType: string,
-  indexes: Indexes,
-): UriResult {
-  const { uriPart, fragment } = splitFragment(refString);
-  const resourceUri = uriPart === "" ? base : resolveUri(uriPart, base);
-  if (!resourceUri) return { status: "external" };
-
-  const resolvedUri = withFragment(resourceUri, fragment);
-  const resource = indexes.resourceByUri.get(resourceUri);
-  if (!resource) return { status: "external", resolvedUri };
-
-  const target = resolveFragment(fragment, resource, resourceUri, indexes);
-  if (!target) return { status: "broken", targetDocId: resource.doc.id, resolvedUri };
-
-  const typeOk =
-    target.expectedType === undefined ||
-    requiredType === "" ||
-    target.expectedType === requiredType;
-  return {
-    status: typeOk ? "resolved" : "type-mismatch",
-    targetDocId: resource.doc.id,
-    targetNodeId: target.id,
-    targetType: target.expectedType,
-    resolvedUri,
-  };
-}
-
 /**
  * Resolve a Discriminator `mapping` value / Security Requirement key, which is either a
  * component name or a URI-reference. Precedence (confirmed rules):
@@ -521,28 +483,4 @@ function resolveComponentEdge(
   const uri = asUri();
   if (uri.status === "resolved" || uri.status === "type-mismatch") return uri;
   return nameTarget ? asName() : uri;
-}
-
-function resolveFragment(
-  fragment: string | null,
-  resource: Resource,
-  resourceUri: string,
-  indexes: Indexes,
-): TreeNode | undefined {
-  if (fragment === null || fragment === "") return resource.rootNode;
-
-  const decoded = decodeFragment(fragment);
-  if (decoded.startsWith("/")) {
-    // JSON Pointer relative to the resource root node.
-    const pointer = resource.rootNode.id + decoded;
-    return indexes.pointerIndex.get(resource.doc.id)?.get(pointer);
-  }
-  // Plain-name / $anchor fragment.
-  return indexes.anchorByUri.get(`${resourceUri}#${decoded}`);
-}
-
-// ── helpers ──────────────────────────────────────────────────────────────────
-
-function withFragment(uri: string, fragment: string | null): string {
-  return fragment === null ? uri : `${uri}#${fragment}`;
 }
