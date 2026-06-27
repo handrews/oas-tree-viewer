@@ -30,7 +30,7 @@
   {@const doc = selected.doc}
   {@const node = selected.node}
   <section class="node-detail">
-    <h2>Selected node</h2>
+    <h2>Node details</h2>
     <dl class="detail-grid">
       <dt>Document</dt>
       <dd>
@@ -151,6 +151,7 @@
   </section>
 {:else}
   <section class="node-detail empty">
+    <h2>Node details</h2>
     <p class="hint">
       Click a node's label to inspect it. Click a node's dot to expand or collapse.
     </p>

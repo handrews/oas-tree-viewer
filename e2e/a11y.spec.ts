@@ -140,7 +140,7 @@ test.describe("heading order (no skipped levels — for a perfect Lighthouse sco
     await page.goto("/view?demo=refs"); // the refs demo has issues, so the issue drawer opens
     await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
     await page.locator("svg.tree-canvas g.row").first().click(); // select a node → detail headings
-    await expect(page.locator("#detail-panel .node-detail")).toContainText("Selected node");
+    await expect(page.locator("#detail-panel .node-detail")).toContainText("Node details");
     const results = await new AxeBuilder({ page }).withRules(["heading-order"]).analyze();
     expect(results.violations, summarize(results)).toEqual([]);
   });
@@ -179,7 +179,7 @@ test.describe("SVG tree — keyboard navigation & ARIA", () => {
 
     // Enter selects the focused node (explicit selection) → the detail panel updates.
     await page.keyboard.press("Enter");
-    await expect(page.locator("#detail-panel .node-detail")).toContainText("Selected node");
+    await expect(page.locator("#detail-panel .node-detail")).toContainText("Node details");
     await expect(page.locator(':focus[aria-selected="true"]')).toBeVisible();
 
     // The new tree/treeitem roles are valid ARIA (no serious/critical violations).

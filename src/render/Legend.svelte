@@ -18,7 +18,7 @@
   const markerGlyph = (shape: string): string => (shape === "diamond" ? "◆" : "✱");
 </script>
 
-<details class="legend" open>
+<details class="legend">
   <summary><h2>Legend</h2></summary>
   <div class="legend-body">
     <h3>Object groups</h3>

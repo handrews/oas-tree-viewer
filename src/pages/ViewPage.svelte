@@ -160,7 +160,7 @@
       onRenderError={(msg) => fail(msg)}
       bind:this={treeCanvas}
     />
-    <aside id="detail-panel" aria-label="Selected node details">
+    <aside id="detail-panel" aria-label="Node details">
       <Legend />
       <DetailPanel {selected} ctx={detailCtx} />
     </aside>
