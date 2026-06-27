@@ -1,8 +1,8 @@
 # Contributing
 
-This guide covers how the project's **tests, linting, and formatting** are organized and how to
-**prepare a release**. For the system design — the model layer, the off-thread worker pipeline,
-reference resolution, windowed rendering, and diagnostics — see
+This guide covers how the project's **tests, quality gates, CI, and dependency updates** are
+organized and how to **prepare a release**. For the system design — the model layer, the
+off-thread worker pipeline, reference resolution, windowed rendering, and diagnostics — see
 [docs/architecture.md](docs/architecture.md).
 
 ## Tests
@@ -60,9 +60,49 @@ npm run format:check  # Prettier — verify formatting without writing (config i
 npm run format        # Prettier — reformat in place
 ```
 
-Both `npm run lint` and `npm run format:check` are **CI gates** — a dedicated `lint` job in
-`.github/workflows/ci.yml` — so run them locally before pushing. Prettier owns formatting and
-ESLint is configured with `eslint-config-prettier`, so the two never fight over style.
+Both `npm run lint` and `npm run format:check` are **CI gates** (see below), so run them locally
+before pushing. Prettier owns formatting and ESLint is configured with `eslint-config-prettier`,
+so the two never fight over style.
+
+## Quality gates
+
+Run the full set locally before opening or merging a change — these mirror the CI jobs:
+
+| Command | Checks |
+| --- | --- |
+| `npm run lint` | ESLint over the repository |
+| `npm run format:check` | Prettier formatting (no writes) |
+| `npm run typecheck` | `svelte-check` against the project `tsconfig` |
+| `npm run coverage` | Both Vitest projects (node + browser) plus the coverage thresholds |
+| `npm run e2e` | Playwright end-to-end tests, including axe accessibility checks |
+| `npm run build` | Production build (`vite build`) |
+
+## Continuous integration
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every pull request
+and on pushes to `main` (an in-flight run is cancelled when newer commits land), all on Node 24:
+
+- **Lint** — `npm run lint` and `npm run format:check`.
+- **Test & coverage** — `npm ci` (whose `prepare` script runs `svelte-check` + build, so a type
+  error or broken build fails here), installs Playwright Chromium for the browser project, then
+  `npm run coverage`.
+- **E2E** — installs Playwright Chromium, then `npm run e2e`; traces are uploaded on failure.
+
+Dependency updates are automated by Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)):
+weekly **version-update** PRs grouped into one per ecosystem (npm, GitHub Actions); **security
+updates** arrive separately as immediate PRs and must be enabled once in repo settings.
+
+## Dependency changes
+
+When adding or changing a dependency:
+
+1. Use `npm install <pkg>` / `npm uninstall <pkg>` — not a wholesale lockfile regeneration.
+2. Review the `package.json` **and** `package-lock.json` diff.
+3. Run `npm ci` to confirm the lockfile still installs cleanly from scratch.
+4. Run the quality gates above.
+
+See the **lockfile caution** under "Preparing a release" for the cross-platform optional-package
+(`@emnapi/*`) trap a careless regeneration triggers on the Linux CI runner.
 
 ## Preparing a release
 

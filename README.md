@@ -21,6 +21,20 @@ bundled schemas.
 > The visual design is prototype-level and undergoing review; support for Arazzo and Overlays
 > is planned once it stabilizes. Live demo: <https://henryandrews.net/projects/oas/>
 
+## Supported inputs
+
+| Input | Status |
+| --- | --- |
+| OpenAPI 3.2.x | Supported |
+| OpenAPI 3.1.x | Supported |
+| OpenAPI 3.0.x | Supported |
+| OpenAPI 2.0 / Swagger | Not supported (not planned) |
+| Standalone JSON Schema (draft-04 → 2020-12) | Supported where the dialect is recognized |
+| OpenAPI document fragments | Optional, off by default |
+
+Behavior is keyed by OAS **minor-release family** (`3.0`, `3.1`, `3.2`); patch numbers are
+accepted but not used for schema selection.
+
 ## What it does
 
 A TypeScript web app that reads an OAD and renders its parsed structure as collapsible,
@@ -121,3 +135,4 @@ npm run typecheck
   the off-thread worker pipeline, reference resolution, windowed rendering, and diagnostics.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — tests, linting and formatting, and the release
   process.
+- **[CHANGELOG.md](CHANGELOG.md)** — user-visible release history.

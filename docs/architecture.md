@@ -90,6 +90,18 @@ and 2019-09, and draft-07/06/04); a Schema Object on an older or unknown dialect
 flagged as unvalidated. In **3.0** a Schema Object is *not* JSON Schema, so there are no
 dialects — the single 3.0 schema validates the whole document.
 
+## OpenAPI version handling
+
+Behavior is keyed by OAS **minor-release family** — `3.0`, `3.1`, or `3.2`. Patch releases carry no
+schema-impacting changes within a minor line, so a patch number is accepted but never used for schema
+selection or feature gating; the family threads through classification, validation, and reference
+resolution as a single `VersionFamily` value.
+
+The pivotal split is the Schema Object: in **3.0** it is an OAS-specific dialect (no
+`$id`/`$anchor`/dynamic keywords, and a Schema `$ref` is a plain Reference Object), whereas in
+**3.1/3.2** it *is* JSON Schema and may switch dialect mid-document via `$schema`. That difference is
+what makes the dialect-aware indexing and the `$dynamicRef`/`$recursiveRef` analysis below necessary.
+
 ## Resources and reference resolution
 
 Each node keeps a stable **JSON Pointer** id and an `expectedType` (its grammar slot type),
