@@ -5,6 +5,13 @@ import Legend from "../../src/render/Legend.svelte";
 test("renders every legend section and representative entries", async () => {
   const screen = render(Legend);
 
+  // The Legend starts collapsed (so the node-detail pane stays visible); its sections live in the body
+  // and only render once it's opened.
+  const details = document.querySelector<HTMLDetailsElement>("details.legend")!;
+  expect(details.open).toBe(false);
+  await expect.element(screen.getByText("Legend")).toBeVisible();
+  details.open = true;
+
   for (const heading of [
     "Object groups",
     "Node shapes",

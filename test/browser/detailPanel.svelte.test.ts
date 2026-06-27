@@ -46,6 +46,8 @@ function ctxFor(doc: OadDocument): DetailContext & { onNavigate: ReturnType<type
 
 test("shows an empty hint when nothing is selected", async () => {
   const screen = render(DetailPanel, { selected: null, ctx: null });
+  // The panel keeps its "Node details" title even with nothing selected, so it never looks empty.
+  await expect.element(screen.getByText("Node details")).toBeVisible();
   await expect.element(screen.getByText(/Click a node/)).toBeVisible();
 });
 
@@ -57,7 +59,7 @@ test("shows selected node info, incoming refs, and wires navigation", async () =
     ctx,
   });
 
-  await expect.element(screen.getByText("Selected node")).toBeVisible();
+  await expect.element(screen.getByText("Node details")).toBeVisible();
   await expect.element(screen.getByText("Schema Object")).toBeVisible();
   await expect.element(screen.getByText(/Referenced by/)).toBeVisible();
 

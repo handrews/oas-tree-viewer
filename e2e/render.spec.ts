@@ -30,7 +30,7 @@ test.describe("rendering an OAD", () => {
 
     await page.locator("svg.tree-canvas g.row").first().click();
     const detail = page.locator("#detail-panel .node-detail");
-    await expect(detail).toContainText("Selected node");
+    await expect(detail).toContainText("Node details");
     await expect(detail).toContainText("Pointer");
   });
 });
