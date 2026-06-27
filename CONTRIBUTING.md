@@ -26,7 +26,29 @@ the Playwright end-to-end suite (`npm run e2e`, which also runs axe accessibilit
 wall-clock timings that are machine-dependent and informational: a **render** bench
 (`test/browser/treeCanvas.bench.svelte.test.ts`, render/expand timings) and a **pipeline** bench
 (`test/pipeline.bench.test.ts`, the worker-side source-position and diagnostics stages versus the raw
-parse and the full single-document finalize). Coverage is gated by thresholds in `vitest.config.ts`.
+parse and the full single-document finalize, plus a **resolution** sweep — `resolveOad` over a
+reference-heavy document and the `$dynamicRef` scope analyzer over a same-named-anchor chain, the core
+resolution paths the reference-free sweep can't reach). Coverage is gated by thresholds in
+`vitest.config.ts`.
+
+**Coverage philosophy.** `functions` is held at **100%** — an uncovered function is dead code or a
+missing test, so the gate refuses one. The `statements` / `branches` / `lines` floors sit ~1 point under
+the measured numbers: high enough to block a real regression, with just enough slack that a single
+defensive arm doesn't flake the build. The remaining uncovered lines are **intentionally** left so: they
+are defensive `??` / `||` / `catch` fallbacks guarding states the type system or an upstream guard already
+prevents — e.g. the second-parse `catch` in `parse/positions.ts` (the text already parsed once), the
+`new URL` `catch` in `loader.ts`'s `fileUriFrom`, the `urn:oad:` base-URI fallback in `refs/resolver.ts`
+(the loader always supplies a retrieval URI), and `?? label` / `?? "structural"` display fallbacks.
+Forcing them to run means fabricating inputs the real pipeline can't produce or reaching into module
+internals — brittle tests that assert defensive code and obscure genuine coverage — so chasing the last
+few percent isn't worth it now.
+
+**Hostile input.** `test/security.test.ts` (node) asserts the document-processing path is safe against
+untrusted input: no arbitrary code runs from YAML tags, no document key pollutes `Object.prototype`,
+alias bombs and over-deep nesting are refused with a clean error rather than hanging, and a deterministic
+(fixed-seed) fuzz sweep checks those invariants over ~200 random inputs. A browser test
+(`test/browser/treeCanvas.svelte.test.ts`) confirms a hostile string value renders as inert text, never
+injected markup.
 
 ## Linting and formatting
 
