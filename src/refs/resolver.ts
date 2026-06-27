@@ -68,7 +68,6 @@ interface ResolveCtx {
   version: VersionFamily;
 }
 
-/** A located (or not) URI-reference target. */
 interface UriResult {
   status: RefStatus;
   targetDocId?: string;
@@ -296,7 +295,7 @@ function walkDoc(
           childrenInDefs = false;
           indexes.resourceByUri.set(newBase, { rootNode: node, doc });
           base = newBase;
-          rootId = node.id; // this node is the root of the new resource
+          rootId = node.id;
         }
         if (fragment !== null) {
           const decoded = decodeFragment(fragment);
@@ -316,7 +315,7 @@ function walkDoc(
           }
         }
       } else if (id !== undefined) {
-        // 2020-12 / OAS / unsupported-fallback: a nested `$id` opens a new resource (unchanged).
+        // 2020-12 / OAS / unsupported-fallback: a nested `$id` opens a new resource.
         base = resolveUri(id, currentBase) ?? currentBase;
         // Evaluation can descend into this nested resource only when it is applied, not defined.
         if (!inDefs && base !== currentBase) {
@@ -392,7 +391,7 @@ function walkDoc(
       }
     }
 
-    // Record which resource this node belongs to (an `$id` node belongs to its own new resource).
+    // An `$id` node belongs to its own new resource.
     ridx.set(node.id, base);
 
     if (node.isReference && node.refTarget !== undefined) {
@@ -436,7 +435,6 @@ function walkDoc(
       }
     }
 
-    // Component-or-URI reference fields (Discriminator `mapping` value / Security Requirement key).
     if (node.componentRef) {
       const cr = node.componentRef;
       sources.push({
@@ -684,7 +682,6 @@ function resolveRecursiveRef(
   return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
 }
 
-/** Key into the node-reachability set. */
 function nodeKey(docId: string, nodeId: string): string {
   return `${docId} ${nodeId}`;
 }
@@ -763,7 +760,6 @@ function buildResourceEdges(
   return out;
 }
 
-/** Tag every `$dynamicAnchor` with the resource that declares it, grouped by name. */
 function buildAnchorsByName(
   dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>,
   resourceOf: Map<string, Map<string, string>>,
@@ -780,7 +776,6 @@ function buildAnchorsByName(
   return out;
 }
 
-/** Resolve a string as a URI-reference (the `$ref`/`operationRef` path; reused by components). */
 function resolveUriRef(
   refString: string,
   base: string,
@@ -912,7 +907,6 @@ function childBool(node: TreeNode, key: string): boolean | undefined {
   return child && child.valueKind === "boolean" ? (child.scalarValue as boolean) : undefined;
 }
 
-/** Attach a resolution advisory to a Schema Object's `$ref`/`$id` field row (or the schema itself). */
 function addAdvisory(schemaNode: TreeNode, childKey: string, advisory: ResolutionAdvisory): void {
   const target = childByKey(schemaNode, childKey) ?? schemaNode;
   (target.resolutionAdvisories ??= []).push(advisory);
