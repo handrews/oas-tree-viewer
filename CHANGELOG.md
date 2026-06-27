@@ -28,6 +28,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **A reference advisory's color is now one configurable source.** The arc tint, the ▲ gutter glyph, and
   the detail-panel note all take their severity from the diagnostic catalog policy, so changing an
   advisory's severity (or turning it `off`) moves all three together.
+- **The Legend starts collapsed and the node-detail pane is always shown.** The Legend no longer opens by
+  default (it pushed the detail pane below the fold), and the detail pane now keeps a constant "Node
+  details" heading whether or not a node is selected.
 
 ### Fixed
 
