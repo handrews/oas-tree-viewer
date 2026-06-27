@@ -1,48 +1,29 @@
-import type { Oad, OadDocument, ResolutionAdvisory, TreeNode, VersionFamily } from "../types";
-import type { ReferenceEdge, RefContext, RefStatus, ResolvedRefs } from "./types";
+import type { Oad, OadDocument, TreeNode, VersionFamily } from "../types";
+import type { ReferenceEdge, RefStatus, ResolvedRefs } from "./types";
 import { refKey } from "./types";
 import { type ViewerConfig, defaultConfig } from "../app/config";
 import { annotateDiagnostics } from "./diagnostics";
 import { analyzeDynamicScope } from "./dynamicScope";
 import type { AnchorRef, DynamicScopeAnalysis } from "./dynamicScope";
-import { decodeFragment, normalizeUri, resolveUri, splitFragment } from "./baseUri";
-import { dynamicScopeKeywords, idKeyword, referenceModel } from "../oas/dialects";
+import { decodeFragment, resolveUri, splitFragment } from "./baseUri";
+import {
+  RECURSIVE_SENTINEL,
+  childString,
+  docBase,
+  indexDocResource,
+  isDefsBoundary,
+  push,
+  walkDoc,
+  type ComponentSpec,
+  type DescentEdge,
+  type DynRefSource,
+  type Indexes,
+  type OpIdSource,
+  type RefSource,
+  type Resource,
+} from "./indexer";
 
-// Anonymous 2019-09 recursive anchors must not be exposed as URI fragments.
-const RECURSIVE_SENTINEL = "$recursive";
-
-interface Resource {
-  rootNode: TreeNode;
-  doc: OadDocument;
-}
-
-interface ComponentSpec {
-  expectedType: "Schema" | "SecurityScheme";
-  field: "mapping" | "securityRequirement";
-}
-
-interface RefSource {
-  doc: OadDocument;
-  sourceObject: TreeNode;
-  fieldNode: TreeNode;
-  refString: string;
-  base: string;
-  context: RefContext;
-  kind: ReferenceEdge["kind"];
-  requiredType: string;
-  component?: ComponentSpec;
-}
-
-interface Indexes {
-  pointerIndex: Map<string, Map<string, TreeNode>>;
-  resourceByUri: Map<string, Resource>;
-  anchorByUri: Map<string, TreeNode>;
-  dynamicAnchorByUri: Map<string, TreeNode>;
-  dynamicAnchorsByName: Map<string, Array<{ docId: string; node: TreeNode }>>;
-  resourceOf: Map<string, Map<string, string>>;
-  recursiveAnchorResources: Set<string>;
-}
-
+/** Per-resolution context for the version- and config-dependent component rules. */
 interface ResolveCtx {
   entryDocId: string;
   config: ViewerConfig;
@@ -55,28 +36,6 @@ interface UriResult {
   targetNodeId?: string;
   targetType?: string;
   resolvedUri?: string;
-}
-
-interface OpIdSource {
-  doc: OadDocument;
-  linkNode: TreeNode;
-  fieldNode: TreeNode;
-  operationId: string;
-}
-
-interface DescentEdge {
-  from: string;
-  to: string;
-  docId: string;
-  nodeId: string;
-}
-
-interface DynRefSource {
-  doc: OadDocument;
-  schemaNode: TreeNode;
-  fieldNode: TreeNode;
-  refString: string;
-  base: string;
 }
 
 export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): ResolvedRefs {
@@ -176,229 +135,7 @@ export function resolveOad(oad: Oad, config: ViewerConfig = defaultConfig): Reso
   return { edges, bySource, byTarget };
 }
 
-function docBase(doc: OadDocument): string {
-  if (doc.selfUri) {
-    const resolved = resolveUri(doc.selfUri, doc.retrievalUri);
-    if (resolved) return resolved;
-  }
-  if (doc.retrievalUri) return normalizeUri(doc.retrievalUri);
-  return `urn:oad:${doc.id}`;
-}
-
-function indexDocResource(doc: OadDocument, indexes: Indexes): void {
-  const resource: Resource = { rootNode: doc.root, doc };
-  indexes.resourceByUri.set(docBase(doc), resource);
-  if (doc.retrievalUri) indexes.resourceByUri.set(normalizeUri(doc.retrievalUri), resource);
-  if (doc.selfUri) {
-    const self = resolveUri(doc.selfUri, doc.retrievalUri);
-    if (self) indexes.resourceByUri.set(self, resource);
-  }
-}
-
-function walkDoc(
-  doc: OadDocument,
-  pidx: Map<string, TreeNode>,
-  indexes: Indexes,
-  sources: RefSource[],
-  opIdSources: OpIdSource[],
-  dynRefSources: DynRefSource[],
-  recursiveRefSources: DynRefSource[],
-  descentEdges: Array<DescentEdge>,
-  version: VersionFamily,
-): void {
-  const ridx = indexes.resourceOf.get(doc.id)!;
-  const docDialect = childString(doc.root, "jsonSchemaDialect");
-  // `inDefs` tracks whether the path from the enclosing resource's root to here passes through a
-  // definitions store (`$defs`/`definitions`/`components`) — i.e. content that is merely *defined*
-  // (reached only by a reference), not *applied*. A nested `$id` resource reached without crossing
-  // one is descent-reachable; one inside a defs store is not.
-  const visit = (
-    node: TreeNode,
-    currentBase: string,
-    inDefs: boolean,
-    currentDialect: string | undefined,
-    resourceRootId: string,
-  ): void => {
-    pidx.set(node.id, node);
-    let base = currentBase;
-    let childrenInDefs = inDefs;
-    let dialect = currentDialect;
-    let rootId = resourceRootId;
-
-    if (node.oasType === "Schema Object" && version !== "3.0") {
-      const schema = childString(node, "$schema");
-      if (schema !== undefined) dialect = schema;
-      const model = referenceModel(dialect, version);
-      const idKey = idKeyword(dialect, version);
-
-      const id = childString(node, idKey);
-      if (id !== undefined && model === "numbered-draft") {
-        // draft-04/06/07: the non-fragment part sets the base; the fragment, if any, is either a
-        // plain-name anchor (like a 2020-12 `$anchor`) or a JSON-Pointer that must be this schema's
-        // own location. `$anchor`/`$dynamicAnchor`/`$dynamicRef` don't exist in this model.
-        const { uriPart, fragment } = splitFragment(id);
-        const newBase =
-          (uriPart === "" ? currentBase : resolveUri(uriPart, currentBase)) ?? currentBase;
-        if (newBase !== currentBase) {
-          if (!inDefs)
-            descentEdges.push({ from: currentBase, to: newBase, docId: doc.id, nodeId: node.id });
-          childrenInDefs = false;
-          indexes.resourceByUri.set(newBase, { rootNode: node, doc });
-          base = newBase;
-          rootId = node.id;
-        }
-        if (fragment !== null) {
-          const decoded = decodeFragment(fragment);
-          if (decoded !== "" && !decoded.startsWith("/")) {
-            indexes.anchorByUri.set(`${base}#${decoded}`, node);
-          } else {
-            const expected = node.id.slice(rootId.length);
-            if (decoded !== expected) {
-              addAdvisory(node, idKey, {
-                code: "invalid-id-fragment",
-                detail:
-                  `The ${idKey} JSON-Pointer fragment "#${decoded}" is not this schema's own location ` +
-                  `("#${expected}"), so it names nothing and is ignored.`,
-              });
-            }
-          }
-        }
-      } else if (id !== undefined) {
-        base = resolveUri(id, currentBase) ?? currentBase;
-        // Evaluation can descend into this nested resource only when it is applied, not defined.
-        if (!inDefs && base !== currentBase) {
-          descentEdges.push({ from: currentBase, to: base, docId: doc.id, nodeId: node.id });
-        }
-        childrenInDefs = false;
-        if (base !== currentBase) rootId = node.id;
-        indexes.resourceByUri.set(base, { rootNode: node, doc });
-      }
-
-      if (model !== "numbered-draft") {
-        const anchor = childString(node, "$anchor");
-        if (anchor !== undefined) indexes.anchorByUri.set(`${base}#${anchor}`, node);
-
-        if (dynamicScopeKeywords(dialect, version) === "recursive") {
-          if (childBool(node, "$recursiveAnchor") === true) {
-            indexes.recursiveAnchorResources.add(base);
-            push(indexes.dynamicAnchorsByName, RECURSIVE_SENTINEL, { docId: doc.id, node });
-          }
-          const recRefField = childByKey(node, "$recursiveRef");
-          if (recRefField && recRefField.valueKind === "string") {
-            recursiveRefSources.push({
-              doc,
-              schemaNode: node,
-              fieldNode: recRefField,
-              refString: recRefField.scalarValue as string,
-              base,
-            });
-          }
-        } else {
-          const dynAnchor = childString(node, "$dynamicAnchor");
-          if (dynAnchor !== undefined) {
-            const key = `${base}#${dynAnchor}`;
-            if (!indexes.anchorByUri.has(key)) indexes.anchorByUri.set(key, node);
-            indexes.dynamicAnchorByUri.set(key, node);
-            push(indexes.dynamicAnchorsByName, dynAnchor, { docId: doc.id, node });
-          }
-          const dynRefField = childByKey(node, "$dynamicRef");
-          if (dynRefField && dynRefField.valueKind === "string") {
-            dynRefSources.push({
-              doc,
-              schemaNode: node,
-              fieldNode: dynRefField,
-              refString: dynRefField.scalarValue as string,
-              base,
-            });
-          }
-        }
-      }
-
-      if (model === "numbered-draft" && node.isReference) {
-        const ignored = node.children
-          .map((c) => c.key)
-          .filter((k): k is string => k !== null && k !== "$ref");
-        if (ignored.length) {
-          (node.resolutionAdvisories ??= []).push({
-            code: "ignored-ref-siblings",
-            detail: `In draft-04/06/07, keywords beside $ref are ignored: ${ignored.join(", ")}.`,
-          });
-        }
-      }
-    }
-
-    ridx.set(node.id, base);
-
-    if (node.isReference && node.refTarget !== undefined) {
-      const field = childByKey(node, "$ref");
-      if (field) {
-        sources.push({
-          doc,
-          sourceObject: node,
-          fieldNode: field,
-          refString: node.refTarget,
-          base,
-          context: contextOf(node),
-          kind: "$ref",
-          requiredType: node.expectedType ?? "",
-        });
-      }
-    } else if (node.oasType === "Link Object") {
-      const refField = childByKey(node, "operationRef");
-      const idField = childByKey(node, "operationId");
-      if (refField && refField.valueKind === "string") {
-        sources.push({
-          doc,
-          sourceObject: node,
-          fieldNode: refField,
-          refString: refField.scalarValue as string,
-          base,
-          context: "link",
-          kind: "operationRef",
-          requiredType: "Operation",
-        });
-      } else if (idField && idField.valueKind === "string") {
-        opIdSources.push({
-          doc,
-          linkNode: node,
-          fieldNode: idField,
-          operationId: idField.scalarValue as string,
-        });
-      }
-    }
-
-    if (node.componentRef) {
-      const cr = node.componentRef;
-      sources.push({
-        doc,
-        sourceObject: node,
-        fieldNode: node,
-        refString: cr.refString,
-        base,
-        context: cr.field === "mapping" ? "discriminatorMapping" : "securityRequirement",
-        kind: cr.field === "mapping" ? "discriminatorMapping" : "securityRequirement",
-        requiredType: cr.expectedType,
-        component: { expectedType: cr.expectedType, field: cr.field },
-      });
-    }
-
-    for (const child of node.children) {
-      visit(child, base, childrenInDefs || isDefsBoundary(child), dialect, rootId);
-    }
-  };
-
-  clearAdvisories(doc.root);
-  visit(doc.root, docBase(doc), false, docDialect, doc.root.id);
-}
-
-function clearAdvisories(node: TreeNode): void {
-  node.resolutionAdvisories = undefined;
-  for (const child of node.children) clearAdvisories(child);
-}
-
-function isDefsBoundary(node: TreeNode): boolean {
-  return node.key === "$defs" || node.key === "definitions" || node.key === "components";
-}
+// ── resolution ───────────────────────────────────────────────────────────────
 
 function resolveSource(
   src: RefSource,
@@ -427,6 +164,7 @@ function resolveSource(
   return edge;
 }
 
+/** Index every Operation by its `operationId` (unique across the OAD — `assembleOad` guards). */
 function buildOperationIdIndex(
   pointerIndex: Map<string, Map<string, TreeNode>>,
 ): Map<string, { docId: string; node: TreeNode }> {
@@ -442,6 +180,11 @@ function buildOperationIdIndex(
   return index;
 }
 
+/**
+ * Resolve a Link's `operationId` into an implicit `operation-id` edge (drawn like a component
+ * name). Exactly one match → resolved; none → broken. Duplicates can't reach here — they are an
+ * OAD-level load error — so there is no ambiguous outcome.
+ */
 function resolveOperationId(
   src: OpIdSource,
   index: Map<string, { docId: string; node: TreeNode }>,
@@ -469,7 +212,11 @@ function resolveOperationId(
   return edge;
 }
 
-// A `$dynamicRef` engages dynamic scope only when its static target is a `$dynamicAnchor`.
+/**
+ * Classify a `$dynamicRef`: it engages dynamic scope ("bookending") iff its statically-located
+ * fragment is itself a `$dynamicAnchor` (a plain name registered in `dynamicAnchorByUri`). Otherwise
+ * it resolves exactly like a `$ref` — the local `$anchor` (Case A), a JSON-Pointer target, or broken.
+ */
 function classifyDynamicRef(
   refString: string,
   base: string,
@@ -485,6 +232,15 @@ function classifyDynamicRef(
   return { dynamic: false };
 }
 
+/**
+ * Resolve a Schema `$dynamicRef`. If it engages dynamic scope, the real target depends on the
+ * evaluation path — so we tentatively point (resolution `"dynamic"`, drawn dotted) at the *strict
+ * winners*: the same-named `$dynamicAnchor`s that could be the outermost one on an entry-rooted path
+ * reaching this ref (computed by {@link analyzeDynamicScope}). A ref the entry never reaches yields
+ * no edges. Otherwise it behaves exactly like a `$ref`: a single static edge (the local `$anchor` —
+ * Case A — or broken). A plain `$ref` landing on a `$dynamicAnchor` (Case B) is handled by the
+ * normal URI path, since `$dynamicAnchor`s are also registered in `anchorByUri`.
+ */
 function resolveDynamicRef(
   src: DynRefSource,
   indexes: Indexes,
@@ -519,11 +275,16 @@ function resolveDynamicRef(
     );
   }
 
+  // Static: exactly like a `$ref` (Case A local `$anchor`, Case B `$dynamicAnchor`, or broken).
   src.fieldNode.resolvedAs = "uri-reference";
   return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
 }
 
-// A 2019-09 `$recursiveRef` engages recursive scope only at a recursive-anchored resource root.
+/**
+ * Classify a 2019-09 `$recursiveRef` (almost always `"#"`): it engages recursive scope iff it
+ * statically resolves to a schema *resource root* (empty/null fragment) whose resource declares
+ * `$recursiveAnchor: true`. Otherwise it is a plain static `$ref` to that target.
+ */
 function classifyRecursiveRef(
   refString: string,
   base: string,
@@ -537,6 +298,12 @@ function classifyRecursiveRef(
   };
 }
 
+/**
+ * Resolve a `$recursiveRef`. If it engages recursive scope, point tentatively (dotted) at the strict
+ * winners — the outermost `$recursiveAnchor: true` resources on an entry-rooted path reaching it
+ * (the anonymous {@link RECURSIVE_SENTINEL} fan-out). Otherwise it behaves like a static `$ref` to
+ * `"#"` (the resource root).
+ */
 function resolveRecursiveRef(
   src: DynRefSource,
   indexes: Indexes,
@@ -570,15 +337,22 @@ function resolveRecursiveRef(
     );
   }
 
+  // Static: a plain `$ref` to its target (`"#"` ⇒ the resource root).
   src.fieldNode.resolvedAs = "uri-reference";
   return [makeEdge(resolveUriRef(src.refString, src.base, "Schema", indexes))];
 }
 
 function nodeKey(docId: string, nodeId: string): string {
-  return `${docId} ${nodeId}`;
+  return `${docId} ${nodeId}`;
 }
 
-// Dynamic-scope transitions only count from nodes evaluated on an entry-rooted path.
+/**
+ * The nodes actually *evaluated* on some entry-rooted path: descend from the entry root through
+ * applied positions (everything except definition stores — `$defs`/`definitions`/`components`,
+ * skipped by {@link isDefsBoundary}) and follow located references. A component buried in a defs
+ * store is reached only if something references it; an unreferenced one is never evaluated, so its
+ * own references must not contribute dynamic-scope transitions.
+ */
 function reachableNodes(
   entry: OadDocument | undefined,
   edges: ReferenceEdge[],
@@ -600,7 +374,7 @@ function reachableNodes(
   while (queue.length) {
     const { docId, node } = queue.shift()!;
     for (const child of node.children) {
-      if (isDefsBoundary(child)) continue;
+      if (isDefsBoundary(child)) continue; // do not lexically descend into a definition store
       const ck = nodeKey(docId, child.id);
       if (!reachable.has(ck)) {
         reachable.add(ck);
@@ -620,6 +394,11 @@ function reachableNodes(
   return reachable;
 }
 
+/**
+ * Lift located reference edges to resource-level transitions (deduped, self-loops dropped). Only
+ * edges whose *source* node is evaluated on some entry-rooted path count — a reference inside an
+ * unreachable (defined-but-unapplied) schema is never followed, so it transitions nothing.
+ */
 function buildResourceEdges(
   edges: ReferenceEdge[],
   resourceOf: Map<string, Map<string, string>>,
@@ -687,6 +466,15 @@ function resolveUriRef(
   };
 }
 
+/**
+ * Resolve a Discriminator `mapping` value / Security Requirement key, which is either a
+ * component name or a URI-reference. Precedence (confirmed rules):
+ *  - Security Requirement, 3.1: always a component name (no URI fallback).
+ *  - Security Requirement, 3.2: component name if a match exists, else URI-reference.
+ *  - `mapping`, name-first (default): component name if a match exists, else URI-reference.
+ *  - `mapping`, uri-first (config): URI-reference if it locates a target, else component name.
+ * The "match" is looked up in the entry document's Components (default) or the local doc's.
+ */
 function resolveComponentEdge(
   base: ReferenceEdge,
   src: RefSource,
@@ -705,7 +493,7 @@ function resolveComponentEdge(
       ? {
           ...base,
           resolution: "component-name",
-          status: "resolved",
+          status: "resolved", // the component's location guarantees its type
           targetDocId: lookupDocId,
           targetNodeId: nameTarget.id,
           targetType: spec.expectedType,
@@ -719,13 +507,17 @@ function resolveComponentEdge(
   });
 
   if (spec.field === "securityRequirement") {
+    // 3.0 and 3.1: a Security Requirement key is always a component name (no URI form). 3.2 adds the
+    // URI-reference fallback when no component matches.
     if (ctx.version !== "3.2") return asName();
     return nameTarget ? asName() : asUri();
   }
 
+  // Discriminator mapping.
   if (ctx.config.mappingPrecedence === "name-first") {
     return nameTarget ? asName() : asUri();
   }
+  // uri-first: a URI-reference wins if it locates a target; otherwise fall back to the name.
   const uri = asUri();
   if (uri.status === "resolved" || uri.status === "type-mismatch") return uri;
   return nameTarget ? asName() : uri;
@@ -741,43 +533,16 @@ function resolveFragment(
 
   const decoded = decodeFragment(fragment);
   if (decoded.startsWith("/")) {
+    // JSON Pointer relative to the resource root node.
     const pointer = resource.rootNode.id + decoded;
     return indexes.pointerIndex.get(resource.doc.id)?.get(pointer);
   }
+  // Plain-name / $anchor fragment.
   return indexes.anchorByUri.get(`${resourceUri}#${decoded}`);
 }
 
-function contextOf(node: TreeNode): RefContext {
-  if (node.expectedType === "Schema") return "schema";
-  if (node.expectedType === "PathItem") return "pathItem";
-  return "reference";
-}
+// ── helpers ──────────────────────────────────────────────────────────────────
 
 function withFragment(uri: string, fragment: string | null): string {
   return fragment === null ? uri : `${uri}#${fragment}`;
-}
-
-function childByKey(node: TreeNode, key: string): TreeNode | undefined {
-  return node.children.find((c) => c.key === key);
-}
-
-function childString(node: TreeNode, key: string): string | undefined {
-  const child = childByKey(node, key);
-  return child && child.valueKind === "string" ? (child.scalarValue as string) : undefined;
-}
-
-function childBool(node: TreeNode, key: string): boolean | undefined {
-  const child = childByKey(node, key);
-  return child && child.valueKind === "boolean" ? (child.scalarValue as boolean) : undefined;
-}
-
-function addAdvisory(schemaNode: TreeNode, childKey: string, advisory: ResolutionAdvisory): void {
-  const target = childByKey(schemaNode, childKey) ?? schemaNode;
-  (target.resolutionAdvisories ??= []).push(advisory);
-}
-
-function push<T>(map: Map<string, T[]>, key: string, value: T): void {
-  const list = map.get(key);
-  if (list) list.push(value);
-  else map.set(key, [value]);
 }
