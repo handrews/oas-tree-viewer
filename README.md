@@ -3,160 +3,89 @@
 _Produced by Henry Andrews using Claude Code._
 
 This tool takes an [OpenAPI Description](https://learn.openapis.org/glossary.html) (OAD)
-or JSON Schema and shows how all of its pieces connect to each other.  It was particularly
-designed to show how multi-document OADs work, with full coverage of all OpenAPI Specification
-(OAS) referencing and similar features.
+or JSON Schema and shows how all of its pieces connect to each other. It was particularly
+designed to show how **multi-document OADs** work, with full coverage of all OpenAPI
+Specification (OAS) referencing features.
 
-The resulting visualization does not "resolve" the OAD in the sense of transforming it into
-a more directly-usable state.  Rather, it demonstrates the expected behavior so that tool
-developers and users can compare it to what their tool currently supports, and authors
-can explore potential errors visually, with both JSON Pointer and line number identification.
+It does not "resolve" the OAD into a more directly-usable artifact. Instead it **demonstrates
+the expected behavior** so that tool developers can compare it to what their tool supports, and
+authors can explore potential errors visually — with both JSON Pointer and source line
+identification.
 
-OAS 3.0+ and JSON Schema draft-04+ are supported, although the focus is on the recommended
-full-document-style parsing of OAS 3.1+ and JSON Schema draft 2020-12.  Other parsing
-styles can be configured at OAD load time.
+OAS 3.0+ and JSON Schema draft-04+ are supported, with the focus on the recommended
+full-document parsing of OAS 3.1+ and JSON Schema 2020-12. Schema validation (including
+changing JSON Schema dialects within a document) uses
+[@hyperjump/json-schema](https://github.com/hyperjump-io/json-schema) and runs **offline** from
+bundled schemas.
 
-Schema validation (including support for changing JSON Schema dialects within a document)
-is incorporated using @hyperjump/json-schema (note that AJV does not have sufficient
-support for draft 2020-12 at the time of this writing).
-
-The current visual design is prototype-level and undergoing review.
-Support for Arazzo and Overlays is planned once the visual design is stabilized.
+> The visual design is prototype-level and undergoing review; support for Arazzo and Overlays
+> is planned once it stabilizes. Live demo: <https://henryandrews.net/projects/oas/>
 
 ## What it does
 
-A TypeScript web app that reads an **OpenAPI Description (OAD)** and renders its parsed
-structure as collapsible **indented trees** — every object, array, and scalar shown as a
-row, with each node labeled by its OpenAPI Specification (OAS) type — and resolves
-references, drawing them as **on-demand arcs** between the referencing field and its target
-(including across documents).
+A TypeScript web app that reads an OAD and renders its parsed structure as collapsible,
+**indented trees** — one row per object, array, and scalar, each labeled by its OAS type — and
+draws **references** as on-demand arcs between the referencing field and its target, including
+across documents.
 
-- Presents two pages: a **Configure** page collects the OAD — by **file upload** (with an
-  optional retrieval URL), **URL fetch**, **Load folder** (a whole directory at once,
-  preserving each file's relative path), or a **built-in demo** — and an **Explore** page
-  renders it. The Explore view is captured in a **bookmarkable, shareable URL** (the demo or
-  online-document URLs, plus the resolution options below). Loading (parse, classify, validate,
-  resolve, and diagnose) runs in a **background worker**, so the page stays responsive and a slow
-  load can be **cancelled** mid-flight.
-- Loads an OAD made of **one or more documents**: the **first document is the entry
-  document** (use **Make entry** to promote another), any others are additional (referenced)
-  documents.
-- Parses **JSON or YAML** and validates each document against the official **OAS 3.0, 3.1, or 3.2**
-  JSON Schema — **offline**, since the schemas are bundled rather than fetched at runtime. In 3.1/3.2 a
-  Schema Object is JSON Schema, so each is additionally validated against the dialect it declares in
-  `$schema` (the OAS dialect, JSON Schema 2020-12 and 2019-09, and draft-07/06/04 are all checked); a
-  document using an older or unknown dialect still renders, with a non-blocking warning that those Schema
-  Objects were not validated. In **3.0** a Schema Object is *not* JSON Schema (no `$id`/`$anchor`/dynamic
-  keywords; a Schema `$ref` is a plain Reference Object), so there are no dialects — the single 3.0 schema
-  validates the whole document.
-- Also accepts a **standalone JSON Schema document** — one whose root is a **Schema Object** rather
-  than an OpenAPI Object, detected by a root `$id`/`$schema`. It is rendered as a Schema Object tree
-  and validated against its declared dialect (or, when it omits `$schema`, the OAS dialect of the rest
-  of the OAD — left unvalidated if there is no OpenAPI document to borrow a version from). Its header
-  shows the JSON Schema dialect instead of an OAS version.
-- With **document fragments** enabled (a resolution option with three settings, **off by default**),
-  also loads a document that is neither of those — for example a bare **Path Item Object** at the root,
-  or a shared **schema library**. A fragment isn't validated; its type is **inferred from the references
-  that point at it**:
-  - *Referenced by the root* types a fragment only when a reference targets its root (e.g. a Path Item
-    `$ref` makes the root a Path Item, typing the whole tree); a fragment with no root reference is a
-    load error.
-  - *Any fragment* additionally types from references to **interior** nodes — only the referenced node
-    and its descendants take a type, so a library referenced at `#/Pet` and `#/Error` keeps a generic
-    root and reads "Fragment · partially typed". This setting also tolerates an unreferenced fragment
-    (generic and undetermined).
+- **Two pages.** A **Configure** page collects the OAD; an **Explore** page renders it in a
+  bookmarkable, shareable URL. Loading (parse → classify → validate → resolve → diagnose) runs
+  in a background worker, so the page stays responsive and a slow load can be cancelled.
+- **Flexible input.** File upload (with an optional retrieval URL), URL fetch, **Load folder**
+  (a whole directory at once, preserving each file's relative path), or a built-in demo. An OAD
+  can be one or more documents; the **first is the entry document** (use **Make entry** to
+  promote another).
+- **JSON or YAML**, validated against the official **OAS 3.0 / 3.1 / 3.2** schema. In 3.1/3.2
+  each Schema Object is additionally validated against the JSON Schema dialect it declares (the
+  OAS dialect, 2020-12, 2019-09, draft-07/06/04); a Schema Object on an older or unknown
+  dialect still renders, flagged with a non-blocking warning.
+- **Standalone JSON Schema** documents (root is a Schema Object) are rendered and validated as
+  such. With **document fragments** enabled (off by default), a bare fragment — a Path Item, a
+  shared schema library — is loaded too, its type inferred from the references that point at it.
+- **Readable, accessible trees.** Documents are laid out side by side on a shared zoom/pan
+  canvas (entry leftmost). Expand/collapse with the disclosure triangle or a double-click; click
+  a row to inspect it in the detail panel (JSON Pointer + source line, OAS type, value,
+  reference target, base URI). The trees are a keyboard-navigable, screen-reader-accessible
+  WAI-ARIA tree, and a toolbar offers Fit, Top/Bottom, Expand all / Collapse all, and Show all
+  references. The view is **windowed**, so even a very large document stays responsive.
 
-  References that **over-determine** a node's type — two that disagree at the same node, or one that
-  disagrees with the type an enclosing referenced ancestor implies — make just that node's subtree
-  generic and any reference into it a type error; the rest of the fragment keeps its inferred types. A
-  conflict at the root makes the whole fragment generic ("Fragment · ambiguous root"). A fragment is
-  never an entry document unless something cleanly types its root.
-- Builds a tree of JSON-Pointer-addressed nodes and **classifies** each node by its OAS
-  type (OpenAPI, Info, Paths, Path Item, Operation, Components, Schema, …), flagging
-  Reference (`$ref`) objects. OAS 3.2 additions are recognized (`$self`, `query`,
-  `additionalOperations`, `mediaTypes`).
-- Draws one collapsible, **indented "filesystem" tree** per document (one row per node,
-  children indented under their parent), with the documents laid out **side by side** on a
-  shared zoom/pan canvas (entry document leftmost). Click a row's **disclosure triangle**
-  (or double-click the row) to expand/collapse; click a row to inspect it in the detail
-  panel (JSON Pointer with its **source line**, OAS type, value, reference target, base URI). The trees are
-  **keyboard-navigable and screen-reader-accessible** (a WAI-ARIA tree): arrow keys move
-  between nodes and expand/collapse them, Home/End jump to the first/last, and Enter or Space
-  selects the focused node. A canvas toolbar offers **Fit**, **Top** / **Bottom** (jump to the
-  top or bottom of a tall tree), **Expand all** / **Collapse all**, and **Show all references**.
-  The tree is **windowed to the viewport** — only the rows currently in view are mounted — so
-  even a very large document stays responsive to pan, zoom, and expand.
+## References
 
-### References
+The viewer resolves every kind of connection an OAS 3.1/3.2 description can express and draws
+each as an arc you reveal by selecting a row (or all at once with **Show all references**):
 
-Resolves every kind of connection an OAS 3.1/3.2 description can express, with
-JSON-Schema-correct base-URI handling: nested `$id` re-scopes the base, and targets are
-located by JSON Pointer **or** `$anchor`/plain-name fragment, same-document or across the
-loaded documents (matched by `$self` / retrieval URI).
+- **`$ref`** and **`operationRef`** — solid arcs.
+- **Implicit connections** — Discriminator `mapping` values, Security Requirement keys, and
+  Link `operationId`, each resolved by name.
+- **`$dynamicRef` / `$recursiveRef`** — drawn as **tentative, dotted** arcs to the anchors that
+  could be their runtime target.
 
-- **`$ref`** (in Reference, Path Item, and Schema objects) and **`operationRef`** (in Link
-  objects) — URI-references, drawn as solid arcs.
-- **Component-name references** — Discriminator `mapping` values and Security Requirement
-  keys, each resolved as a component name or a URI-reference (per OAS version and the
-  resolution options) and drawn as a distinct **implicit connection**.
-- **Link `operationId`** — resolved to its Operation, as an implicit connection.
-- **`$dynamicRef` / `$dynamicAnchor`** (2020-12) — a dynamic `$dynamicRef` is drawn as
-  **tentative, dotted** arcs to its *strict winners*: the `$dynamicAnchor`s that could actually be
-  its runtime resolution (the outermost same-named anchor on an evaluation path, rooted in the
-  entry document, that reaches the reference). The JSON Schema "bookending" cases (a local
-  `$anchor`, or a `$ref` landing on a `$dynamicAnchor`) resolve statically, like `$ref`.
-- **`$recursiveRef` / `$recursiveAnchor`** (2019-09) — the anonymous predecessor of `$dynamicRef`,
-  resolved with the same tentative-dotted strict-winner analysis; a `$recursiveRef` with no
-  `$recursiveAnchor` in scope is a plain static reference.
-- **Older-dialect identification** — Schema Objects declaring **draft-07/06/04** use identifier
-  (`$id`, or `id` in draft-04) fragments for anchors and ignore keywords next to `$ref`; the viewer
-  resolves them by those rules and flags the ignored-`$ref`-sibling and bad-identifier-fragment
-  cases. A dialect older than draft-04 (or unknown) keeps a ⚠ and is drawn with 2020-12 rules.
-- **Operation-reference advisories** — an `operationRef`/`operationId` that resolves but
-  points somewhere not unambiguously callable (e.g. a webhook or callback Operation) is
-  flagged with an advisory rather than treated as broken.
+A reference must land on a slot of the matching **expected type**. Outcomes are **resolved**,
+**type-mismatch** (red error arc), **broken** (fragment not found), and **external** (target
+document not loaded). The detail panel shows **Resolves to →** and **Referenced by ←** (both
+clickable). Unresolved references, advisories, resolution caveats, unreachable documents, and
+unvalidated Schema Objects are collected in a copy-pasteable **issue report**, each finding
+showing its source line and jumping to its node when clicked.
 
-Selecting a row reveals its reference arc(s); the detail panel shows **Resolves to →** and
-**Referenced by ←** (both clickable to navigate), and a **Show all references** toggle draws
-the whole web. A reference must land on a slot of the matching **expected type** (a Reference
-Object inherits the type of the slot it occupies; an operation reference must hit an
-Operation). Outcomes: **resolved**, **type-mismatch** (red error arc + "expected X, found
-Y"), **broken** (fragment not found), and **external** (target document not loaded) — the
-last two show a ⚠ marker on the row instead of a dangling line. Unresolved references, reference
-advisories, resolution caveats, unreachable documents, and unvalidated Schema Objects are collected
-in a copy-pasteable **issue report**; each node-level finding shows its **source line**, and clicking
-it jumps to that node in the tree.
+A document's **base URI** is its retrieval URL, else `$self`, else a `file://` URL built from
+its path. A **Load folder** upload preserves relative paths so subdirectory references resolve
+as they would over HTTP; supplying a **folder base URL** maps the folder onto a real location to
+preview how it would resolve when served there.
 
-- **Base URI** of an uploaded file: a provided retrieval URL, else `$self`, else a `file://`
-  URL built from the file's path. A **Load folder** upload preserves each file's relative
-  path, so subdirectory-relative references (`schemas/pet.yaml#/…`) resolve the same way
-  they would when served over HTTP. Supplying a **folder base URL** maps the folder's
-  contents onto that URL (replacing the implicit `file://` base) — useful to preview how an
-  OAD would resolve when served from a real location.
+## Errors
 
-### Error handling
-
-Errors are surfaced where they arise — on a document's row, or above the form for OAD-wide
+Blocking errors are surfaced on the offending document's row, or above the form for OAD-wide
 problems:
 
-- **Parse error** — the document is not valid JSON/YAML (shown on its row).
-- **Unrecognized document** — parses, but has neither a root `openapi` field nor a root `$id`/`$schema`,
-  so it is neither an OpenAPI document nor a (recognized) JSON Schema document (shown on its row).
-  Enabling **document fragments** loads it anyway, typing it from the references that target its root
-  (or, with *any fragment*, its interior nodes).
-- **Schema-invalid document** — fails validation against the official OpenAPI JSON Schema, with the
-  offending JSON Pointer locations listed (shown on its row).
-- **Version mismatch** — the OAD mixes OAS versions (shown above the form).
-- **Invalid Link** — a Link Object sets both `operationRef` and `operationId` (shown on its row).
-- **Duplicate `operationId`** — two Operations share an `operationId` anywhere in the OAD
-  (shown above the form).
-- **Too deeply nested** — a document whose nesting exceeds the depth limit is refused up front, rather
-  than risking a stack-overflow crash downstream, with a **Load anyway** override that retries with the
-  limit lifted (shown on its row). Document size and node count are **no longer capped** — large
-  single-file descriptions (GitHub-/Stripe-scale) load directly, because loading runs off the main
-  thread and the tree mounts only the rows near the viewport. **Show all references** still confirms
-  before drawing a very large number of arcs at once, and warns that at that scale the near-vertical
-  arcs may render imperfectly (misangled arrowheads, or flicker while panning).
+- **Parse error** — not valid JSON/YAML.
+- **Unrecognized document** — neither an OpenAPI nor a JSON Schema document (enable document
+  fragments to load it anyway).
+- **Schema-invalid document** — fails validation against the official OAS schema.
+- **Version mismatch** — the OAD mixes OAS versions.
+- **Invalid Link** — a Link Object sets both `operationRef` and `operationId`.
+- **Duplicate `operationId`** — two Operations share an `operationId`.
+- **Too deeply nested** — refused up front to avoid a stack-overflow crash, with a **Load
+  anyway** override. Document size and node count are not capped.
 
 The entry document is always the first one, so there are no "missing/duplicate entry" errors.
 
@@ -171,14 +100,9 @@ npm install
 npm run dev      # Vite dev server at http://localhost:5173
 ```
 
-On the **Configure** page, pick a **built-in demo** (one per reference style) or add your own
-documents (the first is the **entry document**) and click **Render OAD** to open the Explore
-page.
-
-Sample OADs live in [`public/fixtures/`](public/fixtures) and are served at
-`/fixtures/<name>` by the dev server (e.g. a two-document 3.1 OAD: `petstore-3.1.yaml`
-referencing `shared-3.1.yaml`; a 3.2 example `tictactoe-3.2.yaml`; and `refs-3.1.yaml` +
-`refs-shared-3.1.yaml`, which exercise every reference location and outcome).
+On the **Configure** page, pick a built-in demo or add your own documents (the first is the
+**entry document**) and click **Render OAD** to open the Explore page. Sample OADs live in
+[`public/fixtures/`](public/fixtures) and are served at `/fixtures/<name>`.
 
 ```bash
 npm run build    # svelte-check + production build to dist/
@@ -188,10 +112,12 @@ npm run typecheck
 
 ## Not yet implemented
 
-* OAS 2.0 (Swagger) support (not planned)
-* Search/filter
+- OAS 2.0 (Swagger) support (not planned)
+- Search/filter
 
-## Contributing
+## Documentation
 
-Testing, the project architecture, and the release process are documented in
-[CONTRIBUTING.md](CONTRIBUTING.md).
+- **[docs/architecture.md](docs/architecture.md)** — how the viewer is built: the model layer,
+  the off-thread worker pipeline, reference resolution, windowed rendering, and diagnostics.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — tests, linting and formatting, and the release
+  process.
