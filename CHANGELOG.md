@@ -29,6 +29,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   the detail-panel note all take their severity from the diagnostic catalog policy, so changing an
   advisory's severity (or turning it `off`) moves all three together.
 
+### Fixed
+
+- **Right-gutter glyphs sit tight to the text again.** The unresolved/caveat ⚠ glyphs, the
+  resolved-advisory ▲ glyphs, and the point a reference arc leaves its row now anchor to each row's
+  _measured_ label end. Since the tree-windowing change they had used an analytic width _estimate_
+  that overshot in proportion to the label length, so a glyph drifted right by a seemingly-random
+  amount on longer rows. When a row carries more than one glyph (e.g. an unresolved-reference ⚠ and
+  a resolution-caveat ⚠, or a many-reference count badge beside a ▲), the glyphs now pack into
+  separate slots instead of overlapping.
+
 ## [0.8.3] - 2026-06-25
 
 ### Fixed
