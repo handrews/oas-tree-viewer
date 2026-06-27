@@ -545,21 +545,38 @@ export class DocumentView {
       }
     });
 
+    // Replace the analytic label-end estimate with a measured one for the rows we just mounted, so the
+    // right-gutter occupants (arc source, ⚠, ▲) sit tight to the actual text rather than drifting right by
+    // the estimate's per-character surplus. This is a *separate read pass* after every tspan is appended:
+    // all DOM writes are done, so the batch of `getComputedTextLength()` reads forces at most one reflow and
+    // never thrashes. It is bounded by the mounted window, so the O(N) "Expand all" freeze does not return.
+    // Off-screen rows keep their estimate (not visible); a measurement of 0 (e.g. jsdom, or an unattached
+    // node) is ignored so the estimate stands.
+    const labelEndById = this.labelEndById;
+    label.each(function (this: SVGTextElement, d: RowDatum) {
+      const w = this.getComputedTextLength();
+      if (w > 0 && Number.isFinite(w)) {
+        labelEndById.set(d.node.data.id, PAD + d.depth * INDENT + LABEL_DX + w);
+      }
+    });
+
     this.rowSel = rowSel;
   }
 
   /**
    * Set the viewport span (in this tree's vertical coordinates) the canvas currently shows, so a large tree
    * only mounts the rows near it. Repaints only when the windowed slice actually changes; a no-op for a tree
-   * small enough to render whole.
+   * small enough to render whole. Returns whether it repainted, so the caller can recompute anything keyed
+   * to the freshly mounted (and re-measured) rows — i.e. their right-gutter occupants.
    */
-  setViewport(top: number, bottom: number): void {
+  setViewport(top: number, bottom: number): boolean {
     this.viewTop = top;
     this.viewBottom = bottom;
-    if (this.visibleRows.length <= VIRTUALIZE_ABOVE) return;
+    if (this.visibleRows.length <= VIRTUALIZE_ABOVE) return false;
     const { start, end } = this.windowSlice();
-    if (start === this.mountedStart && end === this.mountedEnd) return;
+    if (start === this.mountedStart && end === this.mountedEnd) return false;
     this.paintWindow();
+    return true;
   }
 
   private renderHeader(): void {
