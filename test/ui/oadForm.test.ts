@@ -38,6 +38,13 @@ describe("rebaseFolderUri", () => {
   it("returns undefined for an unusable base URL", () => {
     expect(rebaseFolderUri("oad/a.yaml", "not a url")).toBeUndefined();
   });
+
+  it("falls back to the whole path when there is no folder segment to strip", () => {
+    // A single-segment relativePath (no folder prefix): `slice(1)` is empty, so the path is used as-is.
+    expect(rebaseFolderUri("openapi.yaml", "https://x.com/api/")).toBe(
+      "https://x.com/api/openapi.yaml",
+    );
+  });
 });
 
 describe("pickEntryIndex", () => {
@@ -60,6 +67,11 @@ describe("folderNameOf", () => {
   it("returns the first path segment", () => {
     expect(folderNameOf("myoad/schemas/pet.yaml")).toBe("myoad");
     expect(folderNameOf("single.yaml")).toBe("single.yaml");
+  });
+
+  it("falls back to the whole string when the first segment is empty", () => {
+    // A leading slash makes `split("/")[0]` empty, so the `|| relativePath` fallback returns the input.
+    expect(folderNameOf("/leading")).toBe("/leading");
   });
 });
 
@@ -93,6 +105,13 @@ describe("dirLocalSource", () => {
 
   it("yields an empty bundle when no OAS documents are present", () => {
     const src = dirLocalSource([namedFile("oad/README.md")]);
+    expect(src.docs).toHaveLength(0);
+    expect(src.entryIndex).toBe(0);
+  });
+
+  it("handles a completely empty selection (no files at all)", () => {
+    const src = dirLocalSource([]);
+    expect(src.folderName).toBe(""); // no first file to derive a name from
     expect(src.docs).toHaveLength(0);
     expect(src.entryIndex).toBe(0);
   });

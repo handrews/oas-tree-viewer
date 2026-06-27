@@ -50,6 +50,7 @@ export default defineConfig({
       // Measure against all source, not just files a test happened to import.
       include: ["src/**/*.{ts,svelte}"],
       exclude: [
+        "test/**", // test infrastructure (helpers, fixtures, benches) is never part of the denominator
         "src/main.ts", // bootstrap / mount
         "src/App.svelte", // shell wiring (verified in-browser + e2e)
         "src/pages/ConfigurePage.svelte", // presentation (logic in oadForm/demos/viewUrl; browser-verified)
@@ -71,15 +72,16 @@ export default defineConfig({
         "src/refs/types.ts", // type declarations (+ trivial refKey)
         "src/vite-env.d.ts",
       ],
-      // Statement/branch/line floors sit ~1 point under the measured coverage (98.2 / 92.1 / 99.4) so
+      // Statement/branch/line floors sit ~1 point under the measured coverage (98.4 / 93.4 / 99.4) so
       // the gate blocks regressions without flaking on a defensive arm or hard-to-trigger catch.
       // Functions is held at 100: every function should be exercised, an uncovered one means dead code
       // or a missing test, and the coverage-included files are all node-tested (so it's deterministic).
       // The d3/SVG islands (canvas.ts, treeView.ts) are excluded above; the tree's keyboard model lives
-      // in the node-tested treeKeys.ts instead.
+      // in the node-tested treeKeys.ts instead. The remaining uncovered branches are defensive `??`/`catch`
+      // arms guarding type-unreachable states — see the coverage philosophy in CONTRIBUTING.
       thresholds: {
         statements: 97,
-        branches: 91,
+        branches: 92,
         functions: 100,
         lines: 98,
       },
