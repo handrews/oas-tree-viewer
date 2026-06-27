@@ -31,7 +31,7 @@ flowchart TD
             parse --> model --> classify --> validate
         end
         assemble["assembleOad — oad"]
-        refs["resolveOad — references<br/>resolver · baseUri · dynamicScope<br/>fragments · reachability"]
+        refs["resolveOad — references<br/>indexer · uriRef · componentRef · operationId<br/>dynamicRef · scopeGraph · dynamicScope<br/>baseUri · fragments · reachability"]
         diag["buildDiagnostics — diagnostics<br/>runner · catalog (content/diagnostics.yaml)"]
         load --> assemble --> refs --> diag
     end
@@ -65,7 +65,7 @@ flowchart TD
 | OAS classification | `src/oas/descriptor.ts` (declarative 3.1/3.2 grammar), `src/oas/classify.ts`, `src/oas/dialects.ts` (JSON Schema dialect selection) |
 | Load / assemble | `src/loader.ts` (per document), `src/oad.ts` (whole OAD) |
 | Validation | `src/validation/validateOad.ts` (OAS schema + per-dialect JSON Schema validation) |
-| References | `src/refs/baseUri.ts`, `src/refs/resolver.ts`, `src/refs/types.ts`, `src/refs/diagnostics.ts` (per-edge advisories), `src/refs/dynamicScope.ts`, `src/refs/fragments.ts`, `src/refs/reachability.ts` |
+| References | `src/refs/resolver.ts` (orchestration), `src/refs/indexer.ts` (document/resource/anchor indexing + ref-source collection), `src/refs/uriRef.ts` (URI-reference resolution), `src/refs/componentRef.ts` (component-or-URI rules), `src/refs/operationId.ts` (Link `operationId`), `src/refs/dynamicRef.ts` (`$dynamicRef`/`$recursiveRef`), `src/refs/scopeGraph.ts` (reachability + resource-transition graph for dynamic scope), `src/refs/dynamicScope.ts` (strict-winner analyzer), `src/refs/baseUri.ts`, `src/refs/fragments.ts` (fragment typing), `src/refs/reachability.ts` (document reachability), `src/refs/types.ts`, `src/refs/diagnostics.ts` (per-edge advisories) |
 | Diagnostics | `src/diagnostics/types.ts` (the unified `Diagnostic` model), `src/diagnostics/catalog.ts` (loads the severity policy + copy), `src/diagnostics/runner.ts` (collects every non-blocking finding) |
 | Connections | `src/connections/types.ts` (the style vocabulary + `family` axis), `src/connections/catalog.ts` (loads `content/connections.yaml`), `src/connections/style.ts` (per-connection class/marker/arrowhead selection) |
 | Render | `src/render/canvas.ts`, `src/render/treeView.ts`, `src/render/treeLayout.ts` (windowing, label-width estimate + right-gutter glyph packing), `src/render/treeKeys.ts` (keyboard model), `src/render/colors.ts`, `src/render/issues.ts`, `src/render/reachability.ts`, `src/render/detail.ts`; Svelte islands `TreeCanvas.svelte`, `DetailPanel.svelte`, `Legend.svelte`, `IssueReport.svelte` |
