@@ -1,8 +1,8 @@
 // Pure geometry helpers for the document-tree renderer (treeView.ts / canvas.ts). Kept free of d3 and the
 // DOM so the math is node-testable; the SVG islands that consume it are coverage-excluded and verified in
-// the browser. The first of these, `estimateLabelWidth`, replaces a per-row `getBBox()` measurement — the
-// O(N) forced reflow that made "Expand all" freeze — and lets a row's label end be known even when the row
-// is not mounted (so reference arcs can still anchor to off-screen nodes).
+// the browser. `estimateLabelWidth` avoids a per-row `getBBox()` measurement (an O(N) forced reflow) and
+// lets a row's label end be known even when the row is not mounted (so reference arcs can still anchor to
+// off-screen nodes).
 
 /** Label font size (px), matching `.node-label` in styles.css. */
 const LABEL_FONT_PX = 12;
@@ -50,18 +50,18 @@ export function estimateLabelWidth(
 // Past a row's measured label end sit, left to right: the reference-arc source (placed by the canvas,
 // unconditionally, since it's just where a line leaves the row), then the glyphs this helper places —
 // the unresolved-reference ⚠, the resolution-caveat ⚠, and the resolved-advisory ▲. Each glyph takes a
-// fixed-width slot and the next one is pushed past it, so a row carrying several never overlaps. Common
-// rows are unchanged: a lone ⚠ stays at WARN_X0, a lone ▲ at ADVISORY_MIN_X (which clears the arc source
-// that leaves a resolved row); only the colliding combinations move.
+// fixed-width slot and the next one is pushed past it, so a row carrying several never overlaps. A lone ⚠
+// sits at WARN_X0 and a lone ▲ at ADVISORY_MIN_X (which clears the arc source that leaves a resolved row);
+// only the colliding combinations move past those.
 
-/** First ⚠ slot, measured from the label end (matches the historical single-glyph offset). */
+/** First ⚠ slot, measured from the label end. */
 const WARN_X0 = 12;
 /** Advance to the next glyph slot — enough to clear one ⚠ (18px bold) or ▲ (15px) plus a small gap. */
 const GLYPH_STEP = 18;
 /** Extra width per digit of a ⚠'s "(+N)" count badge, so a following glyph clears the digits. */
 const COUNT_STEP = 8;
 /** The ▲ never sits closer than this: it clears the arc source (a resolved row is an arc source) and a
- *  lone ⚠. Matches the historical advisory offset, so a lone ▲ is unchanged. */
+ *  lone ⚠. */
 const ADVISORY_MIN_X = 30;
 
 /** Which right-gutter glyphs a single row carries (collapsed from all diagnostics landing on it). */
@@ -101,8 +101,8 @@ export function gutterSlots(occ: GutterOccupancy): GutterSlots {
   return { refWarnX, caveatX, advisoryX };
 }
 
-/** Above this many rows a document's tree is windowed (only the rows near the viewport are mounted).
- *  Below it the whole tree renders, exactly as before — comfortably above any ordinary document. */
+/** Above this many rows a document's tree is windowed (only the rows near the viewport are mounted);
+ *  below it the whole tree renders. The threshold sits comfortably above any ordinary document. */
 export const VIRTUALIZE_ABOVE = 2000;
 
 /** Rows of slack rendered above and below the viewport, so a small scroll reveals already-mounted rows
