@@ -107,9 +107,8 @@ export function idKeyword(dialect: string | undefined, _version: VersionFamily):
 }
 
 /**
- * Whether the viewer resolves a dialect's references with its own rules (vs. a 2020-12 best-effort
- * fallback + a ⚠). True for the OAS dialect, 2020-12, and draft-06/07; false otherwise. A
- * `$schema` / `jsonSchemaDialect` that is false here gets the resolution-warning marker.
+ * Whether the viewer resolves a dialect's references with its own rules — i.e. its
+ * {@link referenceModel} is not `"unsupported"` — rather than a 2020-12 best-effort fallback.
  */
 export function isResolutionSupported(
   dialect: string | undefined,
