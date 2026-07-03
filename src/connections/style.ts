@@ -1,13 +1,11 @@
 // Pure style selection for a drawn connection: the single place that turns a connection kind + its render
-// state into the CSS classes / marker / arrowhead the canvas applies. This replaces the hand-assembled
-// class string in canvas.ts (`baseClass`), the single/double filter, and the `markerEnd` choice — so the
-// canvas, the tree marker, and the legend all read one source. It emits exactly the classes the existing
-// CSS resolves, so swapping the renderer onto it is visually identical.
+// state into the CSS classes / marker / arrowhead the canvas applies, so the canvas, the tree marker, and
+// the legend all read one source.
 //
 // Two layers: the *base* visual comes from the catalog (per connection kind); the *modifier* axes — resolve
 // status, advisory severity, collapsed/off-screen endpoint, focus — are render state passed in here. Only
 // the base dash is selected here; the modifier dashes (collapsed, type-mismatch) keep their own CSS classes,
-// resolved by the cascade exactly as before.
+// resolved by the cascade.
 
 import type { RefStatus } from "../refs/types";
 import { connectionStyle } from "./catalog";
@@ -38,9 +36,8 @@ export function dashClass(dash: DashStyle): string | null {
   }
 }
 
-/** The ordered class list for a drawn connection — the one source the canvas applies to each arc, replacing
- *  the hand-built string. Emits exactly the classes the existing CSS resolves (base dash + status + advisory
- *  tint + collapsed + focused). */
+/** The ordered class list for a drawn connection — the classes the canvas applies to each arc
+ *  (base dash + status + advisory tint + collapsed + focused). */
 export function connectionClasses(kind: ConnectionKind, state: ConnectionState): string[] {
   const classes = ["ref-edge"];
   if (state.status) classes.push(`status-${state.status}`);

@@ -4,9 +4,9 @@
 // unified model, stamping each code's severity from the catalog policy. Pure and node-testable; runs
 // in the pipeline worker so only plain data crosses back to the UI.
 //
-// Edges stay primary: a reference's resolved target is the structural truth (drawn as an arc); the
-// diagnostics here are *derived* from edges (and tree nodes), located at the source, with the target
-// recorded as a related location — they do not re-encode the edge graph.
+// Edges stay primary: a reference's resolved target is the structural truth; the diagnostics here are
+// *derived* from edges (and tree nodes), located at the source, with the target recorded as a related
+// location — they do not re-encode the edge graph.
 
 import type { Oad, OadDocument, TreeNode } from "../types";
 import type { ReferenceEdge, RefStatus, ResolvedRefs } from "../refs/types";
@@ -133,8 +133,7 @@ export function indexByPointer(
 /** An edge that did not cleanly resolve — the only edges {@link refStatusMessage} is asked about. */
 type UnresolvedEdge = ReferenceEdge & { status: "broken" | "external" | "type-mismatch" };
 
-// The human text for an unresolved reference. (Mirrors issues.ts `refDetail` for now; issues.ts will
-// consume buildDiagnostics in a follow-up, removing the duplication.)
+// The human text for an unresolved reference.
 function refStatusMessage(e: UnresolvedEdge): string {
   switch (e.status) {
     case "broken":
