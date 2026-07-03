@@ -47,8 +47,7 @@ export type AdvisoryCode = (typeof ADVISORY_CODES)[number];
 /**
  * A semantic advisory on a reference that resolved. Its *severity* lives in the diagnostic catalog
  * (content/diagnostics.yaml), so it is configurable and shared with the issue report; this carries only
- * the code and its dynamic detail text. The arc tint and the ▲ gutter glyph both derive their color
- * from that one catalog policy.
+ * the code and its dynamic detail text.
  */
 export interface EdgeAdvisory {
   code: AdvisoryCode;
@@ -69,7 +68,7 @@ export interface ReferenceEdge {
   resolvedUri?: string;
   kind: RefKind;
   context: RefContext;
-  /** How the reference was interpreted; selects the arrow/marker style. */
+  /** How the reference was interpreted. */
   resolution: ResolutionKind;
   status: RefStatus;
   /** Expected target type (for display, esp. on type-mismatch). */
