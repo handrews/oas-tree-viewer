@@ -22,7 +22,7 @@ export class ParseError extends OadError {}
 /** The document parsed, but has no valid root `openapi` version field. */
 export class NotOpenApiError extends OadError {}
 
-/** The document is OpenAPI, but a version this tool does not support (only 3.1/3.2). */
+/** The document is OpenAPI, but a version this tool does not support (only 3.0/3.1/3.2). */
 export class UnsupportedVersionError extends OadError {}
 
 /** The document is OpenAPI of a supported version, but structurally invalid — e.g. a Link

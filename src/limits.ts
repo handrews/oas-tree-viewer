@@ -1,8 +1,8 @@
 // Resource guards run *before* the pipeline (parse → buildTree → classify → validate → resolve → render)
-// spends time or memory on a document. The pipeline now runs in a Web Worker (so it can't freeze the tab)
-// and the renderer windows the tree (so size no longer hangs it), which is why the byte and node caps are
-// lifted by default below — GitHub- and Stripe-scale single-file descriptions load without a prompt. Only
-// the *depth* cap is still enforced by default, because it guards a real crash, not just slowness.
+// spends time or memory on a document. The pipeline runs in a Web Worker (so it can't freeze the tab) and
+// the renderer windows the tree (so size doesn't hang it), which is why the byte and node caps are
+// unbounded by default below — GitHub- and Stripe-scale single-file descriptions load without a prompt.
+// Only the *depth* cap is enforced by default, because it guards a real crash, not just slowness.
 
 /**
  * Maximum nesting depth. Real OADs nest well under ~40 levels (deep schema recursion is expressed with
@@ -14,9 +14,9 @@
 export const MAX_TREE_DEPTH = 128;
 
 // Render-interaction guard. "Expand all" is windowed (only the rows near the viewport are ever mounted, the
-// rest tracked analytically), so it no longer needs a guard. "Show all references" still draws every
-// reference arc at once, so it stays gated — independent of the load caps above, so it remains active even
-// after a "Load anyway" override.
+// rest tracked analytically), so it needs no guard. "Show all references" still draws every reference arc at
+// once, so it stays gated — independent of the load caps above, so it remains active even after a "Load
+// anyway" override.
 
 /** Above this many reference arcs, "Show all references" confirms before drawing them all at once. */
 export const MAX_RENDER_EDGES = 2_000;
@@ -31,7 +31,7 @@ export interface Limits {
 }
 
 /** The caps enforced by default: only nesting depth (the crash guard). Byte and node counts are unbounded —
- *  the off-thread pipeline and the windowed renderer handle large documents, so they no longer warrant a
+ *  the off-thread pipeline and the windowed renderer handle large documents, so they don't warrant a
  *  "too large" refusal. */
 export const defaultLimits: Limits = {
   maxBytes: Infinity,
