@@ -1,10 +1,10 @@
 // Core domain types shared across the model, classifier, and render layers.
 
 /**
- * How a reference field resolved, which selects its visual treatment (marker shape, line
- * style, arrowhead). A Link's `operationId` is an implicit connection that shares the
- * `component-name` visual; a `$dynamicRef` that resolves dynamically is `dynamic` (tentative —
- * drawn dotted, since its real target depends on the evaluation path).
+ * How a reference field resolved. `component-name` and `operation-id` are implicit connections (a
+ * Link's `operationId` resolves like a component name); `dynamic` is a `$dynamicRef`/`$recursiveRef`
+ * whose real target depends on the evaluation path, so it is tentative. The connection style catalog
+ * (src/connections) maps each kind to its drawn appearance.
  */
 export type ResolutionKind = "uri-reference" | "component-name" | "operation-id" | "dynamic";
 
@@ -40,12 +40,10 @@ export interface SourceRange {
 export type ValueKind = "object" | "array" | "string" | "number" | "boolean" | "null";
 
 /**
- * Coarse semantic bucket used for node coloring. OAS object types map onto one of
- * five semantic groups; unclassified JSON structure falls back to the generic
- * "object" / "array" / "scalar" kinds (drawn as squares).
- *
- * Reference Objects carry the `structural` group color but are drawn with a distinct
- * asterisk marker, keyed off `isReference` rather than this category.
+ * Coarse semantic bucket for a node: OAS object types map onto one of five semantic groups, and
+ * unclassified JSON structure falls back to the generic "object" / "array" / "scalar" kinds. The
+ * render layer maps each bucket to a color and shape. A Reference Object takes the `structural`
+ * bucket; its distinct marker is keyed off `isReference`, not this category.
  */
 export type NodeCategory =
   | "structural" // OpenAPI, Components, Reference
@@ -61,8 +59,8 @@ export type NodeCategory =
  * A single node in a document's parent/child tree.
  *
  * `id` is the node's JSON Pointer (RFC 6901) *within its own document*. It is the
- * stable address the future reference resolver will use to point a `$ref` at its
- * target node (possibly in another document).
+ * stable address the reference resolver uses to point a `$ref` at its target node
+ * (possibly in another document).
  */
 export interface TreeNode {
   /** JSON Pointer from the document root, e.g. "/paths/~1pets/get". Root is "". */
@@ -83,7 +81,7 @@ export interface TreeNode {
   category?: NodeCategory;
   /** True when this object is a Reference Object (contains a `$ref`). */
   isReference?: boolean;
-  /** Raw `$ref` string, retained for future reference resolution. */
+  /** Raw `$ref` string, used by reference resolution. */
   refTarget?: string;
   /**
    * For a Discriminator `mapping` value or a Security Requirement key: a string that
@@ -98,18 +96,18 @@ export interface TreeNode {
     /** Which field this is, selecting the version/config resolution rules. */
     field: "mapping" | "securityRequirement";
   };
-  /** How this reference field resolved (set by the resolver); drives the marker shape. */
+  /** How this reference field resolved (set by the resolver). */
   resolvedAs?: ResolutionKind;
   /**
    * Set on a `$schema` / `jsonSchemaDialect` value node whose dialect the viewer can't fully
-   * *resolve* (anything but the OAS dialect or 2020-12). Drives a warning marker on the row and a
-   * note in the detail panel; the document still validated, but reference arcs use 2020-12 rules.
+   * *resolve* (anything but the OAS dialect or 2020-12): the document still validated, but its
+   * references are resolved with 2020-12 rules. Surfaced as a non-blocking warning.
    */
   dialectResolutionWarning?: string;
   /**
    * Draft-06/07 reference-resolution advisories on this node (set by the resolver): a `$ref` whose
-   * sibling keywords are ignored, or an `$id` with a wrong JSON-Pointer self-fragment. Surfaced as a
-   * warning marker, a detail-panel note, and an issue-report entry.
+   * sibling keywords are ignored, or an `$id` with a wrong JSON-Pointer self-fragment. Surfaced as
+   * non-blocking diagnostics.
    */
   resolutionAdvisories?: ResolutionAdvisory[];
   /** The scalar value, for leaf nodes only. */

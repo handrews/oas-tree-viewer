@@ -77,9 +77,8 @@ function visitValue(node: TreeNode, typeRef: TypeRef, d: Descriptors, jsonSchema
     node.isReference = true;
     node.refTarget = ref;
     if (!schemaRefIsKeyword) {
-      // A pure Reference Object: its only meaningful children are scalars. It is colored as
-      // the type it stands in for (a $ref in a Path Item slot reads as a Path Item); the
-      // distinct asterisk marks the `$ref` field row itself, not this object.
+      // A pure Reference Object: its only meaningful children are scalars. It takes the category of
+      // the type it stands in for, so a $ref in a Path Item slot reads as a Path Item.
       node.oasType = "Reference Object";
       node.category = d[typeRef]?.category ?? "structural";
       classifyGeneric(node);
@@ -121,8 +120,8 @@ function visitMap(node: TreeNode, valueType: TypeRef, d: Descriptors, jsonSchema
     classifyGeneric(node);
     return;
   }
-  // The map holder itself is an untyped JSON object (no OAS type of its own), so it reads as
-  // a generic square — matching how an array holder gets the generic "array" kind below.
+  // The map holder itself is an untyped JSON object (no OAS type of its own), so it takes the
+  // generic "object" category — like an array holder taking the generic "array" category below.
   node.oasType = `Map of ${labelOf(valueType, d)}`;
   node.category = "object";
   for (const value of node.children) visitValue(value, valueType, d, jsonSchema);

@@ -1,6 +1,5 @@
 // Resolve a Link Object's `operationId` against a global index of every Operation in the OAD
-// (unique by construction — assembleOad rejects duplicates), drawn as an implicit `operation-id`
-// edge.
+// (unique by construction — assembleOad rejects duplicates), as an implicit `operation-id` edge.
 
 import type { TreeNode } from "../types";
 import type { ReferenceEdge } from "./types";
@@ -23,9 +22,9 @@ export function buildOperationIdIndex(
 }
 
 /**
- * Resolve a Link's `operationId` into an implicit `operation-id` edge (drawn like a component
- * name). Exactly one match → resolved; none → broken. Duplicates can't reach here — they are an
- * OAD-level load error — so there is no ambiguous outcome.
+ * Resolve a Link's `operationId` into an implicit `operation-id` edge. Exactly one match →
+ * resolved; none → broken. Duplicates can't reach here — they are an OAD-level load error — so
+ * there is no ambiguous outcome.
  */
 export function resolveOperationId(
   src: OpIdSource,

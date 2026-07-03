@@ -1,7 +1,7 @@
 // Loads the connection style catalog (content/connections.yaml) — the base visual per connection kind —
-// as plain data at build time (Vite `?raw` + the existing `yaml` parser, no new dependency). Mirrors
-// src/diagnostics/catalog.ts: the parsed object is plain/cloneable, and the style for a kind is resolved
-// through here so restyling a category is a one-line YAML edit.
+// as plain data at build time (Vite `?raw` + the existing `yaml` parser, no new dependency), the same way
+// as src/diagnostics/catalog.ts. The style for a kind is resolved through here so restyling a category is
+// a one-line YAML edit.
 
 import { parse } from "yaml";
 import catalogText from "../../content/connections.yaml?raw";

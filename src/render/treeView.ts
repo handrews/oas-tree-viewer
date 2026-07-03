@@ -2,7 +2,7 @@
 // one row per visible node, children indented under their parent, expanding straight
 // down. The canvas tiles these columns side by side horizontally. This class owns the
 // tree itself: collapse/expand state, selection, and reporting its extent. Everything is
-// drawn in SVG so future cross-document reference edges share one coordinate space.
+// drawn in SVG so cross-document reference edges share one coordinate space.
 
 import { hierarchy, select } from "d3";
 import type { HierarchyNode, Selection } from "d3";
@@ -549,7 +549,7 @@ export class DocumentView {
     // right-gutter occupants (arc source, ⚠, ▲) sit tight to the actual text rather than drifting right by
     // the estimate's per-character surplus. This is a *separate read pass* after every tspan is appended:
     // all DOM writes are done, so the batch of `getComputedTextLength()` reads forces at most one reflow and
-    // never thrashes. It is bounded by the mounted window, so the O(N) "Expand all" freeze does not return.
+    // never thrashes. It is bounded by the mounted window (O(window), not O(tree)).
     // Off-screen rows keep their estimate (not visible); a measurement of 0 (e.g. jsdom, or an unattached
     // node) is ignored so the estimate stands.
     const labelEndById = this.labelEndById;

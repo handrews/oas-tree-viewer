@@ -379,10 +379,8 @@ export class Canvas {
     const set = this.showAll ? this.resolved.edges : focus;
     const geos = this.edgeGeometries(set, focusIds);
 
-    // The connection style catalog (src/connections) selects the base look (line/dash/arrowhead/marker);
-    // the modifier axes — resolve status, advisory severity, collapsed/off-screen endpoint, focus — are
-    // render state layered on here. One pure helper builds the class list so the canvas and the legend
-    // can't drift.
+    // Fold the catalog base look together with the render-state modifiers (status, advisory, collapsed,
+    // focus) via the shared style helper — see connections/style.ts.
     const baseClass = (d: EdgeGeo): string =>
       connectionClasses(d.edge.resolution, {
         status: d.edge.status,

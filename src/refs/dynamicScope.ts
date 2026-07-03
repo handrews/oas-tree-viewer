@@ -5,7 +5,7 @@
 // scope is the chain of schema resources entered (by following references / lexical descent) from
 // the entry document. A static viewer can't know the instance, but it CAN bound the set of
 // `$dynamicAnchor`s that could ever be that outermost resource on some entry-rooted path reaching
-// the `$dynamicRef`. Those are the "winners" we draw a tentative (dotted) edge to; everything else
+// the `$dynamicRef`. Those are the "winners" we point tentatively at; everything else
 // — anchors that can't reach the ref, anchors always shadowed by an outer same-named anchor, and
 // anchors in unreachable documents — is dropped.
 //

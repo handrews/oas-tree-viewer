@@ -1,6 +1,6 @@
 // Pure document reachability over reference edges, in the refs layer so the resolver can use it
 // (e.g. to narrow `$dynamicRef` tentative targets to entry-reachable documents) without importing
-// from the render layer. The render layer's `unreachableDocs` wraps this for the orphan warning.
+// from the render layer.
 
 import type { Oad } from "../types";
 import type { ReferenceEdge } from "./types";

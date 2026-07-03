@@ -1,5 +1,5 @@
 // Classify and resolve `$dynamicRef` (2020-12) and `$recursiveRef` (2019-09). Each is either a plain
-// static reference or, when it engages dynamic/recursive scope, a tentative (dotted) fan-out to the
+// static reference or, when it engages dynamic/recursive scope, a tentative fan-out to the
 // "strict winners" computed by the dynamic-scope analysis.
 
 import type { TreeNode } from "../types";
@@ -31,7 +31,7 @@ export function classifyDynamicRef(
 
 /**
  * Resolve a Schema `$dynamicRef`. If it engages dynamic scope, the real target depends on the
- * evaluation path — so we tentatively point (resolution `"dynamic"`, drawn dotted) at the *strict
+ * evaluation path — so we tentatively point (resolution `"dynamic"`) at the *strict
  * winners*: the same-named `$dynamicAnchor`s that could be the outermost one on an entry-rooted path
  * reaching this ref (computed by {@link analyzeDynamicScope}). A ref the entry never reaches yields
  * no edges. Otherwise it behaves exactly like a `$ref`: a single static edge (the local `$anchor` —
@@ -96,7 +96,7 @@ export function classifyRecursiveRef(
 }
 
 /**
- * Resolve a `$recursiveRef`. If it engages recursive scope, point tentatively (dotted) at the strict
+ * Resolve a `$recursiveRef`. If it engages recursive scope, point tentatively at the strict
  * winners — the outermost `$recursiveAnchor: true` resources on an entry-rooted path reaching it
  * (the anonymous {@link RECURSIVE_SENTINEL} fan-out). Otherwise it behaves like a static `$ref` to
  * `"#"` (the resource root).
