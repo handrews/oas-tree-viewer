@@ -60,6 +60,9 @@ export interface CanvasCallbacks {
   onBackground: () => void;
   /** Optional: when provided, a right-aligned toolbar button invokes it (leave the explorer). */
   onLoadAnother?: () => void;
+  /** Optional: when provided, a right-aligned toolbar button invokes it (open the current view over
+   *  MCP). */
+  onOpenMcp?: () => void;
 }
 
 interface Anchor {
@@ -113,15 +116,30 @@ export class Canvas {
     this.showAllBtn = toolbar.querySelector<HTMLButtonElement>('[data-act="showall"]')!;
     this.showAllBtn.setAttribute("aria-pressed", "false");
 
-    // App-level navigation lives at the end of the toolbar row when wired (it leaves the
-    // explorer rather than acting on the canvas), kept visually apart via margin-left:auto.
-    if (cb.onLoadAnother) {
-      const another = document.createElement("button");
-      another.type = "button";
-      another.className = "load-another";
-      another.dataset.act = "another";
-      another.textContent = "Load a different OAD";
-      toolbar.appendChild(another);
+    // App-level navigation lives at the end of the toolbar row when wired (it leaves the explorer, or
+    // takes the current view elsewhere, rather than acting on the canvas) — grouped in its own
+    // right-aligned wrapper so multiple such actions cluster together instead of splitting the row's
+    // leftover space between them.
+    if (cb.onOpenMcp || cb.onLoadAnother) {
+      const actions = document.createElement("div");
+      actions.className = "toolbar-actions";
+      if (cb.onOpenMcp) {
+        const mcp = document.createElement("button");
+        mcp.type = "button";
+        mcp.className = "mcp-open";
+        mcp.dataset.act = "mcp";
+        mcp.textContent = "Try it over MCP";
+        actions.appendChild(mcp);
+      }
+      if (cb.onLoadAnother) {
+        const another = document.createElement("button");
+        another.type = "button";
+        another.className = "load-another";
+        another.dataset.act = "another";
+        another.textContent = "Load a different OAD";
+        actions.appendChild(another);
+      }
+      toolbar.appendChild(actions);
     }
 
     // A group of keyboard-navigable trees (one per document), not a single opaque image — so do NOT
@@ -678,6 +696,8 @@ export class Canvas {
       this.refreshEdges();
     } else if (act === "another") {
       this.cb.onLoadAnother?.();
+    } else if (act === "mcp") {
+      this.cb.onOpenMcp?.();
     }
   }
 

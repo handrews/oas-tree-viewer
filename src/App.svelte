@@ -4,9 +4,12 @@
   import ViewPage from "./pages/ViewPage.svelte";
   import { router } from "./app/router.svelte";
 
-  // App is the shell: a fixed header plus the routed page. The two pages own their own
-  // state — ConfigurePage collects sources/demos, ViewPage loads and renders the OAD.
+  // App is the shell: a fixed header plus the routed page. The pages own their own
+  // state — ConfigurePage collects sources/demos, ViewPage loads and renders the OAD. McpPage pulls
+  // in the MCP SDK + zod, so it is dynamically imported — a leaf chunk `/configure` and `/view` never
+  // request (see e2e/mcp.spec.ts's code-split guard).
   const view = $derived(router.route.page === "view" ? router.route : null);
+  const mcp = $derived(router.route.page === "mcp" ? router.route : null);
 
   // Version baked in at build time (vite define). Changelog is a rendered page served
   // alongside the app (see vite/doc-pages.ts); GitHub points at the repository (and its README).
@@ -29,6 +32,10 @@
 <main id="app">
   {#if view}
     <ViewPage request={view.request} config={view.config} />
+  {:else if mcp}
+    {#await import("./pages/McpPage.svelte") then { default: McpPage }}
+      <McpPage request={mcp.request} config={mcp.config} />
+    {/await}
   {:else}
     <ConfigurePage />
   {/if}
