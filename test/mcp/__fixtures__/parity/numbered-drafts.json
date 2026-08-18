@@ -1,0 +1,109 @@
+{
+  "entry": "numbered-drafts-3.1.yaml",
+  "versionFamily": "3.1",
+  "documents": [
+    {
+      "index": 0,
+      "label": "numbered-drafts-3.1.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.1.0",
+      "isEntry": true
+    }
+  ],
+  "counts": {
+    "total": 4,
+    "error": 1,
+    "warning": 3,
+    "info": 0
+  },
+  "sections": [
+    {
+      "id": "unresolved",
+      "label": "Unresolved references",
+      "count": 1
+    },
+    {
+      "id": "caveats",
+      "label": "Reference-resolution advisories",
+      "count": 3
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "ref-broken",
+      "title": "Unresolved reference",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "unresolved",
+      "message": "target not found (the fragment names nothing)",
+      "location": {
+        "documentIndex": 0,
+        "document": "numbered-drafts-3.1.yaml",
+        "pointer": "/components/schemas/Catalog/properties/viaGhost",
+        "displayPointer": "#/components/schemas/Catalog/properties/viaGhost",
+        "line": 34,
+        "column": 19
+      },
+      "ref": {
+        "kind": "$ref",
+        "refString": "https://example.com/draft/catalog#ghost"
+      },
+      "catalogUri": "oas://diagnostic/ref-broken"
+    },
+    {
+      "code": "ignored-ref-siblings",
+      "title": "Ignored $ref siblings",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "caveats",
+      "message": "In draft-04/06/07, keywords beside $ref are ignored: type, description.",
+      "location": {
+        "documentIndex": 0,
+        "document": "numbered-drafts-3.1.yaml",
+        "pointer": "/components/schemas/Catalog/properties/withSiblings",
+        "displayPointer": "#/components/schemas/Catalog/properties/withSiblings",
+        "line": 39,
+        "column": 11
+      },
+      "catalogUri": "oas://diagnostic/ignored-ref-siblings"
+    },
+    {
+      "code": "invalid-id-fragment",
+      "title": "Invalid $id fragment",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "caveats",
+      "message": "The $id JSON-Pointer fragment \"#/properties/nope\" is not this schema's own location (\"#/properties/misPointed\"), so it names nothing and is ignored.",
+      "location": {
+        "documentIndex": 0,
+        "document": "numbered-drafts-3.1.yaml",
+        "pointer": "/components/schemas/Catalog/properties/misPointed/$id",
+        "displayPointer": "#/components/schemas/Catalog/properties/misPointed/$id",
+        "line": 52,
+        "column": 16
+      },
+      "catalogUri": "oas://diagnostic/invalid-id-fragment"
+    },
+    {
+      "code": "invalid-id-fragment",
+      "title": "Invalid $id fragment",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "caveats",
+      "message": "The id JSON-Pointer fragment \"#/properties/wrong\" is not this schema's own location (\"#/properties/misId\"), so it names nothing and is ignored.",
+      "location": {
+        "documentIndex": 0,
+        "document": "numbered-drafts-3.1.yaml",
+        "pointer": "/components/schemas/Draft04/properties/misId/id",
+        "displayPointer": "#/components/schemas/Draft04/properties/misId/id",
+        "line": 71,
+        "column": 15
+      },
+      "catalogUri": "oas://diagnostic/invalid-id-fragment"
+    }
+  ]
+}

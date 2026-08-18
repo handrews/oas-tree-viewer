@@ -15,10 +15,19 @@ export interface TestHarness {
 
 const defaultDeps: McpDeps = { fixtures: bundledFixtures, version: "test" };
 
-export async function connectTestClient(deps: McpDeps = defaultDeps): Promise<TestHarness> {
+export async function connectTestClient(
+  deps: McpDeps = defaultDeps,
+  // Lets progress.test.ts inspect a response's content-type (json vs. the SSE upgrade) without every
+  // other spec needing to know this hook exists.
+  onFetch?: (response: Response) => void,
+): Promise<TestHarness> {
   const handler = createHandler(deps);
   const transport = new StreamableHTTPClientTransport(new URL("http://test.local/mcp"), {
-    fetch: (url, init) => handler.fetch(new Request(url, init)),
+    fetch: async (url, init) => {
+      const response = await handler.fetch(new Request(url, init));
+      onFetch?.(response);
+      return response;
+    },
   });
   const client = new Client(
     { name: "test", version: "1" },

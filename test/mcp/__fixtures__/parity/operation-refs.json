@@ -1,0 +1,220 @@
+{
+  "entry": "operation-refs-3.2.yaml",
+  "versionFamily": "3.2",
+  "documents": [
+    {
+      "index": 0,
+      "label": "operation-refs-3.2.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": true
+    }
+  ],
+  "counts": {
+    "total": 6,
+    "error": 5,
+    "warning": 1,
+    "info": 0
+  },
+  "sections": [
+    {
+      "id": "advisories",
+      "label": "Reference advisories",
+      "count": 6
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "operation-target-webhook",
+      "title": "Operation target is a webhook",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation is a webhook, which is not directly callable",
+      "location": {
+        "documentIndex": 0,
+        "document": "operation-refs-3.2.yaml",
+        "pointer": "/paths/~1main/get/responses/200/links/toWebhook",
+        "displayPointer": "#/paths/~1main/get/responses/200/links/toWebhook",
+        "line": 23,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operation-refs-3.2.yaml",
+          "pointer": "/webhooks/petEvent/get",
+          "displayPointer": "#/webhooks/petEvent/get",
+          "line": 51,
+          "column": 7
+        }
+      ],
+      "ref": {
+        "kind": "operationRef",
+        "refString": "#/webhooks/petEvent/get"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-webhook"
+    },
+    {
+      "code": "operation-target-callback",
+      "title": "Operation target is a callback",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation is a callback; its URL is a runtime expression, not directly callable",
+      "location": {
+        "documentIndex": 0,
+        "document": "operation-refs-3.2.yaml",
+        "pointer": "/paths/~1main/get/responses/200/links/toCallback",
+        "displayPointer": "#/paths/~1main/get/responses/200/links/toCallback",
+        "line": 25,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operation-refs-3.2.yaml",
+          "pointer": "/paths/~1main/get/callbacks/onData/notifyUrl/post",
+          "displayPointer": "#/paths/~1main/get/callbacks/onData/notifyUrl/post",
+          "line": 36,
+          "column": 15
+        }
+      ],
+      "ref": {
+        "kind": "operationRef",
+        "refString": "#/paths/~1main/get/callbacks/onData/notifyUrl/post"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-callback"
+    },
+    {
+      "code": "operation-target-ambiguous",
+      "title": "Operation target reached by multiple paths",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation's Path Item is reached by 2 paths, so which URL invokes it is ambiguous",
+      "location": {
+        "documentIndex": 0,
+        "document": "operation-refs-3.2.yaml",
+        "pointer": "/paths/~1main/get/responses/200/links/toAmbiguous",
+        "displayPointer": "#/paths/~1main/get/responses/200/links/toAmbiguous",
+        "line": 27,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operation-refs-3.2.yaml",
+          "pointer": "/components/pathItems/Multi/get",
+          "displayPointer": "#/components/pathItems/Multi/get",
+          "line": 63,
+          "column": 9
+        }
+      ],
+      "ref": {
+        "kind": "operationRef",
+        "refString": "#/components/pathItems/Multi/get"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-ambiguous"
+    },
+    {
+      "code": "operation-target-fragile",
+      "title": "Operation target reached by one path",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation's Path Item is reached by exactly one path; another path referencing it would make the target ambiguous",
+      "location": {
+        "documentIndex": 0,
+        "document": "operation-refs-3.2.yaml",
+        "pointer": "/paths/~1main/get/responses/200/links/toFragile",
+        "displayPointer": "#/paths/~1main/get/responses/200/links/toFragile",
+        "line": 29,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operation-refs-3.2.yaml",
+          "pointer": "/components/pathItems/Solo/get",
+          "displayPointer": "#/components/pathItems/Solo/get",
+          "line": 58,
+          "column": 9
+        }
+      ],
+      "ref": {
+        "kind": "operationRef",
+        "refString": "#/components/pathItems/Solo/get"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-fragile"
+    },
+    {
+      "code": "operation-target-no-path",
+      "title": "Operation target reached by no path",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation's Path Item is not reached by any path, so there is no URL to invoke it",
+      "location": {
+        "documentIndex": 0,
+        "document": "operation-refs-3.2.yaml",
+        "pointer": "/paths/~1main/get/responses/200/links/toOrphan",
+        "displayPointer": "#/paths/~1main/get/responses/200/links/toOrphan",
+        "line": 31,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operation-refs-3.2.yaml",
+          "pointer": "/components/pathItems/Unused/get",
+          "displayPointer": "#/components/pathItems/Unused/get",
+          "line": 68,
+          "column": 9
+        }
+      ],
+      "ref": {
+        "kind": "operationRef",
+        "refString": "#/components/pathItems/Unused/get"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-no-path"
+    },
+    {
+      "code": "pathitem-field-overlap",
+      "title": "Path Item field overlap",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "also defined in the referenced Path Item: summary (merge behavior is undefined)",
+      "location": {
+        "documentIndex": 0,
+        "document": "operation-refs-3.2.yaml",
+        "pointer": "/paths/~1overlap",
+        "displayPointer": "#/paths/~1overlap",
+        "line": 46,
+        "column": 5
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operation-refs-3.2.yaml",
+          "pointer": "/components/pathItems/Documented",
+          "displayPointer": "#/components/pathItems/Documented",
+          "line": 72,
+          "column": 7
+        }
+      ],
+      "ref": {
+        "kind": "$ref",
+        "refString": "#/components/pathItems/Documented"
+      },
+      "catalogUri": "oas://diagnostic/pathitem-field-overlap"
+    }
+  ]
+}

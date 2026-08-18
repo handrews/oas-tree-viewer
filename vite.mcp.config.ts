@@ -21,7 +21,7 @@ export default defineConfig({
     minify: false,
     sourcemap: true,
     rollupOptions: {
-      input: { stdio: "src/mcp/hosts/stdio.ts" },
+      input: { stdio: "src/mcp/hosts/stdio.ts", http: "src/mcp/hosts/http.ts" },
       external: [/^node:/],
       output: { format: "es", entryFileNames: "[name].mjs", chunkFileNames: "[name]-[hash].mjs" },
     },

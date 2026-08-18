@@ -1,20 +1,46 @@
 // Registrations only, no I/O at construction — `createHandler`'s factory runs once per request
 // (per the SDK's `createMcpHandler` model), so `createServer` must stay cheap and side-effect-free.
 
-import { McpServer, createMcpHandler, type McpHttpHandler } from "@modelcontextprotocol/server";
+import {
+  McpServer,
+  createMcpHandler,
+  type CacheHint,
+  type ContentBlock,
+  type McpHttpHandler,
+} from "@modelcontextprotocol/server";
 import { runAnalysis } from "./analyze";
+import { demoById } from "../app/demos";
+import { diagnosticCatalog } from "../diagnostics/catalog";
 import { explainCode } from "./explain";
 import { SERVER_NAME, TOOL_NAMES } from "./info";
 import type { McpDeps } from "./ports";
+import { registerPrompts } from "./prompts";
+import { registerResources } from "./resources";
 import {
   AnalyzeInputSchema,
   AnalyzeOutputSchema,
   ExplainInputSchema,
   ExplainOutputSchema,
 } from "./schemas";
+import { demoUri, diagnosticUri } from "./uris";
+
+// Every cacheable list/read here is build-time-static and identical for every caller, so a shared
+// public hint is honest for all five operations the 2026-07-28 revision lets a server annotate.
+const CACHE_HINT: CacheHint = { ttlMs: 3_600_000, cacheScope: "public" };
 
 export function createServer(deps: McpDeps): McpServer {
-  const server = new McpServer({ name: SERVER_NAME, version: deps.version });
+  const server = new McpServer(
+    { name: SERVER_NAME, version: deps.version },
+    {
+      cacheHints: {
+        "tools/list": CACHE_HINT,
+        "prompts/list": CACHE_HINT,
+        "resources/list": CACHE_HINT,
+        "resources/templates/list": CACHE_HINT,
+        "resources/read": CACHE_HINT,
+      },
+    },
+  );
 
   server.registerTool(
     TOOL_NAMES.analyzeDocument,
@@ -38,12 +64,44 @@ export function createServer(deps: McpDeps): McpServer {
       },
     },
     async (args, ctx) => {
-      const result = await runAnalysis(deps, args, ctx.mcpReq.signal);
+      // Only wire an emitter when the caller asked for progress — an unrequested notification would
+      // upgrade the response to SSE for no reason, and the contrast with explain-diagnostic's plain
+      // JSON response is the point of leaving the default `responseMode` alone.
+      const progressToken = ctx.mcpReq._meta?.progressToken;
+      const onProgress =
+        progressToken === undefined
+          ? undefined
+          : async (progress: number, total: number, message: string) => {
+              await ctx.mcpReq.notify({
+                method: "notifications/progress",
+                params: { progressToken, progress, total, message },
+              });
+            };
+
+      const result = await runAnalysis(deps, args, ctx.mcpReq.signal, onProgress);
       if (!result.ok) {
         return { content: [{ type: "text", text: result.message }], isError: true };
       }
+
+      const catalog = diagnosticCatalog();
+      const codes = [...new Set(result.structured.diagnostics.map((d) => d.code))];
+      const links: ContentBlock[] = codes.map(
+        (code): ContentBlock => ({
+          type: "resource_link",
+          uri: diagnosticUri(code),
+          name: catalog[code].title,
+        }),
+      );
+      if (args.demo !== undefined) {
+        links.push({
+          type: "resource_link",
+          uri: demoUri(args.demo),
+          name: demoById(args.demo)?.label ?? args.demo,
+        });
+      }
+
       return {
-        content: [{ type: "text", text: result.text }],
+        content: [{ type: "text", text: result.text }, ...links],
         structuredContent: result.structured,
       };
     },
@@ -69,11 +127,17 @@ export function createServer(deps: McpDeps): McpServer {
     ({ code }) => {
       const result = explainCode(code);
       return {
-        content: [{ type: "text", text: `${result.title}\n\n${result.description}` }],
+        content: [
+          { type: "text", text: `${result.title}\n\n${result.description}` },
+          { type: "resource_link", uri: result.catalogUri, name: result.title },
+        ],
         structuredContent: result,
       };
     },
   );
+
+  registerResources(server, deps);
+  registerPrompts(server, deps);
 
   return server;
 }

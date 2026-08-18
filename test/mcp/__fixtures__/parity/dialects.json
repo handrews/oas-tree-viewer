@@ -1,0 +1,69 @@
+{
+  "entry": "dialects-3.1.yaml",
+  "versionFamily": "3.1",
+  "documents": [
+    {
+      "index": 0,
+      "label": "dialects-3.1.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.1.0",
+      "isEntry": true
+    }
+  ],
+  "counts": {
+    "total": 2,
+    "error": 0,
+    "warning": 2,
+    "info": 0
+  },
+  "sections": [
+    {
+      "id": "caveats",
+      "label": "Reference-resolution advisories",
+      "count": 1
+    },
+    {
+      "id": "unvalidated",
+      "label": "Unvalidated Schema Objects",
+      "count": 1
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "schema-unvalidated",
+      "title": "Unvalidated Schema Objects",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "schema",
+      "section": "unvalidated",
+      "message": "Schema Objects using a dialect this tool can't validate were skipped: #/components/schemas/Legacy (dialect http://json-schema.org/draft-03/schema#).",
+      "location": {
+        "documentIndex": 0,
+        "document": "dialects-3.1.yaml",
+        "pointer": "",
+        "displayPointer": "#",
+        "line": 1,
+        "column": 1
+      },
+      "catalogUri": "oas://diagnostic/schema-unvalidated"
+    },
+    {
+      "code": "dialect-resolution-unsupported",
+      "title": "Unsupported dialect for resolution",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "schema",
+      "section": "caveats",
+      "message": "Reference resolution for dialect \"http://json-schema.org/draft-03/schema#\" isn't fully supported; references here are drawn using JSON Schema 2020-12 rules.",
+      "location": {
+        "documentIndex": 0,
+        "document": "dialects-3.1.yaml",
+        "pointer": "/components/schemas/Legacy/$schema",
+        "displayPointer": "#/components/schemas/Legacy/$schema",
+        "line": 46,
+        "column": 16
+      },
+      "catalogUri": "oas://diagnostic/dialect-resolution-unsupported"
+    }
+  ]
+}

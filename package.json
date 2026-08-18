@@ -22,6 +22,7 @@
     "e2e:ui": "playwright test --ui",
     "build:mcp": "vite build --config vite.mcp.config.ts",
     "mcp": "npm run build:mcp && node dist-mcp/stdio.mjs",
+    "mcp:http": "npm run build:mcp && node dist-mcp/http.mjs",
     "mcp:inspect": "npm run build:mcp && npx @modelcontextprotocol/inspector node dist-mcp/stdio.mjs",
     "prepare": "npm run build"
   },

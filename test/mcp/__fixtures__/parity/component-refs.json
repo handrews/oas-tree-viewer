@@ -1,0 +1,87 @@
+{
+  "entry": "component-refs-3.2.yaml",
+  "versionFamily": "3.2",
+  "documents": [
+    {
+      "index": 0,
+      "label": "component-refs-3.2.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": true
+    },
+    {
+      "index": 1,
+      "label": "component-refs-shared-3.2.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": false
+    },
+    {
+      "index": 2,
+      "label": "component-refs-pets-3.2.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": false
+    }
+  ],
+  "counts": {
+    "total": 2,
+    "error": 0,
+    "warning": 2,
+    "info": 0
+  },
+  "sections": [
+    {
+      "id": "unresolved",
+      "label": "Unresolved references",
+      "count": 1
+    },
+    {
+      "id": "unreachable",
+      "label": "Unreachable documents",
+      "count": 1
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "ref-external",
+      "title": "External reference not loaded",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "unresolved",
+      "message": "external document not loaded",
+      "location": {
+        "documentIndex": 0,
+        "document": "component-refs-3.2.yaml",
+        "pointer": "/paths/~1pets/get/security/1/https:~1~1auth.example~1oauth",
+        "displayPointer": "#/paths/~1pets/get/security/1/https:~1~1auth.example~1oauth",
+        "line": 17,
+        "column": 39
+      },
+      "ref": {
+        "kind": "securityRequirement",
+        "refString": "https://auth.example/oauth"
+      },
+      "catalogUri": "oas://diagnostic/ref-external"
+    },
+    {
+      "code": "document-unreachable",
+      "title": "Unreachable document",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "unreachable",
+      "message": "not reachable from the entry document",
+      "location": {
+        "documentIndex": 2,
+        "document": "component-refs-pets-3.2.yaml",
+        "pointer": "",
+        "displayPointer": "#",
+        "line": 1,
+        "column": 1
+      },
+      "catalogUri": "oas://diagnostic/document-unreachable"
+    }
+  ]
+}

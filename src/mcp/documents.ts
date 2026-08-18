@@ -42,6 +42,10 @@ export async function demoDocuments(
   id: string,
   src: FixtureSource,
   signal?: AbortSignal,
+  // Fires once a document's text is in hand, before the next one is read — the seam analyze.ts uses
+  // for per-document progress, kept here rather than duplicating this loop so there is still exactly
+  // one place that builds a demo's InlineDoc[].
+  onRead?: (doc: InlineDoc) => void | Promise<void>,
 ): Promise<InlineDoc[] | undefined> {
   const inputs = demoInputs(id);
   if (!inputs) return undefined;
@@ -56,7 +60,9 @@ export async function demoDocuments(
     const text = await src.read(input.url, signal);
     const filename = path.split("/").pop()!;
     const retrievalUri = input.retrievalUri ?? new URL(path, SYNTHETIC_BASE).href;
-    docs.push({ filename, text, retrievalUri, isEntry: input.isEntry });
+    const doc: InlineDoc = { filename, text, retrievalUri, isEntry: input.isEntry };
+    docs.push(doc);
+    await onRead?.(doc);
   }
   return docs;
 }
