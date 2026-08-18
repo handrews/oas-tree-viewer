@@ -2,16 +2,18 @@
   import type { ViewRequest } from "../app/viewUrl";
   import type { ViewerConfig } from "../app/config";
   import type { Tool, Resource, Prompt, CallToolResult } from "@modelcontextprotocol/client";
-  import type { McpBrowserHost, WireExchange } from "../mcp/hosts/browser";
+  import type { McpBrowserHost, WireExchange, PendingElicit } from "../mcp/hosts/browser";
   import { session } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
   import { mcpPath } from "../app/viewUrl";
   import { demos, demoById } from "../app/demos";
+  import { scenarios, scenarioById, type Scenario } from "../mcp/scenarios";
   import { TOOL_NAMES, MAX_INLINE_DOCS, MAX_DOC_CHARS } from "../mcp/info";
   import { inlineDocsFromOad } from "../mcp/fromOad";
   import { errorMessage } from "../errors";
   import WireLog from "../mcp/ui/WireLog.svelte";
   import ArgsForm from "../mcp/ui/ArgsForm.svelte";
+  import ElicitPanel from "../mcp/ui/ElicitPanel.svelte";
 
   // The MCP demo page: connects a real Client to the server in-page (hosts/browser.ts, imported
   // dynamically so the SDK + zod land in a leaf chunk — see App.svelte), analyzes whatever is on the
@@ -40,9 +42,16 @@
 
   type Source =
     | { kind: "demo"; demoId: string; label: string }
-    | { kind: "inline"; docs: ReturnType<typeof inlineDocsFromOad>; entry: string };
+    | { kind: "inline"; docs: ReturnType<typeof inlineDocsFromOad>; entry: string }
+    | { kind: "scenario"; scenario: Scenario };
+
+  // Picking a scenario outranks whatever view was carried in: it is a deliberate "show me this
+  // instead", and it is the only source that can reach an elicitation.
+  let scenarioId = $state<string | null>(null);
 
   const source = $derived.by((): Source | null => {
+    const chosen = scenarioId === null ? undefined : scenarioById(scenarioId);
+    if (chosen) return { kind: "scenario", scenario: chosen };
     const current = session.current;
     if (current) {
       if (current.request.kind === "demo") {
@@ -77,6 +86,7 @@
   let wireLog = $state<WireExchange[]>([]);
   let connecting = $state(true);
   let connectError = $state<string | null>(null);
+  let pendingElicit = $state<PendingElicit | null>(null);
 
   let tools = $state<{ items: Tool[]; ttlMs?: number; cacheScope?: string } | null>(null);
   let resources = $state<{ items: Resource[]; ttlMs?: number; cacheScope?: string } | null>(null);
@@ -117,7 +127,10 @@
     void (async () => {
       const { McpBrowserHost: HostCtor } = await import("../mcp/hosts/browser");
       if (cancelled) return;
-      const h = new HostCtor((log) => (wireLog = log));
+      const h = new HostCtor(
+        (log) => (wireLog = log),
+        (pending) => (pendingElicit = pending),
+      );
       opened = h;
       host = h;
       try {
@@ -132,6 +145,7 @@
     })();
     return () => {
       cancelled = true;
+      pendingElicit = null;
       void opened?.close();
     };
   });
@@ -150,7 +164,9 @@
           ? { demo: source.demoId }
           : source?.kind === "inline"
             ? { documents: source.docs }
-            : {}
+            : source?.kind === "scenario"
+              ? { documents: source.scenario.docs }
+              : {}
         : {};
     try {
       result = await host.client.callTool(
@@ -194,6 +210,18 @@
           </li>
         {/each}
       </ul>
+
+      <h2 id="mcp-scenario-heading">Or make the server ask you something</h2>
+      <ul class="demo-list" aria-labelledby="mcp-scenario-heading">
+        {#each scenarios as scenario (scenario.id)}
+          <li class="demo-item">
+            <button type="button" class="demo-open" onclick={() => (scenarioId = scenario.id)}>
+              {scenario.label}
+            </button>
+            <p class="demo-desc">{scenario.description}</p>
+          </li>
+        {/each}
+      </ul>
     </section>
   {:else}
     <p class="mcp-source-strip">
@@ -201,6 +229,12 @@
         Analyzing demo &quot;{source.label}&quot; · {session.current
           ? "from the current view"
           : "from this link"}
+      {:else if source.kind === "scenario"}
+        Analyzing scenario &quot;{source.scenario.label}&quot; · {source.scenario.docs.length} inline
+        documents
+        <button type="button" class="scenario-clear" onclick={() => (scenarioId = null)}>
+          Leave the scenario
+        </button>
       {:else}
         Analyzing: {source.entry} · {source.docs.length} document{source.docs.length === 1
           ? ""
@@ -312,6 +346,17 @@
         {/if}
         {#if calling}<p role="status">Calling {selectedTool?.name}…</p>{/if}
         {#if callError}<p class="mcp-error" role="alert">{callError}</p>{/if}
+      </section>
+    {/if}
+
+    {#if pendingElicit}
+      <section aria-labelledby="mcp-elicit-heading">
+        <h2 id="mcp-elicit-heading">The server needs more information</h2>
+        <ElicitPanel
+          message={pendingElicit.message}
+          requestedSchema={pendingElicit.requestedSchema}
+          onRespond={(response) => pendingElicit?.respond(response)}
+        />
       </section>
     {/if}
 

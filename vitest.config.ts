@@ -58,6 +58,7 @@ export default defineConfig({
         "src/pages/McpPage.svelte", // presentation (browser-verified)
         "src/mcp/ui/WireLog.svelte", // presentation (browser-verified)
         "src/mcp/ui/ArgsForm.svelte", // presentation (browser-verified)
+        "src/mcp/ui/ElicitPanel.svelte", // presentation (browser-verified)
         "src/app/router.svelte.ts", // live history/location wiring (browser-verified; parsing covered in viewUrl)
         "src/app/session.svelte.ts", // in-memory handoff holder (browser-verified)
         "src/app/pipeline.worker.ts", // worker entry / bootstrap (runs runPipeline; browser-verified)

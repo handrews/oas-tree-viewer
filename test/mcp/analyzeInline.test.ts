@@ -99,17 +99,22 @@ describe("analyze-document — inline documents", () => {
     expect(structured.counts.total).toBe(0);
   });
 
-  it("a config override changes pipeline behavior: fragments blocked by default, allowed when enabled", async () => {
-    const blocked = await harness.client.callTool({
-      name: TOOL_NAMES.analyzeDocument,
-      arguments: {
-        documents: [
-          { filename: "entry.yaml", text: FRAGMENT_ENTRY, isEntry: true },
-          { filename: "pathitem.yaml", text: FRAGMENT_PATHITEM, isEntry: false },
-        ],
-      },
-    });
-    expect(blocked.isError).toBe(true);
+  it("a config override changes pipeline behavior: fragments blocked by default now elicits consent (see mrtr.test.ts), allowed when enabled upfront", async () => {
+    // This harness's client declares no `elicitation` capability, so the server's attempt to elicit
+    // fragment consent (M4) is rejected before an `input_required` result ever comes back — proving
+    // this is now genuinely an elicitation and not a plain load error. The full accept/decline round
+    // trip, with a client that does declare the capability, lives in mrtr.test.ts.
+    await expect(
+      harness.client.callTool({
+        name: TOOL_NAMES.analyzeDocument,
+        arguments: {
+          documents: [
+            { filename: "entry.yaml", text: FRAGMENT_ENTRY, isEntry: true },
+            { filename: "pathitem.yaml", text: FRAGMENT_PATHITEM, isEntry: false },
+          ],
+        },
+      }),
+    ).rejects.toThrow(/capabilit/i);
 
     const allowed = await harness.client.callTool({
       name: TOOL_NAMES.analyzeDocument,

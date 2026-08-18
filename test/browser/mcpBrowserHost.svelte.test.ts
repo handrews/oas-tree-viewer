@@ -3,7 +3,24 @@ import { browserFixtures } from "../../src/mcp/fixtures.browser";
 import { bundledFixtures } from "../../src/mcp/fixtures.bundled";
 import { demoDocuments } from "../../src/mcp/documents";
 import { demos } from "../../src/app/demos";
-import { McpBrowserHost, type WireExchange } from "../../src/mcp/hosts/browser";
+import { McpBrowserHost, type WireExchange, type PendingElicit } from "../../src/mcp/hosts/browser";
+
+// A bare Path Item Object fragment (no openapi/$id/$schema) — loads only with document fragments
+// enabled, referenced at its root by ENTRY.
+const ENTRY = `
+openapi: 3.0.4
+info: { title: Entry, version: "1.0" }
+paths:
+  /pets:
+    $ref: pathitem.yaml
+`;
+const PATHITEM = `
+get:
+  operationId: listPets
+  responses:
+    '200':
+      description: ok
+`;
 
 // `browserFixtures` fetches the same `/fixtures/…` files `bundledFixtures` bundled at build time
 // (fixtures.bundled.ts) — this is what makes Node/browser parity a tautology rather than a hope (see
@@ -56,6 +73,55 @@ test("McpBrowserHost connects a real Client and logs the real wire exchange, SSE
   expect(explainCall.contentType).toBe("application/json");
   expect(explainCall.frames.length).toBe(0);
   expect(explainCall.json).toBeDefined();
+
+  await host.close();
+});
+
+// The MRTR round trip end to end, over the real production wiring in hosts/browser.ts: the client
+// capability declaration, the registered `elicitation/create` handler, and the `onElicit` callback
+// `ElicitPanel.svelte` would render — here a stand-in "panel" answers as soon as one appears, exactly
+// as clicking Submit would. This is the wire-log proof the plan asks for: two `tools/call` exchanges
+// with different JSON-RPC ids, the second carrying `inputResponses`.
+test("McpBrowserHost drives the fragment-consent MRTR round trip through a real elicitation handler", async () => {
+  let log: WireExchange[] = [];
+  let pending: PendingElicit | null = null;
+  const host = new McpBrowserHost(
+    (snapshot) => (log = snapshot),
+    (p) => {
+      pending = p;
+      // Answer as soon as a request appears — the async microtask this schedules runs before the
+      // client's retry can be issued, same as a human clicking Submit would (just faster).
+      if (p) {
+        void Promise.resolve().then(() =>
+          p.respond({ action: "accept", content: { fragments: "root" } }),
+        );
+      }
+    },
+  );
+  await host.connected;
+
+  const result = await host.client.callTool({
+    name: "analyze-document",
+    arguments: {
+      documents: [
+        { filename: "entry.yaml", text: ENTRY, isEntry: true },
+        { filename: "pathitem.yaml", text: PATHITEM, isEntry: false },
+      ],
+    },
+  });
+
+  expect(result.isError).toBeFalsy();
+  expect(pending).toBeNull(); // cleared once answered
+
+  const calls = log.filter((e) => e.method === "tools/call");
+  expect(calls).toHaveLength(2);
+  const firstId = (calls[0]!.requestBody as { id: unknown }).id;
+  const secondId = (calls[1]!.requestBody as { id: unknown }).id;
+  expect(firstId).not.toBe(secondId);
+  const secondParams = (calls[1]!.requestBody as { params: { inputResponses?: unknown } }).params;
+  expect(secondParams.inputResponses).toMatchObject({
+    fragments: { action: "accept", content: { fragments: "root" } },
+  });
 
   await host.close();
 });

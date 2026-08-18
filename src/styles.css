@@ -1364,6 +1364,21 @@ body {
   font-size: 0.88rem;
   color: var(--text-dim);
 }
+/* Inline with the strip's sentence rather than a block button: leaving a scenario is a small
+   correction, not a primary action. */
+.scenario-clear {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.scenario-clear:hover {
+  border-color: var(--text-dim);
+}
 .mcp-limit-refusal,
 .mcp-error,
 .mcp-result-error {
@@ -1514,6 +1529,64 @@ body {
 .mcp-structured summary {
   cursor: pointer;
   font-size: 0.85rem;
+  color: var(--link);
+}
+
+/* Elicitation panel (MRTR) */
+.elicit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+.elicit-message {
+  font-size: 0.88rem;
+}
+.elicit-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.elicit-label select,
+.elicit-label input[type="text"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: var(--font);
+}
+.elicit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.elicit-submit,
+.elicit-decline,
+.elicit-cancel {
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+}
+.elicit-submit {
+  background: var(--accent-solid);
+  border: 1px solid var(--accent-solid);
+  color: var(--on-accent);
+}
+.elicit-decline,
+.elicit-cancel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.elicit-decline:hover,
+.elicit-cancel:hover {
+  border-color: var(--link);
   color: var(--link);
 }
 

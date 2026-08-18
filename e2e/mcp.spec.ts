@@ -48,6 +48,31 @@ test.describe("MCP demo page", () => {
       .toContain("application/json");
   });
 
+  // The elicitation round trip is the demo's whole reason for shipping a scenario: no bundled demo
+  // can reach it, because a demo's own config always wins over the caller's.
+  test("a scenario drives a real elicitation round trip, both halves visible in the wire log", async ({
+    page,
+  }) => {
+    await page.goto("/mcp");
+    await page.getByRole("button", { name: "A document fragment" }).click();
+    await expect(page.getByText(/Analyzing scenario/)).toBeVisible();
+
+    await page.getByRole("button", { name: /^Call / }).click();
+
+    const panel = page.locator(".elicit-panel");
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    await expect(panel).toContainText("document fragments");
+    await panel.locator("select").first().selectOption("root");
+    await panel.getByRole("button", { name: "Submit" }).click();
+
+    await expect(page.getByRole("heading", { name: "Result" })).toBeVisible({ timeout: 15_000 });
+
+    // The server asked, then the client answered on a retry: both halves are on the wire.
+    const wire = await page.evaluate(() => document.body.textContent ?? "");
+    expect(wire).toContain("input_required");
+    expect(wire).toContain("inputResponses");
+  });
+
   test("code-split guard: /configure never requests the MCP chunk, /mcp does", async ({ page }) => {
     const isMcpChunk = (url: string) => /mcp[/-]hosts[/-]browser|modelcontextprotocol/i.test(url);
 

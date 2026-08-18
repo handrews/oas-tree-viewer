@@ -29,9 +29,25 @@ import type { McpDeps } from "./ports";
 import { diagnosticUri } from "./uris";
 import type { AnalyzeInput, AnalyzeOutput } from "./schemas";
 
+/** What a caller has already decided, from an earlier MRTR round — never document payload, just the
+ *  two choices these elicitations can produce. `server.ts` is the only module that knows these came
+ *  from an elicitation; here they are just optional overrides. */
+export interface AnalyzeDecisions {
+  /** The filename to treat as the entry document, when `documents[]`'s own `isEntry` flags don't
+   *  pick exactly one. */
+  entry?: string;
+  /** How to load a document that is neither OpenAPI nor JSON Schema, once the caller has been asked. */
+  fragments?: ViewerConfig["fragments"];
+}
+
+/** One outstanding question `runAnalysis` needs answered before it can proceed — the plain-TS shape
+ *  that lets this module report "I need a decision" without importing anything MCP-shaped. */
+export type AnalyzeNeed = { kind: "entry"; filenames: string[] } | { kind: "fragments" };
+
 export type AnalyzeResult =
   | { ok: true; structured: AnalyzeOutput; text: string }
-  | { ok: false; message: string };
+  | { ok: false; message: string }
+  | { ok: "needs-input"; need: AnalyzeNeed };
 
 /** One progress update: `progress` strictly increases across calls for the same analysis. */
 export type ProgressReporter = (
@@ -50,12 +66,14 @@ function checkAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) throw new Error("Analysis cancelled.");
 }
 
-/** Load, resolve, and diagnose the requested document set, then join the result onto the wire shape. */
+/** Load, resolve, and diagnose the requested document set, then join the result onto the wire shape.
+ *  `decisions` carries answers an earlier MRTR round already collected; omit it on a first call. */
 export async function runAnalysis(
   deps: McpDeps,
   args: AnalyzeInput,
   signal?: AbortSignal,
   onProgress?: ProgressReporter,
+  decisions: AnalyzeDecisions = {},
 ): Promise<AnalyzeResult> {
   if (args.demo !== undefined && args.documents !== undefined) {
     return { ok: false, message: 'Provide either "demo" or "documents", not both.' };
@@ -64,10 +82,29 @@ export async function runAnalysis(
     return { ok: false, message: 'Provide either "demo" or "documents".' };
   }
 
+  // Only inline `documents[]` can be ambiguous — a demo's `isEntry` flags are fixed at authoring time
+  // (see src/app/demos.ts) — and only once there is at least one document to choose among. Nothing
+  // downstream actually requires exactly one entry (the engine defaults gracefully to "the first
+  // flagged document, else the first document"), but a tool answering a machine caller should say
+  // which document it analyzed as the entry rather than silently guess.
+  let documents = args.documents;
+  if (documents !== undefined && documents.length > 0) {
+    const entryCount = documents.filter((d) => d.isEntry).length;
+    if (entryCount !== 1) {
+      if (decisions.entry === undefined) {
+        return {
+          ok: "needs-input",
+          need: { kind: "entry", filenames: documents.map((d) => d.filename) },
+        };
+      }
+      documents = documents.map((d) => ({ ...d, isEntry: d.filename === decisions.entry }));
+    }
+  }
+
   // Known upfront for both shapes — a demo's document count is static, an inline set's is just its
   // length — so the total step count (resolve + one read per document + pipeline + catalog join) is
   // known before the first notification, and every `progress` value below is genuinely increasing.
-  const docCount = args.demo !== undefined ? demoInputs(args.demo)?.length : args.documents!.length;
+  const docCount = args.demo !== undefined ? demoInputs(args.demo)?.length : documents!.length;
   const total = (docCount ?? 0) + 3;
   let step = 0;
   const notify = async (message: string): Promise<void> => {
@@ -81,19 +118,30 @@ export async function runAnalysis(
       : `resolving ${docCount} inline document(s)`,
   );
 
-  const materialized = await materializeDocs(deps, args, signal, notify);
+  const materialized = await materializeDocs(deps, args.demo, documents, signal, notify);
   if (!materialized.ok) return materialized;
 
   // A demo's own config partial (e.g. "fragment" needs `fragments: "root"` just to load) wins over
   // the caller's override, mirroring ConfigurePage.svelte's `{ ...config, ...demo.config }` — without
-  // this, the fragment demos would fail to load through this tool at all.
+  // this, the fragment demos would fail to load through this tool at all. An answered fragment-consent
+  // elicitation wins over both: it is what the caller just told this specific call to do.
   const demoConfig = args.demo !== undefined ? demoById(args.demo)?.config : undefined;
-  const config: ViewerConfig = { ...defaultConfig, ...args.config, ...demoConfig };
+  const config: ViewerConfig = {
+    ...defaultConfig,
+    ...args.config,
+    ...demoConfig,
+    ...(decisions.fragments !== undefined ? { fragments: decisions.fragments } : {}),
+  };
 
   checkAborted(signal);
   await notify("running load → validate → resolve → diagnose");
   const result = await runPipeline(toInputs(materialized.docs), config);
-  if (!result.ok) return { ok: false, message: pipelineErrorMessage(result) };
+  if (!result.ok) {
+    if (decisions.fragments === undefined && needsFragmentConsent(result, config)) {
+      return { ok: "needs-input", need: { kind: "fragments" } };
+    }
+    return { ok: false, message: pipelineErrorMessage(result) };
+  }
 
   const filtered = result.diagnostics.filter(
     (d) => SEVERITY_RANK[d.severity] >= SEVERITY_RANK[args.minSeverity],
@@ -110,7 +158,8 @@ export async function runAnalysis(
 /** Materialize `demo` xor `documents` into InlineDoc[], reporting one step per document read. */
 async function materializeDocs(
   deps: McpDeps,
-  args: AnalyzeInput,
+  demo: string | undefined,
+  documents: InlineDoc[] | undefined,
   signal: AbortSignal | undefined,
   notify: (message: string) => Promise<void>,
 ): Promise<{ ok: true; docs: InlineDoc[] } | { ok: false; message: string }> {
@@ -119,13 +168,13 @@ async function materializeDocs(
     await notify(`read ${doc.filename} (${byteLength(doc.text).toLocaleString()} bytes)`);
   };
 
-  if (args.demo !== undefined) {
-    const docs = await demoDocuments(args.demo, deps.fixtures, signal, reportRead);
-    if (!docs) return { ok: false, message: `Unknown demo "${args.demo}".` };
+  if (demo !== undefined) {
+    const docs = await demoDocuments(demo, deps.fixtures, signal, reportRead);
+    if (!docs) return { ok: false, message: `Unknown demo "${demo}".` };
     return { ok: true, docs };
   }
 
-  const docs = args.documents!;
+  const docs = documents!;
   for (const doc of docs) await reportRead(doc);
   return { ok: true, docs };
 }
@@ -138,6 +187,28 @@ function pipelineErrorMessage(result: Extract<PipelineResult, { ok: false }>): s
     return `Could not load the document set:\n${lines.join("\n")}`;
   }
   return "Could not load the document set.";
+}
+
+// The exact tail of `NotOpenApiError`'s message for an unrecognized, non-fragment document
+// (src/loader.ts's `detectKind`) — the one stable signal `runPipeline` exposes for this condition.
+// `runPipeline` converts every per-document error to a plain string (`rowErrors`), discarding the
+// error's type, so matching this fixed suffix is the only way to distinguish "needs fragment consent"
+// from any other load failure without changing the engine.
+const FRAGMENT_HINT_SUFFIX = "Enable document fragments to load it anyway.";
+
+/** Whether a failed pipeline run is specifically the fragment-consent case. Requires EVERY row error
+ *  to be the fragment one, not just one of several: if another document failed for an unrelated
+ *  reason, enabling fragments would not actually fix the load, so asking for consent would just cost
+ *  a round trip before the caller hits that other error anyway. */
+function needsFragmentConsent(
+  result: Extract<PipelineResult, { ok: false }>,
+  config: ViewerConfig,
+): boolean {
+  return (
+    config.fragments === "none" &&
+    result.rowErrors !== undefined &&
+    Object.values(result.rowErrors).every((msg) => msg.endsWith(FRAGMENT_HINT_SUFFIX))
+  );
 }
 
 /** The one join from the engine's model to the wire shape (see file header). */
