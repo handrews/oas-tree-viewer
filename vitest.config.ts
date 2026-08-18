@@ -59,6 +59,7 @@ export default defineConfig({
         "src/app/session.svelte.ts", // in-memory handoff holder (browser-verified)
         "src/app/pipeline.worker.ts", // worker entry / bootstrap (runs runPipeline; browser-verified)
         "src/app/pipelineClient.ts", // live Worker wiring (browser-verified; can't instantiate in node)
+        "src/mcp/hosts/stdio.ts", // process entry / bootstrap (mirrors pipeline.worker.ts)
         "src/render/canvas.ts", // SVG + d3 (verified in-browser)
         "src/render/treeView.ts", // SVG + d3 (verified in-browser)
         "src/render/TreeCanvas.svelte", // d3 island wrapper (verified in-browser)
