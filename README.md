@@ -33,6 +33,8 @@ documentation will follow once the feature set settles.
 - Shows the JSON Pointer and source line for every node and finding.
 - Keyboard-navigable and screen-reader-accessible; large single-file descriptions stay responsive.
 - Runs entirely in the browser — nothing is uploaded.
+- Exposes its diagnostics over a local [MCP server](docs/mcp.md), runnable via stdio or Streamable
+  HTTP, or tried in-page at `/mcp`.
 
 ## Inputs
 
@@ -90,6 +92,25 @@ npm run dev      # Vite dev server at http://localhost:5173
 Pick a built-in demo or add your own documents and click Render OAD. Sample OADs live in
 [`public/fixtures/`](public/fixtures).
 
+## MCP server
+
+The same diagnostics the issue report shows are exposed over a local
+[MCP](https://modelcontextprotocol.io) server — two tools (`analyze-document`, `explain-diagnostic`),
+a diagnostic/demo resource catalog, and two prompts:
+
+```bash
+npm run build:mcp   # builds dist-mcp/stdio.mjs + dist-mcp/http.mjs
+npm run mcp          # serve over stdio (for Claude Code, Claude Desktop, the Inspector)
+npm run mcp:http     # serve Streamable HTTP on 127.0.0.1 (binds loopback only)
+npm run mcp:inspect  # launch the MCP Inspector against the stdio server
+```
+
+Both tools are read-only (`openWorldHint: false`) and never fetch a URL — input is a bundled demo id
+or document text supplied inline in the call, and nothing else. There is no public endpoint; the
+deployed site serves the `/mcp` page, which runs the server in-page. See
+[docs/mcp.md](docs/mcp.md) for the full tool/resource/prompt reference, host configuration, and the
+security model.
+
 ## Not yet implemented
 
 - OAS 2.0 (Swagger) support (not planned)
@@ -98,5 +119,6 @@ Pick a built-in demo or add your own documents and click Render OAD. Sample OADs
 ## Documentation
 
 - [docs/architecture.md](docs/architecture.md) — how the viewer is built.
+- [docs/mcp.md](docs/mcp.md) — the MCP server: tools, resources, prompts, and how to connect a host.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — tests, quality gates, and the release process.
 - [CHANGELOG.md](CHANGELOG.md) — release history.
