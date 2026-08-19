@@ -16,10 +16,12 @@ export interface InlineDoc {
   isEntry: boolean;
 }
 
-/** Strip the "/fixtures/" prefix a `fixtureUrl()`-shaped URL always carries, back to the path a
- *  `FixtureSource` is keyed on. */
+/** Strip the prefix a `fixtureUrl()`-shaped URL always carries, back to the path a `FixtureSource`
+ *  is keyed on. The prefix is `BASE_URL`-derived to match `fixtureUrl()` exactly: the base is "/" in
+ *  dev and in the Node build (pinned by vite.mcp.config.ts), but a sub-path like "/projects/oas/" in
+ *  the deployed site. */
 export function fixturePath(url: string): string {
-  const prefix = "/fixtures/";
+  const prefix = `${import.meta.env.BASE_URL}fixtures/`;
   if (!url.startsWith(prefix)) throw new Error(`Not a fixture URL: ${url}`);
   return url.slice(prefix.length);
 }

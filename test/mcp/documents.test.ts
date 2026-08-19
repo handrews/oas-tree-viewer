@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { demos } from "../../src/app/demos";
 import { demoDocuments, fixturePath } from "../../src/mcp/documents";
 import { bundledFixtures } from "../../src/mcp/fixtures.bundled";
@@ -27,6 +27,16 @@ describe("demoDocuments", () => {
 describe("fixturePath", () => {
   it("strips the /fixtures/ prefix", () => {
     expect(fixturePath("/fixtures/oads/openapi.yaml")).toBe("oads/openapi.yaml");
+  });
+
+  it("strips a sub-path deploy's base along with the prefix", () => {
+    vi.stubEnv("BASE_URL", "/projects/oas/");
+    try {
+      expect(fixturePath("/projects/oas/fixtures/oads/openapi.yaml")).toBe("oads/openapi.yaml");
+      expect(() => fixturePath("/fixtures/oads/openapi.yaml")).toThrow(/Not a fixture URL/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("rejects a non-fixture URL", () => {
