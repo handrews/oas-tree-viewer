@@ -19,8 +19,7 @@ import { createRequestStateCodec, type RequestStateCodec } from "@modelcontextpr
  *  second question — what an earlier round already resolved. `entry` is absent when the entry round
  *  never ran (a fragments-only flow never needed it). */
 export type AnalyzeState =
-  | { phase: "awaiting-entry" }
-  | { phase: "awaiting-fragments"; entry?: string };
+  { phase: "awaiting-entry" } | { phase: "awaiting-fragments"; entry?: string };
 
 const STATE_KEY_BYTES = 32;
 
