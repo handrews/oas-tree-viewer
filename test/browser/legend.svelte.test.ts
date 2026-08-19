@@ -3,7 +3,7 @@ import { render } from "vitest-browser-svelte";
 import Legend from "../../src/render/Legend.svelte";
 
 test("renders every legend section and representative entries", async () => {
-  const screen = render(Legend);
+  const screen = await render(Legend);
 
   // The Legend starts collapsed (so the node-detail pane stays visible); its sections live in the body
   // and only render once it's opened.

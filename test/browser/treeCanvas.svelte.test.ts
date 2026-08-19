@@ -31,11 +31,12 @@ const treeitems = (): SVGGElement[] => [
 const key = (el: Element, k: string): void =>
   void el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
 
-function renderDoc(onselect: (doc: unknown, node: unknown) => void = () => {}): Promise<void> {
-  return makeDoc(DOC, { isEntry: true }).then((doc) => {
-    const oad = makeOad(doc);
-    render(TreeCanvas, { oad, refs: resolveOad(oad), onselect, onbackground: () => {} });
-  });
+async function renderDoc(
+  onselect: (doc: unknown, node: unknown) => void = () => {},
+): Promise<void> {
+  const doc = await makeDoc(DOC, { isEntry: true });
+  const oad = makeOad(doc);
+  await render(TreeCanvas, { oad, refs: resolveOad(oad), onselect, onbackground: () => {} });
 }
 
 // Exercises the d3 island through its Svelte wrapper in a real browser — the canvas
@@ -114,7 +115,7 @@ test("windows a very large tree: Expand all mounts only a viewport-worth of rows
   const refs = resolveOad(oad);
   const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
-  render(TreeCanvas, { oad, refs, onselect: () => {}, onbackground: () => {} });
+  await render(TreeCanvas, { oad, refs, onselect: () => {}, onbackground: () => {} });
   await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
 
   (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
@@ -132,7 +133,12 @@ test("windows a very large tree: Expand all mounts only a viewport-worth of rows
 test("focus-follows-window: keyboard nav to an off-window row mounts and focuses it", async () => {
   const oad = await makeBigOad(6000);
   vi.spyOn(window, "confirm").mockReturnValue(true);
-  render(TreeCanvas, { oad, refs: resolveOad(oad), onselect: () => {}, onbackground: () => {} });
+  await render(TreeCanvas, {
+    oad,
+    refs: resolveOad(oad),
+    onselect: () => {},
+    onbackground: () => {},
+  });
   await expect.poll(() => document.querySelector('[role="tree"]')).not.toBeNull();
 
   (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
@@ -154,7 +160,7 @@ test("Expand all does not confirm for a normally-sized tree, and expands it", as
   const refs = resolveOad(oad);
   const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
-  render(TreeCanvas, { oad, refs, onselect: () => {}, onbackground: () => {} });
+  await render(TreeCanvas, { oad, refs, onselect: () => {}, onbackground: () => {} });
   await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
   const before = document.querySelectorAll("g.row").length;
 
@@ -188,7 +194,7 @@ components:
   const oad = makeOad(await makeDoc(DOC2, { isEntry: true }));
   const refs = resolveOad(oad);
   const diagnostics = buildDiagnostics(oad, refs, []);
-  render(TreeCanvas, { oad, refs, diagnostics, onselect: () => {}, onbackground: () => {} });
+  await render(TreeCanvas, { oad, refs, diagnostics, onselect: () => {}, onbackground: () => {} });
   await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
   (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
 
@@ -223,7 +229,12 @@ components:
 test("Top / Bottom jump the viewport to the ends of a tall tree", async () => {
   const oad = await makeBigOad(6000);
   vi.spyOn(window, "confirm").mockReturnValue(true);
-  render(TreeCanvas, { oad, refs: resolveOad(oad), onselect: () => {}, onbackground: () => {} });
+  await render(TreeCanvas, {
+    oad,
+    refs: resolveOad(oad),
+    onselect: () => {},
+    onbackground: () => {},
+  });
   await expect.poll(() => document.querySelector('[role="tree"]')).not.toBeNull();
   (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
 
@@ -264,7 +275,12 @@ test("a hostile document string value renders as inert text, not markup (no XSS)
       { isEntry: true, filename: "evil.json" },
     ),
   );
-  render(TreeCanvas, { oad, refs: resolveOad(oad), onselect: () => {}, onbackground: () => {} });
+  await render(TreeCanvas, {
+    oad,
+    refs: resolveOad(oad),
+    onselect: () => {},
+    onbackground: () => {},
+  });
   await expect.poll(() => document.querySelectorAll("svg.tree-canvas g.doc").length).toBe(1);
   (document.querySelector('[data-act="expand"]') as HTMLButtonElement).click();
 

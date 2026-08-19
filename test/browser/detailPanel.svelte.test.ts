@@ -45,7 +45,7 @@ function ctxFor(doc: OadDocument): DetailContext & { onNavigate: ReturnType<type
 }
 
 test("shows an empty hint when nothing is selected", async () => {
-  const screen = render(DetailPanel, { selected: null, ctx: null });
+  const screen = await render(DetailPanel, { selected: null, ctx: null });
   // The panel keeps its "Node details" title even with nothing selected, so it never looks empty.
   await expect.element(screen.getByText("Node details")).toBeVisible();
   await expect.element(screen.getByText(/Click a node/)).toBeVisible();
@@ -54,7 +54,7 @@ test("shows an empty hint when nothing is selected", async () => {
 test("shows selected node info, incoming refs, and wires navigation", async () => {
   const doc = await makeDoc(DOC, { isEntry: true });
   const ctx = ctxFor(doc);
-  const screen = render(DetailPanel, {
+  const screen = await render(DetailPanel, {
     selected: { doc, node: at(doc.root, "/components/schemas/S") },
     ctx,
   });
@@ -96,7 +96,7 @@ webhooks:
 
 test("lists an operation-target advisory under the selected reference", async () => {
   const doc = await makeDoc(OPS_DOC, { isEntry: true });
-  const screen = render(DetailPanel, {
+  const screen = await render(DetailPanel, {
     selected: { doc, node: at(doc.root, "/paths/~1a/get/responses/200/links/hook") },
     ctx: ctxFor(doc),
   });
@@ -118,7 +118,7 @@ test("Svelte auto-escaping neutralizes scalar values", async () => {
     scalarValue: "<img src=x>",
     children: [],
   };
-  render(DetailPanel, { selected: { doc, node }, ctx: ctxFor(doc) });
+  await render(DetailPanel, { selected: { doc, node }, ctx: ctxFor(doc) });
 
   // The value renders as literal text, not a real element.
   await expect
