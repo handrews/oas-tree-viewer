@@ -62,6 +62,12 @@ jobs:
       - name: Run tests with coverage
         run: npm run coverage
 
+      # The MCP server has its own Vite target, which `prepare` does not build.
+      # Without this, a break in vite.mcp.config.ts or src/mcp/hosts/ would only
+      # surface for whoever next ran `npm run mcp` locally.
+      - name: Build the MCP server
+        run: npm run build:mcp
+
       - name: Upload coverage report
         if: ${{ always() }}
         uses: actions/upload-artifact@v7

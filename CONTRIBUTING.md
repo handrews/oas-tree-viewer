@@ -23,8 +23,14 @@ assembler — and a **browser** project (`vitest-browser-svelte`) for the Svelte
 excluded from the coverage denominator (they need real browser layout), but the browser
 project still drives the canvas directly to assert its **scalability invariant** — that a
 large tree mounts only a bounded number of rows — alongside the browser/preview workflow and
-the Playwright end-to-end suite (`npm run e2e`, which also runs axe accessibility checks). Two
-`bench` harnesses are gated behind `VITE_BENCH` so they stay out of the gating run, both reporting
+the Playwright end-to-end suite (`npm run e2e`, which also runs axe accessibility checks). The
+same rationale excludes the MCP demo page and its Svelte islands (`src/pages/McpPage.svelte`,
+`src/mcp/ui/*.svelte`) and its live host wiring (`src/mcp/hosts/{stdio,http,browser}.ts`,
+`src/mcp/fixtures.browser.ts`) — process entry / listen wiring and in-page transport plumbing
+mirror why `pipeline.worker.ts` and `pipelineClient.ts` are excluded, and are verified in-browser
+and in `e2e/mcp.spec.ts` instead.
+
+Two `bench` harnesses are gated behind `VITE_BENCH` so they stay out of the gating run, both reporting
 wall-clock timings that are machine-dependent and informational: a **render** bench
 (`test/browser/treeCanvas.bench.svelte.test.ts`, render/expand timings) and a **pipeline** bench
 (`test/pipeline.bench.test.ts`, the worker-side source-position and diagnostics stages versus the raw
@@ -52,6 +58,15 @@ alias bombs and over-deep nesting are refused with a clean error rather than han
 (`test/browser/treeCanvas.svelte.test.ts`) confirms a hostile string value renders as inert text, never
 injected markup.
 
+**MCP.** `test/mcp/` runs in the **node** project alongside the rest (it needs no `svelte()` plugin)
+and drives a real in-process `Client` over `createMcpHandler`'s web-standard
+`(Request) => Promise<Response>`, with `fetch` wired straight to the handler and no mock transport
+anywhere — see [docs/mcp.md](docs/mcp.md) for what the specs cover (tools, resources, completion,
+prompts, progress, MRTR). `parity.test.ts` snapshots each demo's `structuredContent` from the node
+host; `test/browser/mcpBrowserHost.svelte.test.ts` runs the same demos through the in-page browser
+host and deep-equals the snapshots, so Node and the browser reading identical fixture bytes
+(`fixtures.bundled.ts` / `fixtures.browser.ts`) is asserted, not assumed.
+
 ## Linting and formatting
 
 ```bash
@@ -76,6 +91,7 @@ Run the full set locally before opening or merging a change — these mirror the
 | `npm run coverage` | Both Vitest projects (node + browser) plus the coverage thresholds |
 | `npm run e2e` | Playwright end-to-end tests, including axe accessibility checks |
 | `npm run build` | Production build (`vite build`) |
+| `npm run build:mcp` | MCP server build (`vite build --config vite.mcp.config.ts` — `dist-mcp/{stdio,http}.mjs`) |
 
 ## Continuous integration
 
@@ -85,7 +101,8 @@ and on pushes to `main` (an in-flight run is cancelled when newer commits land),
 - **Lint** — `npm run lint` and `npm run format:check`.
 - **Test & coverage** — `npm ci` (whose `prepare` script runs `svelte-check` + build, so a type
   error or broken build fails here), installs Playwright Chromium for the browser project, then
-  `npm run coverage`.
+  `npm run coverage` and `npm run build:mcp`. The MCP server is a separate Vite target that
+  `prepare` does not build, so it needs its own step.
 - **E2E** — installs Playwright Chromium, then `npm run e2e`; traces are uploaded on failure.
 
 Dependency updates are automated by Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)):

@@ -593,9 +593,13 @@ body {
   border-color: var(--link);
   color: var(--link);
 }
-/* App navigation (leave the explorer) sits at the end of the toolbar row, set apart. */
-.canvas-toolbar .load-another {
+/* App-level navigation (leave the explorer, or take the view elsewhere) sits at the end of the
+   toolbar row, grouped so the row's leftover space collects before the group, not between its
+   buttons. */
+.canvas-toolbar .toolbar-actions {
   margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
 }
 .tree-canvas {
   flex: 1;
@@ -1331,4 +1335,341 @@ body {
 }
 .issue-detail {
   color: var(--text-dim);
+}
+
+/* ── MCP demo page ─────────────────────────────────────────────────────── */
+
+.mcp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  margin-top: 0.5rem;
+}
+.mcp-page h2 {
+  font-size: 1rem;
+  margin-bottom: 0.6rem;
+}
+.mcp-page h3 {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+.mcp-page > section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+.mcp-source-strip {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+/* Inline with the strip's sentence rather than a block button: leaving a scenario is a small
+   correction, not a primary action. */
+.scenario-clear {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.scenario-clear:hover {
+  border-color: var(--text-dim);
+}
+.mcp-limit-refusal,
+.mcp-error,
+.mcp-result-error {
+  color: var(--error);
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+/* Capabilities panel */
+.mcp-caps-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.mcp-refresh {
+  font-family: var(--font);
+  font-size: 0.8rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+.mcp-refresh:hover:not(:disabled) {
+  border-color: var(--link);
+  color: var(--link);
+}
+.mcp-refresh:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.mcp-caps-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin-top: 0.7rem;
+}
+.mcp-caps-col ul {
+  list-style: none;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+.mcp-caps-col code {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--link);
+}
+.mcp-cache-note {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+}
+
+/* Tool picker + arguments form */
+.mcp-tool-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.88rem;
+}
+.mcp-tool-picker select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: var(--font);
+}
+.args-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+.args-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.args-group legend {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  padding: 0 0.3rem;
+}
+.args-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.args-label select,
+.args-label input[type="text"],
+.args-label input[type="number"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: var(--font);
+}
+.args-checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+.args-submit {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  background: var(--accent-solid);
+  border: 1px solid var(--accent-solid);
+  color: var(--on-accent);
+}
+
+/* Result */
+.mcp-result-text {
+  white-space: pre-wrap;
+}
+.mcp-resource-link {
+  font-family: var(--font);
+  font-size: 0.8rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--link);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  margin: 0.2rem 0.3rem 0.2rem 0;
+  cursor: pointer;
+}
+.mcp-resource-link:hover {
+  border-color: var(--link);
+}
+.mcp-structured summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--link);
+}
+
+/* Elicitation panel (MRTR) */
+.elicit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: flex-start;
+}
+.elicit-message {
+  font-size: 0.88rem;
+}
+.elicit-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.elicit-label select,
+.elicit-label input[type="text"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: var(--font);
+}
+.elicit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.elicit-submit,
+.elicit-decline,
+.elicit-cancel {
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+}
+.elicit-submit {
+  background: var(--accent-solid);
+  border: 1px solid var(--accent-solid);
+  color: var(--on-accent);
+}
+.elicit-decline,
+.elicit-cancel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.elicit-decline:hover,
+.elicit-cancel:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+/* Wire log */
+.wire-log {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+.wire-exchange > details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+.wire-exchange summary {
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: baseline;
+  font-size: 0.85rem;
+}
+.wire-method {
+  font-weight: 700;
+  font-family: var(--mono);
+}
+.wire-status,
+.wire-ct {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+.wire-body {
+  margin-top: 0.6rem;
+}
+.wire-url code {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+.wire-headers {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.7rem;
+  font-size: 0.76rem;
+  margin: 0.3rem 0 0.5rem;
+}
+.wire-headers dt {
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+.wire-headers dd {
+  font-family: var(--mono);
+  word-break: break-word;
+}
+.wire-json {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  overflow: auto;
+  max-height: 20rem;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.wire-frames {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+.wire-frame-event {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+.wire-pending {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+}
+.wire-empty {
+  color: var(--text-dim);
+  font-size: 0.85rem;
 }

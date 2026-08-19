@@ -18,6 +18,7 @@ export default tseslint.config(
   {
     ignores: [
       "dist/",
+      "dist-mcp/",
       "coverage/",
       "node_modules/",
       "public/",

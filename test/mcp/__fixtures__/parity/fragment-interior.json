@@ -1,0 +1,27 @@
+{
+  "entry": "schema-lib-refs-3.0.yaml",
+  "versionFamily": "3.0",
+  "documents": [
+    {
+      "index": 0,
+      "label": "schema-lib-refs-3.0.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.0.4",
+      "isEntry": true
+    },
+    {
+      "index": 1,
+      "label": "schema-lib-3.0.yaml",
+      "kind": "fragment",
+      "isEntry": false
+    }
+  ],
+  "counts": {
+    "total": 0,
+    "error": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "sections": [],
+  "diagnostics": []
+}

@@ -20,12 +20,20 @@
     "bench": "VITE_BENCH=1 vitest run --reporter=verbose bench",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
+    "build:mcp": "vite build --config vite.mcp.config.ts",
+    "mcp": "npm run build:mcp && node dist-mcp/stdio.mjs",
+    "mcp:http": "npm run build:mcp && node dist-mcp/http.mjs",
+    "mcp:inspect": "npm run build:mcp && npx @modelcontextprotocol/inspector node dist-mcp/stdio.mjs",
     "prepare": "npm run build"
   },
   "dependencies": {
     "@hyperjump/json-schema": "^1.17.6",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "d3": "^7.9.0",
-    "yaml": "^2.6.1"
+    "yaml": "^2.6.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

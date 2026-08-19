@@ -1,0 +1,252 @@
+{
+  "entry": "operationid-3.2.yaml",
+  "versionFamily": "3.2",
+  "documents": [
+    {
+      "index": 0,
+      "label": "operationid-3.2.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": true
+    },
+    {
+      "index": 1,
+      "label": "operationid-shared-3.2.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": false
+    },
+    {
+      "index": 2,
+      "label": "operationid-remote-3.2.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": false
+    }
+  ],
+  "counts": {
+    "total": 7,
+    "error": 5,
+    "warning": 2,
+    "info": 0
+  },
+  "sections": [
+    {
+      "id": "unresolved",
+      "label": "Unresolved references",
+      "count": 1
+    },
+    {
+      "id": "advisories",
+      "label": "Reference advisories",
+      "count": 5
+    },
+    {
+      "id": "unreachable",
+      "label": "Unreachable documents",
+      "count": 1
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "ref-broken",
+      "title": "Unresolved reference",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "unresolved",
+      "message": "no Operation declares operationId \"noSuchOp\"",
+      "location": {
+        "documentIndex": 0,
+        "document": "operationid-3.2.yaml",
+        "pointer": "/paths/~1a/get/responses/200/links/missing",
+        "displayPointer": "#/paths/~1a/get/responses/200/links/missing",
+        "line": 28,
+        "column": 15
+      },
+      "ref": {
+        "kind": "operationId",
+        "refString": "noSuchOp"
+      },
+      "catalogUri": "oas://diagnostic/ref-broken"
+    },
+    {
+      "code": "operation-target-ambiguous",
+      "title": "Operation target reached by multiple paths",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation's Path Item is reached by 2 paths, so which URL invokes it is ambiguous",
+      "location": {
+        "documentIndex": 0,
+        "document": "operationid-3.2.yaml",
+        "pointer": "/paths/~1a/get/responses/200/links/ambiguousUrl",
+        "displayPointer": "#/paths/~1a/get/responses/200/links/ambiguousUrl",
+        "line": 33,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operationid-3.2.yaml",
+          "pointer": "/components/pathItems/Comp2/get",
+          "displayPointer": "#/components/pathItems/Comp2/get",
+          "line": 77,
+          "column": 9
+        }
+      ],
+      "ref": {
+        "kind": "operationId",
+        "refString": "comp2Op"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-ambiguous"
+    },
+    {
+      "code": "operation-target-fragile",
+      "title": "Operation target reached by one path",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation's Path Item is reached by exactly one path; another path referencing it would make the target ambiguous",
+      "location": {
+        "documentIndex": 0,
+        "document": "operationid-3.2.yaml",
+        "pointer": "/paths/~1a/get/responses/200/links/fragile",
+        "displayPointer": "#/paths/~1a/get/responses/200/links/fragile",
+        "line": 35,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operationid-3.2.yaml",
+          "pointer": "/components/pathItems/Comp1/get",
+          "displayPointer": "#/components/pathItems/Comp1/get",
+          "line": 83,
+          "column": 9
+        }
+      ],
+      "ref": {
+        "kind": "operationId",
+        "refString": "comp1Op"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-fragile"
+    },
+    {
+      "code": "operation-target-no-path",
+      "title": "Operation target reached by no path",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation's Path Item is not reached by any path, so there is no URL to invoke it",
+      "location": {
+        "documentIndex": 0,
+        "document": "operationid-3.2.yaml",
+        "pointer": "/paths/~1a/get/responses/200/links/noPath",
+        "displayPointer": "#/paths/~1a/get/responses/200/links/noPath",
+        "line": 37,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operationid-3.2.yaml",
+          "pointer": "/components/pathItems/Comp0/get",
+          "displayPointer": "#/components/pathItems/Comp0/get",
+          "line": 89,
+          "column": 9
+        }
+      ],
+      "ref": {
+        "kind": "operationId",
+        "refString": "comp0Op"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-no-path"
+    },
+    {
+      "code": "operation-target-webhook",
+      "title": "Operation target is a webhook",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation is a webhook, which is not directly callable",
+      "location": {
+        "documentIndex": 0,
+        "document": "operationid-3.2.yaml",
+        "pointer": "/paths/~1a/get/responses/200/links/toWebhook",
+        "displayPointer": "#/paths/~1a/get/responses/200/links/toWebhook",
+        "line": 39,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operationid-3.2.yaml",
+          "pointer": "/webhooks/petEvent/get",
+          "displayPointer": "#/webhooks/petEvent/get",
+          "line": 69,
+          "column": 7
+        }
+      ],
+      "ref": {
+        "kind": "operationId",
+        "refString": "hookOp"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-webhook"
+    },
+    {
+      "code": "operation-target-callback",
+      "title": "Operation target is a callback",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "advisories",
+      "message": "the target Operation is a callback; its URL is a runtime expression, not directly callable",
+      "location": {
+        "documentIndex": 0,
+        "document": "operationid-3.2.yaml",
+        "pointer": "/paths/~1a/get/responses/200/links/toCallback",
+        "displayPointer": "#/paths/~1a/get/responses/200/links/toCallback",
+        "line": 41,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "operationid-3.2.yaml",
+          "pointer": "/paths/~1a/get/callbacks/onEvent/cbUrl/post",
+          "displayPointer": "#/paths/~1a/get/callbacks/onEvent/cbUrl/post",
+          "line": 46,
+          "column": 15
+        }
+      ],
+      "ref": {
+        "kind": "operationId",
+        "refString": "cbOp"
+      },
+      "catalogUri": "oas://diagnostic/operation-target-callback"
+    },
+    {
+      "code": "document-unreachable",
+      "title": "Unreachable document",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "unreachable",
+      "message": "not reachable from the entry document",
+      "location": {
+        "documentIndex": 2,
+        "document": "operationid-remote-3.2.yaml",
+        "pointer": "",
+        "displayPointer": "#",
+        "line": 1,
+        "column": 1
+      },
+      "catalogUri": "oas://diagnostic/document-unreachable"
+    }
+  ]
+}

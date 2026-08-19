@@ -39,3 +39,5 @@ yarn-error.log*
 
 # Wrangler local state (from `wrangler dev` / `wrangler deploy`)
 .wrangler
+
+dist-mcp

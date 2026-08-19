@@ -18,6 +18,7 @@
   import { demoInputs } from "../app/demos";
   import { session } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
+  import { mcpPath } from "../app/viewUrl";
 
   // The Explore page: resolve the requested documents (a demo, online URLs, or an
   // in-memory upload handoff), run the load → resolve pipeline, and render the tree,
@@ -65,6 +66,9 @@
     refs = refsResult;
     diagnostics = diagnosticsResult;
     status = "ready";
+    // Carries the loaded view over to /mcp for any source (demo, online URLs, or upload) — unlike
+    // `session.result`, which is written only on the upload path (ConfigurePage.svelte).
+    session.current = { oad: oadResult, diagnostics: diagnosticsResult, config, request };
   }
 
   function fail(message: string): void {
@@ -157,6 +161,7 @@
       onselect={(doc, node) => (selected = { doc, node })}
       onbackground={() => (selected = null)}
       onLoadAnother={() => navigate("/configure")}
+      onOpenMcp={() => navigate(mcpPath(request, config))}
       onRenderError={(msg) => fail(msg)}
       bind:this={treeCanvas}
     />

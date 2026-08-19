@@ -47,9 +47,19 @@ flowchart TD
 
     limits["Resource caps<br/>limits (depth) · errors · types"]
 
+    subgraph mcp["src/mcp — MCP server (Node or in-page; no worker)"]
+        direction TB
+        mcpHosts["hosts/stdio · hosts/http · hosts/browser"]
+        mcpServer["server.ts<br/>tools · resources · prompts"]
+        mcpAnalyze["analyze.ts — runAnalysis<br/>docId → stable index + label"]
+        mcpHosts --> mcpServer --> mcpAnalyze
+    end
+
     cfg -->|inputs| client
     client -->|postMessage| load
     diag -->|resolved Oad + diagnostics| view
+    diag -->|Oad + diagnostics| mcpAnalyze
+    mcpAnalyze -->|runPipeline directly, no postMessage| load
     routing -. bookmarkable URL .-> view
     routing -.-> cfg
     limits -. guards .-> load
@@ -72,6 +82,7 @@ flowchart TD
 | Worker pipeline | `src/app/pipelineClient.ts` (main-thread client), `src/app/pipeline.worker.ts` (off-thread load) |
 | App / routing | `src/app/router.svelte.ts`, `src/app/session.svelte.ts`, `src/app/viewUrl.ts`, `src/app/config.ts`, `src/app/demos.ts`, `src/app/bootstrap.ts` |
 | UI / shell | `src/main.ts`, `src/App.svelte`, `src/pages/ConfigurePage.svelte`, `src/pages/ViewPage.svelte`, `src/ui/OadForm.svelte`, `src/ui/ThemeToggle.svelte`, `src/ui/oadForm.ts`, `src/ui/fileDrop.ts`, `src/ui/theme.ts` |
+| MCP server | `src/mcp/server.ts` (tool/resource/prompt registrations), `src/mcp/analyze.ts` / `explain.ts` (tool logic), `src/mcp/resources.ts`, `src/mcp/prompts.ts`, `src/mcp/schemas.ts` (zod contracts), `src/mcp/documents.ts` / `fromOad.ts` (inline-document materialization), `src/mcp/fixtures.bundled.ts` / `fixtures.browser.ts` (injected fixture port), `src/mcp/state.ts` (MRTR request-state codec), `src/mcp/scenarios.ts`, `src/mcp/hosts/{stdio,http,browser}.ts`, `src/mcp/ui/*.svelte`, `src/pages/McpPage.svelte`, `vite.mcp.config.ts` (Node build); see [docs/mcp.md](mcp.md) |
 | Styles / pages | `src/styles.css`, `src/theme.css`, `src/docs.css`, `vite/doc-pages.ts` (renders `CHANGELOG.md` to a themed page) |
 | Content (editable, no code) | `content/demos.yaml` (demo labels + descriptions), `content/diagnostics.yaml` (diagnostic severity policy + titles/descriptions), `content/connections.yaml` (per-connection reference arrow/marker styles) — imported as data and keyed by id/code/kind |
 
@@ -179,6 +190,50 @@ crosses back from the worker. *Blocking* errors that refuse a document stay sepa
 exceptions in `errors.ts`. The model is shaped so an external linter could later be adapted
 into the same `Diagnostic[]` (a `source` discriminator, pointer-keyed locations), but none is
 integrated.
+
+## MCP server
+
+`src/mcp/` is an edge adapter over `runPipeline` and `Diagnostic[]` — a protocol-facing layer, not a
+second engine. See [docs/mcp.md](mcp.md) for what it exposes; this section covers why it is built the
+way it is.
+
+**The fixture port is injected.** `ports.ts` declares one `FixtureSource` interface; `analyze.ts` and
+`documents.ts` depend on it, never on a concrete reader. Node bundles the same fixture bytes into the
+built `.mjs` at build time (`fixtures.bundled.ts`, via `import.meta.glob`); the in-page browser host
+fetches them at request time (`fixtures.browser.ts`), the way the app already serves `/fixtures/…`.
+Node and the browser therefore read literally identical bytes for a given demo, which is what makes
+their `structuredContent` outputs comparable at all — parity is a consequence of the port, not a
+separately-maintained guarantee.
+
+**The tool calls `runPipeline` (`src/app/bootstrap.ts`) directly, not `pipelineClient`.**
+`pipelineClient` exists to run the pipeline off the UI thread in a Web Worker — a browser-main-thread
+concern. Node has no Worker to hand off to, and the browser host already runs in-page with no network
+hop, so both MCP hosts call the same synchronous function `pipeline.worker.ts` itself calls inside the
+worker. Reaching Node needed no engine change: `runPipeline` was already close to Node-clean, and
+`vite.mcp.config.ts` resolves what wasn't (below).
+
+**Input is demo-or-inline only — no URL.** A tool that could fetch an arbitrary URL would need
+`openWorldHint: true` and a fetch policy to go with it. Restricting input to a bundled demo id or text
+supplied in the call is what lets `openWorldHint: false` be literally true, not just an optimistic
+annotation.
+
+**`docId` never reaches the wire.** `src/loader.ts` declares `let nextDocId = 1` and stamps
+`id: \`doc-${nextDocId++}\`` per document — a process-global counter with no meaning outside the
+request that produced it; two calls in one process return `doc-1..2`, then `doc-3..4`, for identical
+input. `analyze.ts`'s `toStructured` is the one place `docId` is read at all
+(`oad.documents.findIndex(d => d.id === loc.docId)`), to recover a **stable index and label** —
+position in `oad.documents[]` plus the display label `collectIssues` already computes. Every
+diagnostic's `location.document` / `documentIndex` comes from that join, never from the id itself.
+
+### The Node build
+
+`vite.mcp.config.ts` builds `hosts/stdio.ts` and `hosts/http.ts` as an SSR target (`build.ssr`,
+`node24`) because the engine's Vite-isms need Vite's own resolution, not `tsc`/`tsx`: `?raw` YAML
+imports (`content/demos.yaml?raw` and friends) need Vite's raw-import transform, and
+`import.meta.env.BASE_URL` needs Vite's `define`. `ssr.noExternal` is deliberately left unset, so
+`@modelcontextprotocol/*`, `zod`, `yaml`, and `@hyperjump/json-schema` resolve from `node_modules` at
+runtime instead of being bundled — which keeps `validateOad.ts`'s dynamic dialect imports working.
+Only `src/**` and the `?raw` YAML get bundled into the output `.mjs`.
 
 ## Connection styles are data
 

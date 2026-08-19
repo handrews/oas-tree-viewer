@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   canonicalRedirect,
+  mcpPath,
   parseRoute,
   stripBase,
   viewPath,
@@ -132,12 +133,64 @@ describe("viewUrl", () => {
     expect(canonicalRedirect("/configure")).toBeNull();
     expect(canonicalRedirect("/view")).toBeNull();
     expect(canonicalRedirect("/view/")).toBeNull();
+    expect(canonicalRedirect("/mcp")).toBeNull();
+    expect(canonicalRedirect("/mcp/")).toBeNull();
     // Everything the app renders as configure but whose URL isn't /configure → rewrite.
     expect(canonicalRedirect("/")).toBe("/configure");
     expect(canonicalRedirect("/foo")).toBe("/configure");
     expect(canonicalRedirect("/configure/")).toBe("/configure");
     expect(canonicalRedirect("/configure/foo")).toBe("/configure");
     expect(canonicalRedirect("/view/foo")).toBe("/configure"); // not a real /view path
+    expect(canonicalRedirect("/mcp/foo")).toBe("/configure"); // not a real /mcp path
+  });
+});
+
+describe("mcp route", () => {
+  it("a cold /mcp (no demo/doc param) parses to a null request, not a session", () => {
+    expect(parseRoute("/mcp", "")).toEqual({ page: "mcp", request: null, config: defaultConfig });
+    expect(parseRoute("/mcp/", "")).toEqual({ page: "mcp", request: null, config: defaultConfig });
+  });
+
+  it("parses a demo/urls request the same way /view does", () => {
+    expect(parseRoute("/mcp", "?demo=refs")).toEqual({
+      page: "mcp",
+      request: { kind: "demo", demoId: "refs" },
+      config: defaultConfig,
+    });
+    expect(parseRoute("/mcp", "?doc=https%3A%2F%2Fa%2Fx.yaml")).toEqual({
+      page: "mcp",
+      request: { kind: "urls", docs: [{ url: "https://a/x.yaml", isEntry: true }] },
+      config: defaultConfig,
+    });
+  });
+
+  it("parses resolution config orthogonally to the request, same as /view", () => {
+    expect(parseRoute("/mcp", "?demo=refs&lookup=local")).toEqual({
+      page: "mcp",
+      request: { kind: "demo", demoId: "refs" },
+      config: { mappingPrecedence: "name-first", componentLookup: "local", fragments: "none" },
+    });
+  });
+
+  it("mcpPath round-trips through parseRoute, including a null (cold) request", () => {
+    const requests: (ViewRequest | null)[] = [
+      null,
+      { kind: "demo", demoId: "self" },
+      { kind: "urls", docs: [{ url: "https://a/x.yaml", isEntry: true }] },
+    ];
+    const configs: ViewerConfig[] = [
+      defaultConfig,
+      { mappingPrecedence: "uri-first", componentLookup: "local", fragments: "any" },
+    ];
+    for (const request of requests) {
+      for (const config of configs) {
+        expect(parsePath(mcpPath(request, config))).toEqual({ page: "mcp", request, config });
+      }
+    }
+  });
+
+  it("mcpPath defaults to a bare /mcp with no arguments", () => {
+    expect(mcpPath()).toBe("/mcp");
   });
 });
 

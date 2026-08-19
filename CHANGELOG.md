@@ -5,6 +5,19 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **A demo MCP server.** Two read-only tools — `analyze-document` and `explain-diagnostic` — expose
+  the same diagnostics the issue report shows, over MCP's 2026-07-28 revision. Resources cover the
+  diagnostic catalog and the bundled demo corpus (with completion), two prompts turn a demo or a
+  pasted issue report into a message, `analyze-document` streams per-document progress, and a
+  fragment-consent / ambiguous-entry round trip demonstrates the revision's multi round-trip
+  requests. Run it locally over stdio or Streamable HTTP (`npm run mcp`, `npm run mcp:http`), or try
+  it in-page at `/mcp`, reachable from a rendered view's toolbar. See
+  [docs/mcp.md](docs/mcp.md).
+
 ## [0.9.0] — 2026-06-26
 
 ### Added
@@ -290,6 +303,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
+[Unreleased]: https://github.com/handrews/oas-tree-viewer/compare/v0.9.0...HEAD
 [0.9.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.1...v0.8.2

@@ -1,0 +1,42 @@
+{
+  "entry": "openapi.yaml",
+  "versionFamily": "3.2",
+  "documents": [
+    {
+      "index": 0,
+      "label": "openapi.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": true
+    },
+    {
+      "index": 1,
+      "label": "parameters.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": false
+    },
+    {
+      "index": 2,
+      "label": "mediatypes.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": false
+    },
+    {
+      "index": 3,
+      "label": "schemas.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.2.0",
+      "isEntry": false
+    }
+  ],
+  "counts": {
+    "total": 0,
+    "error": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "sections": [],
+  "diagnostics": []
+}

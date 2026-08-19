@@ -1,0 +1,143 @@
+{
+  "entry": "refs-3.1.yaml",
+  "versionFamily": "3.1",
+  "documents": [
+    {
+      "index": 0,
+      "label": "refs-3.1.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.1.0",
+      "isEntry": true
+    },
+    {
+      "index": 1,
+      "label": "refs-shared-3.1.yaml",
+      "kind": "openapi",
+      "oasVersion": "3.1.0",
+      "isEntry": false
+    }
+  ],
+  "counts": {
+    "total": 4,
+    "error": 3,
+    "warning": 1,
+    "info": 0
+  },
+  "sections": [
+    {
+      "id": "unresolved",
+      "label": "Unresolved references",
+      "count": 4
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "ref-type-mismatch",
+      "title": "Reference type mismatch",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "unresolved",
+      "message": "expected Parameter, found Schema",
+      "location": {
+        "documentIndex": 0,
+        "document": "refs-3.1.yaml",
+        "pointer": "/paths/~1links/get/parameters/1",
+        "displayPointer": "#/paths/~1links/get/parameters/1",
+        "line": 17,
+        "column": 11
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "refs-3.1.yaml",
+          "pointer": "/components/schemas/Thing",
+          "displayPointer": "#/components/schemas/Thing",
+          "line": 40,
+          "column": 7
+        }
+      ],
+      "ref": {
+        "kind": "$ref",
+        "refString": "#/components/schemas/Thing"
+      },
+      "catalogUri": "oas://diagnostic/ref-type-mismatch"
+    },
+    {
+      "code": "ref-broken",
+      "title": "Unresolved reference",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "unresolved",
+      "message": "target not found (the fragment names nothing)",
+      "location": {
+        "documentIndex": 0,
+        "document": "refs-3.1.yaml",
+        "pointer": "/paths/~1links/get/parameters/2",
+        "displayPointer": "#/paths/~1links/get/parameters/2",
+        "line": 19,
+        "column": 11
+      },
+      "ref": {
+        "kind": "$ref",
+        "refString": "#/components/parameters/Missing"
+      },
+      "catalogUri": "oas://diagnostic/ref-broken"
+    },
+    {
+      "code": "ref-external",
+      "title": "External reference not loaded",
+      "severity": "warning",
+      "defaultSeverity": "warning",
+      "source": "reference",
+      "section": "unresolved",
+      "message": "external document not loaded",
+      "location": {
+        "documentIndex": 0,
+        "document": "refs-3.1.yaml",
+        "pointer": "/paths/~1links/get/parameters/3",
+        "displayPointer": "#/paths/~1links/get/parameters/3",
+        "line": 21,
+        "column": 11
+      },
+      "ref": {
+        "kind": "$ref",
+        "refString": "https://elsewhere.example/api.yaml#/components/parameters/Foo"
+      },
+      "catalogUri": "oas://diagnostic/ref-external"
+    },
+    {
+      "code": "ref-type-mismatch",
+      "title": "Reference type mismatch",
+      "severity": "error",
+      "defaultSeverity": "error",
+      "source": "reference",
+      "section": "unresolved",
+      "message": "expected Operation, found Schema",
+      "location": {
+        "documentIndex": 0,
+        "document": "refs-3.1.yaml",
+        "pointer": "/paths/~1links/get/responses/200/links/wrong",
+        "displayPointer": "#/paths/~1links/get/responses/200/links/wrong",
+        "line": 36,
+        "column": 15
+      },
+      "relatedLocations": [
+        {
+          "documentIndex": 0,
+          "document": "refs-3.1.yaml",
+          "pointer": "/components/schemas/Thing",
+          "displayPointer": "#/components/schemas/Thing",
+          "line": 40,
+          "column": 7
+        }
+      ],
+      "ref": {
+        "kind": "operationRef",
+        "refString": "#/components/schemas/Thing"
+      },
+      "catalogUri": "oas://diagnostic/ref-type-mismatch"
+    }
+  ]
+}

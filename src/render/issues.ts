@@ -52,6 +52,12 @@ const SECTION: Record<DiagnosticCode, SectionId> = {
   "schema-unvalidated": "unvalidated",
 };
 
+/** Exposes the code→section mapping to callers outside the drawer (e.g. the MCP tool output) so
+ *  a diagnostic's reported section can never drift from what the drawer groups it under. */
+export function sectionForCode(code: DiagnosticCode): SectionId {
+  return SECTION[code];
+}
+
 const SECTION_ORDER: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: "unresolved", label: "Unresolved references" },
   { id: "advisories", label: "Reference advisories" },

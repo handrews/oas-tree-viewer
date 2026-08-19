@@ -15,6 +15,7 @@
     onselect,
     onbackground,
     onLoadAnother,
+    onOpenMcp,
     onRenderError,
   }: {
     oad: Oad;
@@ -25,6 +26,7 @@
     onselect: (doc: OadDocument, node: TreeNode) => void;
     onbackground: () => void;
     onLoadAnother?: () => void;
+    onOpenMcp?: () => void;
     /** Called if rendering throws — e.g. a stack overflow building the d3 hierarchy of a huge
      *  document loaded via the "Load anyway" override. Lets the page show an error instead of crashing. */
     onRenderError?: (message: string) => void;
@@ -43,6 +45,7 @@
           onSelect: onselect,
           onBackground: onbackground,
           onLoadAnother,
+          onOpenMcp,
         });
       canvas.render(oad, unreachableDocIds);
       if (refs) canvas.setReferences(refs);
