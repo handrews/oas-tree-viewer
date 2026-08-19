@@ -207,7 +207,7 @@ test.describe("demos, online URLs & bookmarking", () => {
 
   test("the $self demo resolves cleanly (no issues)", async ({ page }) => {
     await page.goto("/configure");
-    await page.getByRole("button", { name: "Multi-document $self (3.2)" }).click();
+    await page.getByRole("button", { name: "Multi-document with $self (3.2)" }).click();
 
     await expect(page).toHaveURL(/\/view\?demo=self/);
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(4);
