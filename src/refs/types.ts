@@ -13,12 +13,7 @@ export type RefKind =
 
 /** Where the reference syntactically appears. */
 export type RefContext =
-  | "reference"
-  | "pathItem"
-  | "schema"
-  | "link"
-  | "discriminatorMapping"
-  | "securityRequirement";
+  "reference" | "pathItem" | "schema" | "link" | "discriminatorMapping" | "securityRequirement";
 
 export type RefStatus =
   | "resolved" // points at a node of the expected type

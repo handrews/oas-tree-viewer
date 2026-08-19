@@ -209,13 +209,11 @@ export function createServer(deps: McpDeps): McpServer {
 
       const catalog = diagnosticCatalog();
       const codes = [...new Set(result.structured.diagnostics.map((d) => d.code))];
-      const links: ContentBlock[] = codes.map(
-        (code): ContentBlock => ({
-          type: "resource_link",
-          uri: diagnosticUri(code),
-          name: catalog[code].title,
-        }),
-      );
+      const links: ContentBlock[] = codes.map((code): ContentBlock => ({
+        type: "resource_link",
+        uri: diagnosticUri(code),
+        name: catalog[code].title,
+      }));
       if (args.demo !== undefined) {
         links.push({
           type: "resource_link",

@@ -50,9 +50,10 @@ describe("analyze-document — MRTR (fragment consent, ambiguous entry)", () => 
   });
 
   it("fragment consent: accept resumes the load, as two tools/call exchanges with different ids and no requestState (single-round flow)", async () => {
-    harness = await connectMrtrClient(
-      (): ElicitResult => ({ action: "accept", content: { fragments: "root" } }),
-    );
+    harness = await connectMrtrClient((): ElicitResult => ({
+      action: "accept",
+      content: { fragments: "root" },
+    }));
     const result = await harness.client.callTool({
       name: TOOL_NAMES.analyzeDocument,
       arguments: {
@@ -112,9 +113,10 @@ describe("analyze-document — MRTR (fragment consent, ambiguous entry)", () => 
   });
 
   it("ambiguous entry: accept picks the named document as the entry", async () => {
-    harness = await connectMrtrClient(
-      (): ElicitResult => ({ action: "accept", content: { entry: "b.yaml" } }),
-    );
+    harness = await connectMrtrClient((): ElicitResult => ({
+      action: "accept",
+      content: { entry: "b.yaml" },
+    }));
     const result = await harness.client.callTool({
       name: TOOL_NAMES.analyzeDocument,
       arguments: {
@@ -135,9 +137,10 @@ describe("analyze-document — MRTR (fragment consent, ambiguous entry)", () => 
   });
 
   it("ambiguous entry: zero isEntry: true also elicits, over the same 'entry' key", async () => {
-    harness = await connectMrtrClient(
-      (): ElicitResult => ({ action: "accept", content: { entry: "a.yaml" } }),
-    );
+    harness = await connectMrtrClient((): ElicitResult => ({
+      action: "accept",
+      content: { entry: "a.yaml" },
+    }));
     const result = await harness.client.callTool({
       name: TOOL_NAMES.analyzeDocument,
       arguments: {

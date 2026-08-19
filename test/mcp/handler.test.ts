@@ -51,8 +51,7 @@ describe("mcp handler", () => {
     const { tools } = await harness.client.listTools();
     const explain = tools.find((t) => t.name === TOOL_NAMES.explainDiagnostic);
     const properties = explain?.inputSchema.properties as
-      | Record<string, { enum?: string[] }>
-      | undefined;
+      Record<string, { enum?: string[] }> | undefined;
     expect(properties?.code?.enum).toHaveLength(DIAGNOSTIC_CODES.length);
     expect(properties?.code?.enum).toEqual(expect.arrayContaining([...DIAGNOSTIC_CODES]));
   });
