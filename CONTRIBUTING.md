@@ -121,6 +121,31 @@ When adding or changing a dependency:
 See the **lockfile caution** under "Preparing a release" for the cross-platform optional-package
 (`@emnapi/*`) trap a careless regeneration triggers on the Linux CI runner.
 
+## Formatter upgrades
+
+`prettier` and `prettier-plugin-svelte` are exact-pinned in `package.json` (no `^`) and excluded
+from Dependabot's npm group ([`.github/dependabot.yml`](.github/dependabot.yml)), so upgrading
+them is a deliberate step, not part of a routine dependency batch.
+
+To upgrade:
+
+1. Bump both pins in `package.json` to the target versions.
+2. Update the matching entries in `package-lock.json` by hand — edit on top of the existing
+   lockfile rather than regenerating it, the same principle as the **lockfile caution** under
+   "Preparing a release".
+3. Run `npm run format` to reformat the repository under the new rules.
+4. Commit the reformat as a single `style:` commit, with no other changes mixed in.
+5. Append that commit's full hash to [`.git-blame-ignore-revs`](.git-blame-ignore-revs).
+
+To exclude these commits from local `git blame` output, run once:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
+GitHub's blame view honors `.git-blame-ignore-revs` automatically; the setting above only affects
+local `git blame`.
+
 ## Preparing a release
 
 Releases are cut from `main` after the change has been merged, and **pushing the version tag deploys the

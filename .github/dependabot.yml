@@ -28,6 +28,12 @@ updates:
       # Remove once both peer ranges admit TypeScript 7.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # The formatter's version is the formatting rules: any prettier or
+      # prettier-plugin-svelte bump can rewrap code, so upgrades are taken
+      # deliberately rather than through routine dependency batches. See
+      # CONTRIBUTING.md's "Formatter upgrades" section for the recipe.
+      - dependency-name: "prettier"
+      - dependency-name: "prettier-plugin-svelte"
 
   - package-ecosystem: "github-actions"
     directory: "/"
