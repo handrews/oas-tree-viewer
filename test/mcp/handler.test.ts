@@ -20,7 +20,7 @@ describe("mcp handler", () => {
     expect(result.capabilities.tools).toBeDefined();
   });
 
-  it("lists exactly the two M1 tools", async () => {
+  it("lists exactly the two tools", async () => {
     const { tools } = await harness.client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([TOOL_NAMES.analyzeDocument, TOOL_NAMES.explainDiagnostic].sort());

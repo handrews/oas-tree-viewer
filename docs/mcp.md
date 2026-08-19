@@ -3,8 +3,8 @@
 The viewer ships a demo [MCP](https://modelcontextprotocol.io) server over `src/mcp/` that exposes
 the same unified `Diagnostic[]` model the issue report and canvas glyphs already read (see
 [docs/architecture.md](architecture.md#unified-diagnostics)). It is a self-contained demo of MCP
-against this viewer's existing diagnostics — no new analysis, no factored library, one server module
-served by two local hosts and an in-page one.
+against this viewer's existing diagnostics — no new analysis, one server module served by two local
+hosts and an in-page one.
 
 Built against MCP's **2026-07-28** revision, on SDK v2
 (`@modelcontextprotocol/{server,client,node}@2`). That revision removes the `initialize` handshake —

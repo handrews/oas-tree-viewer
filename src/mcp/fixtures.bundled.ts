@@ -1,8 +1,8 @@
 // The Node fixture port. `import.meta.glob` bundles literally the same bytes the browser fetches
 // (see fixtureUrl in src/app/demos.ts) into the built .mjs, so there is no readFile/path-resolution
 // surface, no path traversal, and Node/browser parity for demo documents is a tautology rather than
-// a hope. Verified in the M0 spike: this resolves all 35 fixtures under `vite.mcp.config.ts`'s SSR
-// build, keyed like "../../public/fixtures/oads/openapi.yaml".
+// a hope. Under `vite.mcp.config.ts`'s SSR build the glob resolves all 35 fixtures, keyed like
+// "../../public/fixtures/oads/openapi.yaml".
 
 import type { FixtureSource } from "./ports";
 

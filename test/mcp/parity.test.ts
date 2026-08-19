@@ -1,5 +1,5 @@
 // Every demo's structuredContent against a committed golden — the node half of browser/Node parity
-// (see test/browser/mcpBrowserHost.svelte.test.ts, M3). Regenerate a golden only when a deliberate
+// (see test/browser/mcpBrowserHost.svelte.test.ts). Regenerate a golden only when a deliberate
 // output change makes it stale; a spontaneous diff here means output stopped being deterministic.
 
 import { readFileSync } from "node:fs";
