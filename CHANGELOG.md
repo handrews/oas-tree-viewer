@@ -5,7 +5,7 @@ All notable changes to the OpenAPI Description Structure Viewer are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.0] — 2026-08-18
 
 ### Added
 
@@ -17,6 +17,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   requests. Run it locally over stdio or Streamable HTTP (`npm run mcp`, `npm run mcp:http`), or try
   it in-page at `/mcp`, reachable from a rendered view's toolbar. See
   [docs/mcp.md](docs/mcp.md).
+
+### Changed
+
+- Tightened the built-in demos' labels and descriptions.
 
 ## [0.9.0] — 2026-06-26
 
@@ -303,7 +307,7 @@ Initial deployment.
   target.
 - A **Vitest** test suite with enforced coverage.
 
-[Unreleased]: https://github.com/handrews/oas-tree-viewer/compare/v0.9.0...HEAD
+[0.10.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.3...v0.9.0
 [0.8.3]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/handrews/oas-tree-viewer/compare/v0.8.1...v0.8.2
