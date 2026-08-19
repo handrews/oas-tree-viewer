@@ -6,7 +6,7 @@ import { demos } from "../../src/app/demos";
 // Smoke test: the configure page surfaces the source form and a button per demo. The
 // navigation it triggers is exercised end-to-end in the Playwright e2e suite.
 test("ConfigurePage shows the source form and one button per demo", async () => {
-  render(ConfigurePage);
+  await render(ConfigurePage);
 
   expect(document.querySelector(".oad-form")).not.toBeNull();
   // The render action now lives inside the resolution-options box, outside the form (it submits the

@@ -9,7 +9,7 @@ beforeEach(() => {
 
 test("reflects the current theme and toggles on click", async () => {
   applyTheme("dark");
-  const screen = render(ThemeToggle);
+  const screen = await render(ThemeToggle);
 
   const toLight = screen.getByRole("button", { name: "Switch to light theme" });
   await expect.element(toLight).toHaveTextContent("☾");

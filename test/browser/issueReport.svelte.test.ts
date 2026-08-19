@@ -41,13 +41,13 @@ const report: IssueReportData = {
   total: 4,
 };
 
-test("renders nothing when there is no report", () => {
-  render(IssueReport, { report: null });
+test("renders nothing when there is no report", async () => {
+  await render(IssueReport, { report: null });
   expect(document.querySelector("#issues")).toBeNull();
 });
 
 test("lists reference and document issues", async () => {
-  const screen = render(IssueReport, { report });
+  const screen = await render(IssueReport, { report });
   await expect.element(screen.getByText("Unresolved references (1)")).toBeVisible();
   await expect.element(screen.getByText("Reference advisories (1)")).toBeVisible();
   await expect.element(screen.getByText("Reference-resolution advisories (1)")).toBeVisible();
@@ -63,7 +63,7 @@ test("Copy report writes the formatted text to the clipboard", async () => {
   const writeText = vi.fn().mockResolvedValue(undefined);
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
 
-  render(IssueReport, { report });
+  await render(IssueReport, { report });
   (document.querySelector(".copy-report") as HTMLButtonElement).click();
 
   await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
@@ -72,7 +72,7 @@ test("Copy report writes the formatted text to the clipboard", async () => {
 
 test("a located row reveals its node via onJump when clicked", async () => {
   const onJump = vi.fn();
-  render(IssueReport, { report, onJump });
+  await render(IssueReport, { report, onJump });
   // The first located row is the broken reference at doc "a", pointer "/paths/p".
   (document.querySelector(".issue-loc.nav-ref") as HTMLButtonElement).click();
   expect(onJump).toHaveBeenCalledWith("a", "/paths/p");

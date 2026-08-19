@@ -7,7 +7,7 @@ import { defaultConfig } from "../../src/app/config";
 // (served from public/), runs the load → resolve pipeline, and renders the tree plus the
 // issue drawer. This exercises the whole request → pipeline → render path in a real browser.
 test("ViewPage loads a demo by request and renders the tree + issue drawer", async () => {
-  render(ViewPage, { request: { kind: "demo", demoId: "refs" }, config: defaultConfig });
+  await render(ViewPage, { request: { kind: "demo", demoId: "refs" }, config: defaultConfig });
 
   // The refs demo loads two documents, so two trees render.
   await expect
@@ -18,7 +18,10 @@ test("ViewPage loads a demo by request and renders the tree + issue drawer", asy
 });
 
 test("ViewPage shows an error state for an unknown demo", async () => {
-  render(ViewPage, { request: { kind: "demo", demoId: "does-not-exist" }, config: defaultConfig });
+  await render(ViewPage, {
+    request: { kind: "demo", demoId: "does-not-exist" },
+    config: defaultConfig,
+  });
 
   await expect.poll(() => document.querySelector(".view-error")).not.toBeNull();
   expect(document.querySelector(".view-back")).not.toBeNull();
@@ -28,7 +31,7 @@ test("ViewPage refuses an over-deep document, then 'Load anyway' renders it", as
   // The fixture nests `items` ~143 levels deep — past the default depth cap (128) but well under the
   // stack-overflow floor, so lifting the limit renders it. Exercises the real fetch → guard → override
   // path end to end.
-  render(ViewPage, {
+  await render(ViewPage, {
     request: { kind: "urls", docs: [{ url: "/fixtures/too-deeply-nested.json", isEntry: true }] },
     config: defaultConfig,
   });

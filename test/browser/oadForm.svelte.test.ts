@@ -58,13 +58,13 @@ async function submit(): Promise<void> {
 const url = (rowEl: HTMLElement): HTMLInputElement =>
   rowEl.querySelector("input.url") as HTMLInputElement;
 
-test("starts with a single entry row", () => {
-  render(OadForm, { onRender: okRender() });
+test("starts with a single entry row", async () => {
+  await render(OadForm, { onRender: okRender() });
   expect(roleTexts()).toEqual(["Entry document"]);
 });
 
 test("re-labels on add and promotes the entry when the first row is removed", async () => {
-  render(OadForm, { onRender: okRender() });
+  await render(OadForm, { onRender: okRender() });
   (document.querySelector(".add-row") as HTMLButtonElement).click();
   await tick();
   (document.querySelector(".add-row") as HTMLButtonElement).click();
@@ -77,21 +77,21 @@ test("re-labels on add and promotes the entry when the first row is removed", as
 });
 
 test("the URL field label adapts to the local source", async () => {
-  render(OadForm, { onRender: okRender() });
+  await render(OadForm, { onRender: okRender() });
   expect(url(rows()[0]!).placeholder).toMatch(/URL to fetch/);
   await setFile(rows()[0]!, "e.yaml");
   expect(url(rows()[0]!).placeholder).toMatch(/Retrieval URL/);
 });
 
 test("the URL field becomes a folder base after a directory is chosen", async () => {
-  render(OadForm, { onRender: okRender() });
+  await render(OadForm, { onRender: okRender() });
   await setFolder(rows()[0]!, [fileWith("openapi.yaml", "oad/openapi.yaml")]);
   expect(url(rows()[0]!).placeholder).toMatch(/Base URL/);
 });
 
 test("submits an uploaded file as an upload input, isEntry on the first row", async () => {
   const onRender = okRender();
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   await setFile(rows()[0]!, "entry.yaml");
   await submit();
   await vi.waitFor(() => expect(onRender).toHaveBeenCalledTimes(1));
@@ -108,7 +108,7 @@ test("submits an uploaded file as an upload input, isEntry on the first row", as
 
 test("uses the row URL as the retrieval URI when a file is also present", async () => {
   const onRender = okRender();
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   await setFile(rows()[0]!, "entry.yaml");
   fill(url(rows()[0]!), "https://example.com/entry.yaml");
   await tick();
@@ -123,7 +123,7 @@ test("uses the row URL as the retrieval URI when a file is also present", async 
 
 test("a URL with no local file becomes a fetched url input", async () => {
   const onRender = okRender();
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   fill(url(rows()[0]!), "https://a/entry.yaml");
   await tick();
   await submit();
@@ -135,7 +135,7 @@ test("a URL with no local file becomes a fetched url input", async () => {
 
 test("reports a per-row presence error for an empty row and does not call onRender", async () => {
   const onRender = okRender();
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   await submit();
   await vi.waitFor(() => {
     const err = rows()[0]!.querySelector(".row-error") as HTMLElement;
@@ -147,7 +147,7 @@ test("reports a per-row presence error for an empty row and does not call onRend
 
 test("loads a folder, defaults the entry by convention, and ignores non-OAS files", async () => {
   const onRender = okRender();
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   await setFolder(rows()[0]!, [
     fileWith("pet.yaml", "oad/schemas/pet.yaml"),
     fileWith("README.md", "oad/README.md"),
@@ -174,7 +174,7 @@ test("loads a folder, defaults the entry by convention, and ignores non-OAS file
 
 test("the entry picker chooses which folder document is the entry", async () => {
   const onRender = okRender();
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   await setFolder(rows()[0]!, [
     fileWith("openapi.yaml", "oad/openapi.yaml"),
     fileWith("alt.yaml", "oad/alt.yaml"),
@@ -196,7 +196,7 @@ test("the entry picker chooses which folder document is the entry", async () => 
 
 test("maps the folder onto a supplied base URL", async () => {
   const onRender = okRender();
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   await setFolder(rows()[0]!, [
     fileWith("openapi.yaml", "myoad/openapi.yaml"),
     fileWith("pet.yaml", "myoad/schemas/pet.yaml"),
@@ -216,7 +216,7 @@ test("attributes a flattened-input error back to its owning row (bundle expands 
     ok: false,
     rowErrors: { 2: "second doc bad" },
   }));
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   await setFolder(rows()[0]!, [
     fileWith("openapi.yaml", "oad/openapi.yaml"),
     fileWith("pet.yaml", "oad/schemas/pet.yaml"),
@@ -237,7 +237,7 @@ test("displays an OAD-level error returned by onRender", async () => {
     ok: false,
     oadError: "boom",
   }));
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   fill(url(rows()[0]!), "https://a/x.yaml");
   await tick();
   await submit();
@@ -257,7 +257,7 @@ test("offers 'Load anyway' on a limited failure and retries with the limits lift
       limited: true,
     })
     .mockResolvedValueOnce({ ok: true });
-  render(OadForm, { onRender });
+  await render(OadForm, { onRender });
   fill(url(rows()[0]!), "https://a/big.yaml");
   await tick();
   await submit();
@@ -282,7 +282,7 @@ test("offers 'Load anyway' on a limited failure and retries with the limits lift
 });
 
 test("clears a chosen file back to the picker", async () => {
-  render(OadForm, { onRender: okRender() });
+  await render(OadForm, { onRender: okRender() });
   await setFile(rows()[0]!, "e.yaml");
   (rows()[0]!.querySelector(".clear-local") as HTMLButtonElement).click();
   await tick();
@@ -291,7 +291,7 @@ test("clears a chosen file back to the picker", async () => {
 });
 
 test("promotes another row to entry with Make entry", async () => {
-  render(OadForm, { onRender: okRender() });
+  await render(OadForm, { onRender: okRender() });
   (document.querySelector(".add-row") as HTMLButtonElement).click();
   await tick();
   await setFile(rows()[0]!, "first.yaml");

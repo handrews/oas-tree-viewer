@@ -7,7 +7,7 @@ import { defaultConfig } from "../../src/app/config";
 // capabilities, and the wire log shows the actual MCP-required headers on every exchange —
 // `MCP-Protocol-Version` and `Mcp-Method` from the start, `Mcp-Name` once a tool is actually called.
 test("McpPage connects, lists capabilities, and analyzes a demo with a real wire log", async () => {
-  const screen = render(McpPage, {
+  const screen = await render(McpPage, {
     request: { kind: "demo", demoId: "refs" },
     config: defaultConfig,
   });
