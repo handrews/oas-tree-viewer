@@ -178,7 +178,7 @@ set (14 diagnostic codes, 12 demos and their fixed document sets), so nothing he
     {
       "uri": "oas://demo/refs",
       "mimeType": "application/json",
-      "text": "{\"id\":\"refs\",\"label\":\"Broken & external references (3.1)\",\"description\":\"A two-document OAD that exercises every reference outcome — resolved, type-mismatch, broken, and external — so the issue report and warning glyphs have something to show.\",\"config\":{},\"documents\":[{\"filename\":\"refs-3.1.yaml\",\"isEntry\":true,\"retrievalUri\":\"https://example.com/oad/entry.yaml\"},{\"filename\":\"refs-shared-3.1.yaml\",\"isEntry\":false,\"retrievalUri\":\"https://example.com/oad/shared.yaml\"}]}"
+      "text": "{\"id\":\"refs\",\"label\":\"Broken & external references (3.1)\",\"description\":\"A two-document OAD that exercises every reference outcome (resolved, type-mismatch, broken, and external) to demonstrate the issue report and various warning and error indicators.\",\"config\":{},\"documents\":[{\"filename\":\"refs-3.1.yaml\",\"isEntry\":true,\"retrievalUri\":\"https://example.com/oad/entry.yaml\"},{\"filename\":\"refs-shared-3.1.yaml\",\"isEntry\":false,\"retrievalUri\":\"https://example.com/oad/shared.yaml\"}]}"
     }
   ]
 }
