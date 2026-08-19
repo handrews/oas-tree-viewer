@@ -6,6 +6,8 @@
 #
 # Everything else is a *version update*: run weekly and collapsed into a single catch-all group per ecosystem,
 # so routine bumps land as at most one PR per ecosystem per week (npm and GitHub Actions can't share a PR).
+# npm majors are excluded from the group and arrive as individual PRs, so one incompatible major
+# cannot block the whole routine batch.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -17,6 +19,15 @@ updates:
         applies-to: version-updates
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # svelte-check (peer ^5 || ^6) and typescript-eslint (peer <6.1.0) do not accept
+      # TypeScript 7 yet; every batch that includes it fails `npm ci` with ERESOLVE.
+      # Remove once both peer ranges admit TypeScript 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
