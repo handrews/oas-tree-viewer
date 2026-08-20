@@ -21,7 +21,7 @@ test("McpPage connects, lists capabilities, and analyzes a demo with a real wire
     config: defaultConfig,
   });
 
-  await expect.element(screen.getByText(/Analyzing demo/)).toBeVisible();
+  await expect.element(screen.getByText(/MCP interface for demo/)).toBeVisible();
   // A demo source has a /view equivalent, so the round trip back to the explorer is offered.
   await expect.element(screen.getByRole("button", { name: "Render OAD" })).toBeVisible();
 
@@ -102,7 +102,7 @@ test("Render OAD is hidden for a raw-docs handoff with no session.result to repr
   };
   const screen = await render(McpPage, { request: null, config: defaultConfig });
 
-  await expect.element(screen.getByText(/Analyzing: entry\.yaml/)).toBeVisible();
+  await expect.element(screen.getByText(/MCP interface for: entry\.yaml/)).toBeVisible();
   expect(document.querySelector(".mcp-view-open")).toBeNull();
 });
 
@@ -113,7 +113,7 @@ test("Capabilities is collapsed by default and opens on click", async () => {
     request: { kind: "demo", demoId: "refs" },
     config: defaultConfig,
   });
-  await expect.element(screen.getByText(/Analyzing demo/)).toBeVisible();
+  await expect.element(screen.getByText(/MCP interface for demo/)).toBeVisible();
 
   await expect
     .poll(() => document.querySelector(".mcp-caps-details"), { timeout: 5000 })
@@ -133,7 +133,7 @@ test("the wire log groups exchanges — a collapsed discovery group, then one ex
     request: { kind: "demo", demoId: "refs" },
     config: defaultConfig,
   });
-  await expect.element(screen.getByText(/Analyzing demo/)).toBeVisible();
+  await expect.element(screen.getByText(/MCP interface for demo/)).toBeVisible();
 
   await expect
     .poll(() => document.querySelectorAll(".wire-group").length, { timeout: 5000 })
@@ -162,7 +162,7 @@ test("the result section renders immediately after the call section in the DOM",
     request: { kind: "demo", demoId: "refs" },
     config: defaultConfig,
   });
-  await expect.element(screen.getByText(/Analyzing demo/)).toBeVisible();
+  await expect.element(screen.getByText(/MCP interface for demo/)).toBeVisible();
 
   await expect
     .poll(() => document.querySelector(".mcp-call-section"), { timeout: 5000 })
@@ -185,7 +185,7 @@ test("the Call a tool section reuses the Configure page's shared config widgets"
     request: { kind: "demo", demoId: "refs" },
     config: defaultConfig,
   });
-  await expect.element(screen.getByText(/Analyzing demo/)).toBeVisible();
+  await expect.element(screen.getByText(/MCP interface for demo/)).toBeVisible();
 
   await expect
     .poll(() => document.querySelector(".mcp-call-section .load-behavior"), { timeout: 5000 })

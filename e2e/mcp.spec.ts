@@ -9,7 +9,7 @@ test.describe("MCP demo page", () => {
 
     await page.getByRole("button", { name: "Try it over MCP" }).click();
     await expect(page).toHaveURL(/\/mcp\?demo=refs/);
-    await expect(page.getByText(/Analyzing demo/)).toBeVisible();
+    await expect(page.getByText(/MCP interface for demo/)).toBeVisible();
 
     // Capabilities and the wire log come from a real handshake over the real handler, grouped under
     // the connect/discovery action and collapsed by default.
@@ -67,7 +67,7 @@ test.describe("MCP demo page", () => {
     page,
   }) => {
     await page.goto("mcp?demo=fragment");
-    await expect(page.getByText(/Analyzing demo/)).toBeVisible();
+    await expect(page.getByText(/MCP interface for demo/)).toBeVisible();
 
     await page.getByRole("button", { name: /^Call / }).click();
 
@@ -102,7 +102,7 @@ test.describe("MCP demo page", () => {
     // Url-only inputs stay bookmarkable, same as a direct /view?doc= load — no pipeline ever ran on
     // the configure page; McpPage fetches the documents itself.
     await expect(page).toHaveURL(/\/mcp\?doc=/);
-    await expect(page.getByText(/Analyzing: petstore-3\.1\.yaml/)).toBeVisible();
+    await expect(page.getByText(/MCP interface for: petstore-3\.1\.yaml/)).toBeVisible();
     await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -134,7 +134,7 @@ test.describe("MCP demo page", () => {
     // widen it before finding out (via the elicitation) that they needed to.
     await page.getByRole("button", { name: "Try it over MCP" }).click();
     await expect(page).toHaveURL(/\/mcp\?doc=/);
-    await expect(page.getByText(/Analyzing: ref-to-fragment-3\.0\.yaml/)).toBeVisible();
+    await expect(page.getByText(/MCP interface for: ref-to-fragment-3\.0\.yaml/)).toBeVisible();
 
     await page.getByRole("button", { name: /^Call / }).click();
 
@@ -145,7 +145,7 @@ test.describe("MCP demo page", () => {
 
   test("Render OAD from the MCP page opens the same source in the explorer", async ({ page }) => {
     await page.goto("mcp?demo=refs");
-    await expect(page.getByText(/Analyzing demo/)).toBeVisible();
+    await expect(page.getByText(/MCP interface for demo/)).toBeVisible();
 
     await page.getByRole("button", { name: "Render OAD" }).click();
     await expect(page).toHaveURL(/\/view\?demo=refs/);

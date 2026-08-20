@@ -70,7 +70,9 @@ const ConfigInputSchema = z
     componentLookup: ComponentLookupEnum.optional(),
     fragments: FragmentsEnum.optional(),
   })
-  .describe("Resolution options, mirroring the viewer's Configure page.")
+  .describe(
+    "Resolution choices the OAS leaves implementation-defined: reference and fragment handling.",
+  )
   .meta({ title: "Resolution options" });
 
 const MinSeverityEnum = SeverityEnum.describe(

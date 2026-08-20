@@ -35,7 +35,7 @@ Loads an OAD (one or more OpenAPI/JSON Schema documents) and returns its diagnos
 mismatched references, reference advisories, resolution caveats, unreachable documents, and
 unvalidated Schema Objects — the same findings the viewer's issue report shows.
 
-Input, mirroring `ViewerConfig` field-for-field:
+Input, the same fields as `ViewerConfig` (`src/app/config.ts`), plus `minSeverity`:
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -266,14 +266,15 @@ types, with no configuration difference between them beyond what each tool actua
 ## Multi round-trip requests (MRTR)
 
 Two genuinely necessary triggers — no theater. Both are preconditions the server cannot resolve on
-its own, mirroring choices the app's own Configure page already asks a person to make.
+its own — the same two choices the app's Configure page already asks a person to make, asked here
+because the caller hasn't answered them yet.
 
 **Fragment consent.** A document that is neither a complete OpenAPI description nor a recognized
 JSON Schema document loads only if `config.fragments` is widened from its `"none"` default. Rather
 than silently retrying with a looser setting, the tool elicits the choice — `"none"` / `"root"` /
-`"any"` — exactly mirroring the Configure page's own **Document types** selector; both read their
-wording from the same module (`src/fragmentsText.ts`), which is also where the elicitation's
-`requestedSchema` gets its `title`/`description`.
+`"any"` — the same wording as the Configure page's own **Document types** selector; both read it from
+`src/fragmentsText.ts`, which is also where the elicitation's `requestedSchema` gets its
+`title`/`description`.
 
 **Ambiguous entry document.** Inline `documents[]` with zero or more than one `isEntry: true` elicits
 which filename is the entry, since `assembleOad` requires exactly one.

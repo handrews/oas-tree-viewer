@@ -28,7 +28,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   (`src/ui/DocumentTypesSelect.svelte`, `src/ui/ResolutionOptions.svelte`) instead of a
   schema-generated lookalike — same labels, same classes, less vertical space, so the result panel
   is visible without scrolling on shorter screens. Its Call button reads "Call tool" (here and on
-  `explain-diagnostic`'s still schema-generated form).
+  `explain-diagnostic`'s still schema-generated form), the empty-result message reads "Call a tool
+  above to see the result here", and the source strip reads "MCP interface for …" instead of
+  "Analyzing …".
 - **"Try it over MCP" no longer runs a local pipeline.** A URL-only source encodes straight into the
   bookmarkable `/mcp?doc=...` request, which the MCP page fetches itself; a source that includes an
   upload is materialized to raw text and handed off in memory. Either way, no local load/validate
@@ -42,7 +44,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **One shared vocabulary for the "Document types" (fragments) setting.** The Configure page's
   selector, the loader's unrecognized-document error, the MCP tool's schema
   (`title`/`description` on `config.fragments`), and the fragment-consent elicitation message all
-  read their wording from one module (`src/app/fragmentsText.ts`) instead of four independent copies.
+  read their wording from one module (`src/fragmentsText.ts`) instead of four independent copies.
+- **Self-contained schema/doc wording.** The `config` input's `.describe()` text and a few passages
+  in `docs/mcp.md` used to describe themselves by pointing back at the Configure page ("mirroring the
+  viewer's Configure page…"); both now state the actual choice on their own terms. `minSeverity` also
+  gained a `title`/`description`, matching the other `analyze-document` fields.
 
 ### Removed
 

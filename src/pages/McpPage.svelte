@@ -360,11 +360,11 @@
         {:else if fetchError}
           <span class="mcp-error" role="alert">{fetchError}</span>
         {:else if source?.kind === "demo"}
-          Analyzing demo &quot;{source.label}&quot; · {session.current
+          MCP interface for demo &quot;{source.label}&quot; · {session.current
             ? "from the current view"
             : "from this link"}
         {:else if source?.kind === "inline"}
-          Analyzing: {source.entry} · {source.docs.length} document{source.docs.length === 1
+          MCP interface for: {source.entry} · {source.docs.length} document{source.docs.length === 1
             ? ""
             : "s"} · from {inlineOrigin}
         {/if}
@@ -483,7 +483,7 @@
                   </details>
                 {/if}
               {:else}
-                <p class="mcp-result-empty">No result yet — call a tool above.</p>
+                <p class="mcp-result-empty">Call a tool above to see the result here.</p>
               {/if}
             </section>
           </div>
