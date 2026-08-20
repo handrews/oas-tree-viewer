@@ -1,19 +1,25 @@
 <script lang="ts">
-  import type { DocInput } from "../loader";
+  import { fetchUrlDocument, type DocInput } from "../loader";
   import OadForm from "../ui/OadForm.svelte";
+  import DocumentTypesSelect from "../ui/DocumentTypesSelect.svelte";
+  import ResolutionOptions from "../ui/ResolutionOptions.svelte";
   import type { RenderOutcome, RenderOptions } from "../ui/oadForm";
   import { pipelineClient, PipelineCancelled } from "../app/pipelineClient";
   import { errorMessage } from "../errors";
   import { demos, type Demo } from "../app/demos";
-  import { session } from "../app/session.svelte";
+  import { session, type McpRawDoc } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
-  import { viewPath, mcpPath, type ViewRequest } from "../app/viewUrl";
+  import { viewPath, mcpPath } from "../app/viewUrl";
   import { type ViewerConfig, defaultConfig } from "../app/config";
 
-  // The Configure page: choose document sources (the existing form) or a pre-built demo,
-  // set resolution options, then route to the Explore page. Online-URL and demo renders
-  // encode fully into the view URL (bookmarkable); upload renders are resolved here and
-  // handed off in memory. The resolution config is applied at render and carried in the URL.
+  // The Configure page: choose document sources (the existing form) or a pre-built demo, set
+  // resolution options, then route to the Explore page or the MCP page. Rendering to the Explore
+  // page resolves online-URL and demo sources into the bookmarkable view URL directly; an upload is
+  // resolved here (pipeline in a worker) and handed off in memory. Routing to the MCP page never runs
+  // the pipeline at all — it wants document text, not a rendered OAD — so a URL-only source is handed
+  // to McpPage as a bookmarkable request it fetches itself, and a source with an upload is
+  // materialized to raw text and handed off in memory (see `handOffToMcp`). The resolution config is
+  // applied at render and carried in the URL either way.
   let config = $state<ViewerConfig>({ ...defaultConfig });
   // True while an upload render is running in the worker; flips the Render button to Cancel.
   let busy = $state(false);
@@ -30,15 +36,29 @@
 
   async function onRender(inputs: DocInput[], opts: RenderOptions = {}): Promise<RenderOutcome> {
     const docs = urlDocs(inputs);
-    if (destination === "view" && docs) {
+
+    if (destination === "mcp") {
+      // A fresh click always supersedes whatever an earlier one left behind — otherwise a stale
+      // upload handoff from a previous click could shadow this click's own (possibly URL-only)
+      // source once McpPage prioritizes the handoff over its URL request.
+      session.mcpDocs = null;
+      if (docs) {
+        // Bookmarkable and reload-proof: McpPage fetches these itself, so there's nothing to
+        // resolve here, and nothing that would elicit ever gets blocked by a local pipeline run.
+        navigate(mcpPath({ kind: "urls", docs }, config));
+        return { ok: true };
+      }
+      return handOffToMcp(inputs);
+    }
+
+    if (docs) {
       navigate(viewPath({ kind: "urls", docs }, config));
       return { ok: true };
     }
+
     // Anything with an uploaded file can't live in a URL, so resolve it here — keeping per-row / OAD
-    // errors inline on the form. Routing to /mcp also resolves here even for url-only inputs: McpPage
-    // prefers `session.current` over its own URL request, so navigating there with a stale
-    // `session.current` would analyze the wrong documents — it must be refreshed first. The pipeline
-    // runs in a worker so the page stays responsive and the load can be cancelled.
+    // errors inline on the form. The pipeline runs in a worker so the page stays responsive and the
+    // load can be cancelled.
     busy = true;
     try {
       // `inputs` (the form may hand back its reactive `lastInputs` on a "Load anyway" retry) and
@@ -58,22 +78,53 @@
         refs: result.refs,
         diagnostics: result.diagnostics,
       };
-      if (destination === "mcp") {
-        const request: ViewRequest = docs ? { kind: "urls", docs } : { kind: "session" };
-        session.current = {
-          oad: result.oad,
-          diagnostics: result.diagnostics,
-          config: configSnapshot,
-          request,
-        };
-        navigate(mcpPath(request.kind === "urls" ? request : null, config));
-        return { ok: true };
-      }
       navigate(viewPath({ kind: "session" }, config));
       return { ok: true };
     } catch (e) {
       if (e instanceof PipelineCancelled) return { ok: false, cancelled: true };
       return { ok: false, oadError: errorMessage(e) };
+    } finally {
+      busy = false;
+    }
+  }
+
+  /**
+   * Materialize a document set that includes at least one upload into raw text and hand it to
+   * McpPage in memory — no pipeline run, since the tool wants document text, not a rendered OAD.
+   * Every upload already carries its text (the form read it at file-select time); a URL row mixed
+   * into the same set is fetched here with the same acquisition `loader.ts`'s own url branch uses,
+   * so a failed fetch surfaces as the usual per-row form error rather than a broken /mcp navigation.
+   */
+  async function handOffToMcp(inputs: DocInput[]): Promise<RenderOutcome> {
+    busy = true;
+    try {
+      const docs: McpRawDoc[] = [];
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i]!;
+        if (input.source === "upload") {
+          docs.push({
+            filename: input.filename,
+            text: input.text,
+            retrievalUri: input.retrievalUri,
+            isEntry: input.isEntry,
+          });
+          continue;
+        }
+        try {
+          const doc = await fetchUrlDocument(input);
+          docs.push({
+            filename: doc.filename ?? input.url,
+            text: doc.text,
+            retrievalUri: doc.retrievalUri,
+            isEntry: input.isEntry,
+          });
+        } catch (e) {
+          return { ok: false, rowErrors: { [i]: errorMessage(e) } };
+        }
+      }
+      session.mcpDocs = { docs, config: $state.snapshot(config), request: { kind: "session" } };
+      navigate(mcpPath(null, config));
+      return { ok: true };
     } finally {
       busy = false;
     }
@@ -94,41 +145,13 @@
 <section id="input-panel" aria-label="OAD input">
   <div class="config-group">
     <div class="doc-region">
-      <!-- Document-type selector, labeled to its left, above the documents it governs. The visible
-           "Document types" text is the select's accessible name (so no aria-label). -->
-      <label class="load-behavior-field">
-        <span class="load-behavior-label">Document types</span>
-        <select class="load-behavior" bind:value={config.fragments}>
-          <option value="none">Complete OpenAPI or JSON Schema documents only</option>
-          <option value="root"
-            >Allow fragmentary OpenAPI documents if their root is referenced</option
-          >
-          <option value="any">Allow any fragmentary OpenAPI document</option>
-        </select>
-      </label>
+      <!-- Document-type selector, above the documents it governs. -->
+      <DocumentTypesSelect bind:config />
       <OadForm {onRender} />
     </div>
 
     <div class="resolution-box">
-      <details class="resolution-options">
-        <summary>Resolution options</summary>
-        <div class="option-body">
-          <label class="option">
-            <span class="option-label">Discriminator <code>mapping</code> values resolve as</span>
-            <select class="option-select" bind:value={config.mappingPrecedence}>
-              <option value="name-first">a component name first (default)</option>
-              <option value="uri-first">a URI-reference first</option>
-            </select>
-          </label>
-          <label class="option">
-            <span class="option-label">Look up component names in</span>
-            <select class="option-select" bind:value={config.componentLookup}>
-              <option value="entry">the entry document (default)</option>
-              <option value="local">the local document</option>
-            </select>
-          </label>
-        </div>
-      </details>
+      <ResolutionOptions bind:config />
       <!-- Sits inside the options box and on its header line (shown whether the box is open or closed),
          but is a sibling of <details> rather than nested in <summary> — nesting interactive controls is
          a serious a11y violation. Both buttons submit the OadForm by its id; each sets `destination`

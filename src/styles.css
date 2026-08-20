@@ -1381,33 +1381,90 @@ body {
   color: var(--text-dim);
   margin-bottom: 0.4rem;
 }
-.mcp-page > section {
+.mcp-page > section,
+.mcp-workbench-main > section,
+.mcp-workbench-wire > section,
+.mcp-caps-details {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.9rem 1rem;
 }
+
+/* Workbench layout: left column is the action side (source → call → result, the elicitation panel
+   included since it's the call's result), right column is the wire log — every left-hand action
+   should visibly produce traffic on the right within one viewport, hence the sticky column. Below
+   900px (matching the viewer's own breakpoint) it collapses to one column in DOM order, which is
+   already source → call → result → wire log; the sticky column becomes a plain block. */
+.mcp-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  align-items: start;
+  gap: 1.1rem;
+}
+.mcp-workbench-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+.mcp-workbench-wire {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .mcp-workbench {
+    grid-template-columns: 1fr;
+  }
+  .mcp-workbench-wire {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+/* Capabilities: collapsed by default (see McpPage.svelte) — a `<details>` needs no ARIA to be an
+   accessible disclosure, so its own summary text carries what an h2 used to. */
+.mcp-caps-details > summary {
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.mcp-caps-details[open] > summary {
+  margin-bottom: 0.7rem;
+}
+.mcp-caps-details summary code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.mcp-caps-more {
+  font-family: var(--font);
+  font-size: 0.78rem;
+  background: none;
+  border: none;
+  color: var(--link);
+  cursor: pointer;
+  padding: 0;
+}
+.mcp-caps-more:hover {
+  text-decoration: underline;
+}
+
+.mcp-result-empty {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
 .mcp-source-strip {
   font-size: 0.88rem;
   color: var(--text-dim);
 }
-/* Inline with the strip's sentence rather than a block button: leaving a scenario is a small
-   correction, not a primary action. */
-.scenario-clear {
-  margin-left: 0.5rem;
-  padding: 0.1rem 0.45rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.scenario-clear:hover {
-  border-color: var(--text-dim);
-}
-/* Same inline placement as .scenario-clear, but a return trip to the rendered view — so it takes the
-   --link styling of a real action rather than a small correction. */
+/* Inline with the strip's sentence rather than a block button — a return trip to the rendered view is
+   a small, secondary action, not the primary one. */
 .mcp-view-open {
   margin-left: 0.5rem;
   padding: 0.1rem 0.5rem;
@@ -1434,7 +1491,7 @@ body {
 .mcp-caps-header {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.6rem;
 }
 .mcp-refresh {
@@ -1478,23 +1535,9 @@ body {
   margin-bottom: 0.35rem;
 }
 
-/* Tool picker + arguments form */
-.mcp-tool-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.8rem;
-  font-size: 0.88rem;
-}
-.mcp-tool-picker select {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 0.35rem 0.5rem;
-  font-size: 0.85rem;
-  font-family: var(--font);
-}
+/* Arguments form (explain-diagnostic's schema-generated fields; analyze-document's Tool row and
+   config widgets reuse the Configure page's own .load-behavior-field / .option classes instead —
+   see the "Document-type / resolution group" rules above and McpPage.svelte). */
 .args-form {
   display: flex;
   flex-direction: column;
@@ -1538,6 +1581,13 @@ body {
 .args-checkbox {
   flex-direction: row;
   align-items: center;
+}
+/* The schema's `.describe()` text (see src/mcp/schemas.ts), shown under a field's label — same tone
+   as the Configure page's own option copy, not a validation warning. */
+.args-hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-dim);
 }
 .args-submit {
   font-family: var(--font);
@@ -1634,10 +1684,34 @@ body {
 }
 
 /* Wire log */
+.wire-groups {
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+.wire-group > details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+.wire-group > details > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+/* Styled like a link but not a real interactive element (see McpPage.svelte's openCapabilities) —
+   nesting a focusable control inside <summary>, which is itself focusable, fails WCAG 4.1.2. */
+.wire-connect-link {
+  color: var(--link);
+  text-decoration: underline;
+  cursor: pointer;
+}
 .wire-log {
   list-style: none;
   display: grid;
   gap: 0.5rem;
+  margin-top: 0.6rem;
 }
 .wire-exchange > details {
   border: 1px solid var(--border);
@@ -1655,6 +1729,11 @@ body {
 .wire-method {
   font-weight: 700;
   font-family: var(--mono);
+}
+.wire-subject {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--link);
 }
 .wire-status,
 .wire-ct {

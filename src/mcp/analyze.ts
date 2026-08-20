@@ -14,6 +14,7 @@ import type { Oad } from "../types";
 import type { Diagnostic } from "../diagnostics/types";
 import { runPipeline, type PipelineResult } from "../app/bootstrap";
 import { defaultConfig, type ViewerConfig } from "../app/config";
+import { FRAGMENTS_LOAD_HINT } from "../fragmentsText";
 import { demoById, demoInputs } from "../app/demos";
 import { diagnosticCatalog, severityFor } from "../diagnostics/catalog";
 import {
@@ -121,15 +122,18 @@ export async function runAnalysis(
   const materialized = await materializeDocs(deps, args.demo, documents, signal, notify);
   if (!materialized.ok) return materialized;
 
-  // A demo's own config partial (e.g. "fragment" needs `fragments: "root"` just to load) wins over
-  // the caller's override, mirroring ConfigurePage.svelte's `{ ...config, ...demo.config }` — without
-  // this, the fragment demos would fail to load through this tool at all. An answered fragment-consent
-  // elicitation wins over both: it is what the caller just told this specific call to do.
+  // A demo's own config partial (e.g. "fragment" needs `fragments: "root"` just to load) is only a
+  // DEFAULT here — unlike ConfigurePage.svelte's `openDemo`, where a demo's config always wins for a
+  // smooth built-in-demo experience. A caller that names no config still gets the demo's default, but
+  // one that sends an explicit config is deliberately overriding it: `{ demo: "fragment", config: {
+  // fragments: "none" } }` must genuinely elicit rather than silently loading anyway, or the consent
+  // question this tool asks isn't a real question. An answered fragment-consent elicitation wins over
+  // both — it is what the caller just told this specific call to do.
   const demoConfig = args.demo !== undefined ? demoById(args.demo)?.config : undefined;
   const config: ViewerConfig = {
     ...defaultConfig,
-    ...args.config,
     ...demoConfig,
+    ...args.config,
     ...(decisions.fragments !== undefined ? { fragments: decisions.fragments } : {}),
   };
 
@@ -189,17 +193,13 @@ function pipelineErrorMessage(result: Extract<PipelineResult, { ok: false }>): s
   return "Could not load the document set.";
 }
 
-// The exact tail of `NotOpenApiError`'s message for an unrecognized, non-fragment document
-// (src/loader.ts's `detectKind`) — the one stable signal `runPipeline` exposes for this condition.
-// `runPipeline` converts every per-document error to a plain string (`rowErrors`), discarding the
-// error's type, so matching this fixed suffix is the only way to distinguish "needs fragment consent"
-// from any other load failure without changing the engine.
-const FRAGMENT_HINT_SUFFIX = "Enable document fragments to load it anyway.";
-
 /** Whether a failed pipeline run is specifically the fragment-consent case. Requires EVERY row error
  *  to be the fragment one, not just one of several: if another document failed for an unrelated
  *  reason, enabling fragments would not actually fix the load, so asking for consent would just cost
- *  a round trip before the caller hits that other error anyway. */
+ *  a round trip before the caller hits that other error anyway. `runPipeline` converts every
+ *  per-document error to a plain string (`rowErrors`), discarding the error's type, so matching
+ *  `FRAGMENTS_LOAD_HINT` — the exact tail `NotOpenApiError` ends with (src/loader.ts's `detectKind`)
+ *  — is the one stable signal exposed for this condition without changing the engine. */
 function needsFragmentConsent(
   result: Extract<PipelineResult, { ok: false }>,
   config: ViewerConfig,
@@ -207,7 +207,7 @@ function needsFragmentConsent(
   return (
     config.fragments === "none" &&
     result.rowErrors !== undefined &&
-    Object.values(result.rowErrors).every((msg) => msg.endsWith(FRAGMENT_HINT_SUFFIX))
+    Object.values(result.rowErrors).every((msg) => msg.endsWith(FRAGMENTS_LOAD_HINT))
   );
 }
 

@@ -2,6 +2,8 @@
 // (SHOULD / version-conditional behavior). Pure and framework-free so it is node-testable;
 // encoded into the /view URL (non-defaults only) so a configured view stays bookmarkable.
 
+import type { FragmentsValue } from "../fragmentsText";
+
 export interface ViewerConfig {
   /**
    * Discriminator `mapping` value: prefer the component name (default) or the URI-reference.
@@ -25,7 +27,7 @@ export interface ViewerConfig {
    *   descendants take a type), and tolerate truly-unreachable fragments (rendered generic). An
    *   unreachable fragment is allowed only here.
    */
-  fragments: "none" | "root" | "any";
+  fragments: FragmentsValue;
 }
 
 export const defaultConfig: ViewerConfig = {

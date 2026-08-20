@@ -16,6 +16,7 @@ import {
   errorMessage,
 } from "./errors";
 import { defaultLimits, formatBytes, type Limits } from "./limits";
+import { FRAGMENTS_LOAD_HINT } from "./fragmentsText";
 import { parseDocument } from "./parse/detectFormat";
 import { documentPositions } from "./parse/positions";
 import { buildTree } from "./model/treeBuilder";
@@ -329,11 +330,31 @@ function detectKind(
 
   throw new NotOpenApiError(
     "No `openapi` field and no `$id`/`$schema` — this is neither an OpenAPI document nor a " +
-      "(recognized) JSON Schema document. Enable document fragments to load it anyway.",
+      `(recognized) JSON Schema document. ${FRAGMENTS_LOAD_HINT}`,
   );
 }
 
-async function fetchText(url: string, limits: Limits): Promise<string> {
+/**
+ * Acquire a URL document's raw text, filename, and retrieval URI — the acquisition half of
+ * `detectDocument`'s url branch, split out so a caller that wants raw text without the parse /
+ * tree-build / classify machinery that follows (the MCP-native handoff: ConfigurePage.svelte's
+ * mixed upload+URL "Try it over MCP" case, and McpPage.svelte's own `kind: "urls"` fetch) gets the
+ * exact same fetch/CORS/size-limit and filename/retrieval-URI derivation `detectDocument` uses,
+ * rather than a second, driftable implementation.
+ */
+export async function fetchUrlDocument(
+  input: UrlInput,
+  limits: Limits = defaultLimits,
+): Promise<{ text: string; filename?: string; retrievalUri: string }> {
+  const text = await fetchText(input.url, limits);
+  return {
+    text,
+    filename: filenameFromUrl(input.url),
+    retrievalUri: input.retrievalUri?.trim() || input.url,
+  };
+}
+
+export async function fetchText(url: string, limits: Limits = defaultLimits): Promise<string> {
   let res: Response;
   try {
     res = await fetch(url, { redirect: "follow" });

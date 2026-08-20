@@ -610,7 +610,7 @@ test.describe("app heading navigation", () => {
 
   test("the heading returns /mcp to /configure", async ({ page }) => {
     await page.goto("/mcp?demo=refs");
-    await expect(page.getByText(/Analyzing demo/)).toBeVisible();
+    await expect(page.getByText(/MCP interface for demo/)).toBeVisible();
 
     await page
       .getByRole("heading", { name: "OpenAPI Description Structure Viewer" })
