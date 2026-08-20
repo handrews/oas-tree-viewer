@@ -5,6 +5,7 @@
 
 import * as z from "zod/v4";
 import { DIAGNOSTIC_CODES } from "../diagnostics/types";
+import { FRAGMENTS_CONTROL_LABEL, fragmentsFieldDescription } from "../app/fragmentsText";
 import { MAX_DOC_CHARS, MAX_INLINE_DOCS } from "./info";
 
 const SeverityEnum = z.enum(["error", "warning", "info"]);
@@ -14,8 +15,14 @@ const SectionIdEnum = z.enum(["unresolved", "advisories", "caveats", "unreachabl
 const DocKindEnum = z.enum(["openapi", "schema", "fragment"]);
 const VersionFamilyEnum = z.enum(["3.0", "3.1", "3.2"]);
 // Shared with the fragment-consent elicitation in server.ts, so the tool's `config.fragments` input
-// and the elicited answer can never drift apart.
-export const FragmentsEnum = z.enum(["none", "root", "any"]);
+// and the elicited answer can never drift apart. Described once here (from the same text the
+// Configure page's selector uses — src/app/fragmentsText.ts) so `config.fragments` and the
+// elicitation's `fragments` answer both carry it in their JSON Schema, since both fields reuse this
+// one enum.
+export const FragmentsEnum = z
+  .enum(["none", "root", "any"])
+  .describe(fragmentsFieldDescription())
+  .meta({ title: FRAGMENTS_CONTROL_LABEL });
 const RefKindEnum = z.enum([
   "$ref",
   "$dynamicRef",
@@ -36,13 +43,35 @@ const InlineDocumentSchema = z.object({
   isEntry: z.boolean(),
 });
 
+// Titles/descriptions mirror the Configure page's "Resolution options" box (src/pages/ConfigurePage.svelte)
+// so the same choice reads the same in both places; only `fragments` needs a shared module (its wording
+// also appears in the loader error and the elicitation message — see fragmentsFieldDescription).
+const MappingPrecedenceEnum = z
+  .enum(["name-first", "uri-first"])
+  .describe(
+    'How a discriminator "mapping" value resolves: a component name first (default), or a ' +
+      "URI-reference first.",
+  )
+  .meta({ title: "Mapping precedence" });
+
+const ComponentLookupEnum = z
+  .enum(["entry", "local"])
+  .describe(
+    "Where a component name is looked up (mapping and Security Requirement values): the entry " +
+      "document (default), or the local document.",
+  )
+  .meta({ title: "Component lookup" });
+
 /** Mirrors ViewerConfig (src/app/config.ts) field-for-field; every field optional so an omitted
  *  choice falls back to defaultConfig. */
-const ConfigInputSchema = z.object({
-  mappingPrecedence: z.enum(["name-first", "uri-first"]).optional(),
-  componentLookup: z.enum(["entry", "local"]).optional(),
-  fragments: FragmentsEnum.optional(),
-});
+const ConfigInputSchema = z
+  .object({
+    mappingPrecedence: MappingPrecedenceEnum.optional(),
+    componentLookup: ComponentLookupEnum.optional(),
+    fragments: FragmentsEnum.optional(),
+  })
+  .describe("Resolution options, mirroring the viewer's Configure page.")
+  .meta({ title: "Resolution options" });
 
 export const AnalyzeInputSchema = z.object({
   demo: z.string().optional(),

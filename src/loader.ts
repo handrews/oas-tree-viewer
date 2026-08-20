@@ -16,6 +16,7 @@ import {
   errorMessage,
 } from "./errors";
 import { defaultLimits, formatBytes, type Limits } from "./limits";
+import { FRAGMENTS_LOAD_HINT } from "./app/fragmentsText";
 import { parseDocument } from "./parse/detectFormat";
 import { documentPositions } from "./parse/positions";
 import { buildTree } from "./model/treeBuilder";
@@ -329,7 +330,7 @@ function detectKind(
 
   throw new NotOpenApiError(
     "No `openapi` field and no `$id`/`$schema` — this is neither an OpenAPI document nor a " +
-      "(recognized) JSON Schema document. Enable document fragments to load it anyway.",
+      `(recognized) JSON Schema document. ${FRAGMENTS_LOAD_HINT}`,
   );
 }
 

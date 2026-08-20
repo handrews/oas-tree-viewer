@@ -12,6 +12,11 @@
     enum?: readonly string[];
     default?: unknown;
     properties?: Record<string, JsonSchemaProp>;
+    /** Zod's `.meta({ title })` / `.describe()` output (see src/mcp/schemas.ts) — when present, the
+     *  field's label and a small hint beneath it, so a schema-driven control reads the same as its
+     *  hand-written equivalent on the Configure page. */
+    title?: string;
+    description?: string;
   }
 
   let {
@@ -68,6 +73,12 @@
     return values[key] as Record<string, unknown>;
   }
 
+  /** A field's visible label: the schema's title when the server supplied one, else its raw
+   *  property name (every field had only the raw name before schemas.ts started titling them). */
+  function labelFor(key: string, prop: JsonSchemaProp): string {
+    return prop.title ?? key;
+  }
+
   function handleSubmit(e: SubmitEvent): void {
     e.preventDefault();
     onsubmit($state.snapshot(values), { requestProgress });
@@ -78,10 +89,12 @@
   {#each properties(tool) as [key, prop] (key)}
     {#if prop.type === "object"}
       <fieldset class="args-group">
-        <legend>{key}</legend>
+        <legend>{labelFor(key, prop)}</legend>
+        {#if prop.description}<p class="args-hint">{prop.description}</p>{/if}
         {#each Object.entries(prop.properties ?? {}) as [nKey, nProp] (nKey)}
           <label class="args-label">
-            <span>{nKey}</span>
+            <span>{labelFor(nKey, nProp)}</span>
+            {#if nProp.description}<span class="args-hint">{nProp.description}</span>{/if}
             {#if nProp.enum}
               <select
                 value={nested(key)[nKey]}
@@ -108,11 +121,13 @@
           checked={values[key] as boolean}
           onchange={(e) => (values[key] = (e.target as HTMLInputElement).checked)}
         />
-        <span>{key}</span>
+        <span>{labelFor(key, prop)}</span>
+        {#if prop.description}<span class="args-hint">{prop.description}</span>{/if}
       </label>
     {:else if prop.enum}
       <label class="args-label">
-        <span>{key}</span>
+        <span>{labelFor(key, prop)}</span>
+        {#if prop.description}<span class="args-hint">{prop.description}</span>{/if}
         <select
           value={values[key]}
           onchange={(e) => (values[key] = (e.target as HTMLSelectElement).value)}
@@ -124,7 +139,8 @@
       </label>
     {:else if prop.type === "number" || prop.type === "integer"}
       <label class="args-label">
-        <span>{key}</span>
+        <span>{labelFor(key, prop)}</span>
+        {#if prop.description}<span class="args-hint">{prop.description}</span>{/if}
         <input
           type="number"
           value={values[key]}
@@ -133,7 +149,8 @@
       </label>
     {:else}
       <label class="args-label">
-        <span>{key}</span>
+        <span>{labelFor(key, prop)}</span>
+        {#if prop.description}<span class="args-hint">{prop.description}</span>{/if}
         <input
           type="text"
           value={values[key]}

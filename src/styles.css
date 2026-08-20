@@ -1628,6 +1628,13 @@ body {
   flex-direction: row;
   align-items: center;
 }
+/* The schema's `.describe()` text (see src/mcp/schemas.ts), shown under a field's label — same tone
+   as the Configure page's own option copy, not a validation warning. */
+.args-hint {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-dim);
+}
 .args-submit {
   font-family: var(--font);
   font-size: 0.88rem;

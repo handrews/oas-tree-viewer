@@ -14,6 +14,7 @@ import type { Oad } from "../types";
 import type { Diagnostic } from "../diagnostics/types";
 import { runPipeline, type PipelineResult } from "../app/bootstrap";
 import { defaultConfig, type ViewerConfig } from "../app/config";
+import { FRAGMENTS_LOAD_HINT } from "../app/fragmentsText";
 import { demoById, demoInputs } from "../app/demos";
 import { diagnosticCatalog, severityFor } from "../diagnostics/catalog";
 import {
@@ -189,17 +190,13 @@ function pipelineErrorMessage(result: Extract<PipelineResult, { ok: false }>): s
   return "Could not load the document set.";
 }
 
-// The exact tail of `NotOpenApiError`'s message for an unrecognized, non-fragment document
-// (src/loader.ts's `detectKind`) — the one stable signal `runPipeline` exposes for this condition.
-// `runPipeline` converts every per-document error to a plain string (`rowErrors`), discarding the
-// error's type, so matching this fixed suffix is the only way to distinguish "needs fragment consent"
-// from any other load failure without changing the engine.
-const FRAGMENT_HINT_SUFFIX = "Enable document fragments to load it anyway.";
-
 /** Whether a failed pipeline run is specifically the fragment-consent case. Requires EVERY row error
  *  to be the fragment one, not just one of several: if another document failed for an unrelated
  *  reason, enabling fragments would not actually fix the load, so asking for consent would just cost
- *  a round trip before the caller hits that other error anyway. */
+ *  a round trip before the caller hits that other error anyway. `runPipeline` converts every
+ *  per-document error to a plain string (`rowErrors`), discarding the error's type, so matching
+ *  `FRAGMENTS_LOAD_HINT` — the exact tail `NotOpenApiError` ends with (src/loader.ts's `detectKind`)
+ *  — is the one stable signal exposed for this condition without changing the engine. */
 function needsFragmentConsent(
   result: Extract<PipelineResult, { ok: false }>,
   config: ViewerConfig,
@@ -207,7 +204,7 @@ function needsFragmentConsent(
   return (
     config.fragments === "none" &&
     result.rowErrors !== undefined &&
-    Object.values(result.rowErrors).every((msg) => msg.endsWith(FRAGMENT_HINT_SUFFIX))
+    Object.values(result.rowErrors).every((msg) => msg.endsWith(FRAGMENTS_LOAD_HINT))
   );
 }
 

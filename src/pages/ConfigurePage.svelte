@@ -9,6 +9,7 @@
   import { navigate } from "../app/router.svelte";
   import { viewPath, mcpPath, type ViewRequest } from "../app/viewUrl";
   import { type ViewerConfig, defaultConfig } from "../app/config";
+  import { FRAGMENTS_CONTROL_LABEL, FRAGMENTS_OPTIONS } from "../app/fragmentsText";
 
   // The Configure page: choose document sources (the existing form) or a pre-built demo,
   // set resolution options, then route to the Explore page. Online-URL and demo renders
@@ -97,13 +98,11 @@
       <!-- Document-type selector, labeled to its left, above the documents it governs. The visible
            "Document types" text is the select's accessible name (so no aria-label). -->
       <label class="load-behavior-field">
-        <span class="load-behavior-label">Document types</span>
+        <span class="load-behavior-label">{FRAGMENTS_CONTROL_LABEL}</span>
         <select class="load-behavior" bind:value={config.fragments}>
-          <option value="none">Complete OpenAPI or JSON Schema documents only</option>
-          <option value="root"
-            >Allow fragmentary OpenAPI documents if their root is referenced</option
-          >
-          <option value="any">Allow any fragmentary OpenAPI document</option>
+          {#each FRAGMENTS_OPTIONS as opt (opt.value)}
+            <option value={opt.value}>{opt.label}</option>
+          {/each}
         </select>
       </label>
       <OadForm {onRender} />
