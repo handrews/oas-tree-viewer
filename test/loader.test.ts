@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { loadDocument, versionFamilyOf } from "../src/loader";
+import { fetchUrlDocument, loadDocument, versionFamilyOf } from "../src/loader";
 import {
   InvalidDocumentError,
   NotOpenApiError,
@@ -172,5 +172,59 @@ describe("loadDocument (url)", () => {
     await expect(
       loadDocument({ source: "url", url: "https://e.com/x", isEntry: true }),
     ).rejects.toBeInstanceOf(RetrievalError);
+  });
+});
+
+// The URL-acquisition half of detectDocument's url branch, split out for the MCP-native handoff
+// (ConfigurePage's mixed upload+URL case, McpPage's own URL fetch) — see loader.ts's doc comment.
+// Only those two presentation components call it, and both are coverage-excluded (browser-verified),
+// so it needs its own direct tests rather than relying on loadDocument's url coverage above.
+describe("fetchUrlDocument", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("fetches the text, derives the filename from the URL, and defaults retrievalUri to the URL", async () => {
+    // self.location.href is the base filenameFromUrl resolves against (real in a Worker/main-thread
+    // context); stub it so the derivation runs the same way it does in production.
+    vi.stubGlobal("self", { location: { href: "https://example.com/" } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(valid(), { status: 200 })),
+    );
+    const result = await fetchUrlDocument({
+      source: "url",
+      url: "https://e.com/specs/api.yaml",
+      isEntry: true,
+    });
+    expect(result.text).toBe(valid());
+    expect(result.filename).toBe("api.yaml");
+    expect(result.retrievalUri).toBe("https://e.com/specs/api.yaml");
+  });
+
+  it("prefers an explicit retrievalUri over the fetch URL, trimmed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(valid(), { status: 200 })),
+    );
+    const result = await fetchUrlDocument({
+      source: "url",
+      url: "https://e.com/api.yaml",
+      retrievalUri: "  https://host/real-location.yaml  ",
+      isEntry: true,
+    });
+    expect(result.retrievalUri).toBe("https://host/real-location.yaml");
+  });
+
+  it("propagates fetchText's RetrievalError on an HTTP failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("nope", { status: 500, statusText: "Server Error" })),
+    );
+    const promise = fetchUrlDocument({
+      source: "url",
+      url: "https://e.com/x.yaml",
+      isEntry: true,
+    });
+    await expect(promise).rejects.toBeInstanceOf(RetrievalError);
+    await expect(promise).rejects.toThrow(/HTTP 500 Server Error/);
   });
 });
