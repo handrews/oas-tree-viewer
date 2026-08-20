@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import type { AxeResults, Result } from "axe-core";
 import AxeBuilder from "@axe-core/playwright";
-import { renderUploads } from "./helpers";
+import { fixture, renderUploads } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const blocking = (v: Result): boolean => v.impact === "serious" || v.impact === "critical";
@@ -26,6 +26,63 @@ for (const theme of ["dark", "light"] as const) {
   test.describe(`accessibility — ${theme} theme (axe-core, WCAG 2.1 A/AA)`, () => {
     test("input form view", async ({ page }) => {
       await page.goto("/");
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
+    test("input form — busy render with Cancel", async ({ page }) => {
+      // The Cancel button only exists while a render is in flight. Stub Worker so the pipeline
+      // never answers, holding the busy state (disabled submits + Cancel) for the axe run.
+      await page.addInitScript(() => {
+        window.Worker = class {
+          postMessage(): void {}
+          addEventListener(): void {}
+          terminate(): void {}
+        } as unknown as typeof Worker;
+      });
+      await page.goto("/");
+      await page.locator(".doc-row input.file").setInputFiles(fixture("refs-3.1.yaml"));
+      await page.getByRole("button", { name: "Render OAD" }).click();
+      await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
+    test("input form — resource-guard refusal with Load anyway", async ({ page }) => {
+      // A document nested past the depth cap is refused with the "Load anyway" override shown.
+      await page.goto("/");
+      const deep =
+        '{"openapi":"3.1.0","info":{"title":"deep","version":"1"},"paths":{},"x-deep":' +
+        '{"a":'.repeat(200) +
+        "1" +
+        "}".repeat(200) +
+        "}";
+      await page.locator(".doc-row input.file").setInputFiles({
+        name: "deep.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(deep),
+      });
+      await page.getByRole("button", { name: "Render OAD" }).click();
+      await expect(page.getByRole("button", { name: "Load anyway" })).toBeVisible();
+      await setTheme(page, theme);
+      const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+      expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
+    });
+
+    test("view page — loading with Cancel", async ({ page }) => {
+      // Same Worker stub: the view page's load never settles, holding the "Loading documents…"
+      // state with its own Cancel button for the axe run.
+      await page.addInitScript(() => {
+        window.Worker = class {
+          postMessage(): void {}
+          addEventListener(): void {}
+          terminate(): void {}
+        } as unknown as typeof Worker;
+      });
+      await page.goto("/view?demo=refs");
+      await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
       await setTheme(page, theme);
       const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);

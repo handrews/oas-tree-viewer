@@ -27,6 +27,12 @@ export function navigate(path: string, opts: { replace?: boolean } = {}): void {
   router.route = currentRoute();
 }
 
+/** Base-aware `href` for an in-app path, for a real `<a>` that also needs to `navigate()` on click
+ *  (e.g. the app heading) — a bare root-relative href would escape the deploy base. */
+export function appHref(path: string): string {
+  return withBase(BASE, path);
+}
+
 if (typeof window !== "undefined") {
   // Back/forward.
   window.addEventListener("popstate", () => {

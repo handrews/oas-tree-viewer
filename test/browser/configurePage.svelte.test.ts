@@ -17,6 +17,14 @@ test("ConfigurePage shows the source form and one button per demo", async () => 
   expect(renderBtn).not.toBeNull();
   expect(renderBtn!.getAttribute("form")).toBe("oad-form");
 
+  // "Try it over MCP" submits the same form to a different destination — it needs the same
+  // form association, and must come after Render OAD so Render OAD stays the default submit button.
+  const mcpBtn = document.querySelector(".resolution-box .mcp-open") as HTMLButtonElement | null;
+  expect(mcpBtn).not.toBeNull();
+  expect(mcpBtn!.getAttribute("form")).toBe("oad-form");
+  const actionButtons = [...document.querySelectorAll(".render-actions button")];
+  expect(actionButtons.indexOf(renderBtn!)).toBeLessThan(actionButtons.indexOf(mcpBtn!));
+
   // The document list and the resolution options are framed together in one group box, and the
   // load-behavior select carries a visible left-hand "Document types" label as its accessible name.
   const group = document.querySelector(".config-group");

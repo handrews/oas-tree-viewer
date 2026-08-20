@@ -5,7 +5,7 @@
   import type { McpBrowserHost, WireExchange, PendingElicit } from "../mcp/hosts/browser";
   import { session } from "../app/session.svelte";
   import { navigate } from "../app/router.svelte";
-  import { mcpPath } from "../app/viewUrl";
+  import { mcpPath, viewPath } from "../app/viewUrl";
   import { demos, demoById } from "../app/demos";
   import { scenarios, scenarioById, type Scenario } from "../mcp/scenarios";
   import { TOOL_NAMES, MAX_INLINE_DOCS, MAX_DOC_CHARS } from "../mcp/info";
@@ -188,6 +188,23 @@
       callError = errorMessage(e);
     }
   }
+
+  // A scenario has no /view equivalent (its documents exist only for the elicitation demo), and the
+  // cold picker has nothing to render — so the round trip back to the explorer only makes sense for a
+  // demo or an inline source.
+  const canOpenView = $derived(source?.kind === "demo" || source?.kind === "inline");
+
+  function openView(): void {
+    if (source?.kind === "demo") {
+      navigate(
+        viewPath({ kind: "demo", demoId: source.demoId }, session.current?.config ?? config),
+      );
+    } else if (source?.kind === "inline") {
+      // Inline only exists when session.current is set (see `source`'s $derived above); its request
+      // (kind "urls" or "session") is exactly what ViewPage expects.
+      navigate(viewPath(session.current!.request, session.current!.config));
+    }
+  }
 </script>
 
 <section class="mcp-page" aria-label="Try it over MCP">
@@ -239,6 +256,9 @@
         Analyzing: {source.entry} · {source.docs.length} document{source.docs.length === 1
           ? ""
           : "s"} · from the current view
+      {/if}
+      {#if canOpenView}
+        <button type="button" class="mcp-view-open" onclick={openView}>Render OAD</button>
       {/if}
     </p>
     {#if source.kind === "inline" && overLimit}

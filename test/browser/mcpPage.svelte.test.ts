@@ -13,6 +13,8 @@ test("McpPage connects, lists capabilities, and analyzes a demo with a real wire
   });
 
   await expect.element(screen.getByText(/Analyzing demo/)).toBeVisible();
+  // A demo source has a /view equivalent, so the round trip back to the explorer is offered.
+  await expect.element(screen.getByRole("button", { name: "Render OAD" })).toBeVisible();
 
   // Capabilities loaded over the wire (tools/list etc.).
   await expect
@@ -58,4 +60,17 @@ test("McpPage connects, lists capabilities, and analyzes a demo with a real wire
   await expect
     .poll(() => document.querySelectorAll(".wire-exchange").length, { timeout: 5000 })
     .toBeGreaterThan(before);
+});
+
+// Neither the cold picker (nothing to render) nor a scenario (inline-only, no /view equivalent) has
+// a round trip back to the explorer.
+test("Render OAD is hidden for the cold picker and a scenario", async () => {
+  const screen = await render(McpPage, { request: null, config: defaultConfig });
+
+  await expect.element(screen.getByText("Choose a demo to analyze")).toBeVisible();
+  expect(document.querySelector(".mcp-view-open")).toBeNull();
+
+  await screen.getByRole("button", { name: "A document fragment" }).click();
+  await expect.element(screen.getByText(/Analyzing scenario/)).toBeVisible();
+  expect(document.querySelector(".mcp-view-open")).toBeNull();
 });

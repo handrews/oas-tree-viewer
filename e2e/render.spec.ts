@@ -582,3 +582,34 @@ test.describe("numbered-draft resolution advisories", () => {
     );
   });
 });
+
+test.describe("app heading navigation", () => {
+  test("the heading is not a link on the configure page", async ({ page }) => {
+    await page.goto("/configure");
+    const heading = page.getByRole("heading", { name: "OpenAPI Description Structure Viewer" });
+    await expect(heading).toBeVisible();
+    await expect(heading.locator("a")).toHaveCount(0);
+  });
+
+  test("the heading returns /view to /configure", async ({ page }) => {
+    await page.goto("/view?demo=refs");
+    await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+
+    await page
+      .getByRole("heading", { name: "OpenAPI Description Structure Viewer" })
+      .locator("a")
+      .click();
+    await expect(page).toHaveURL(/\/configure$/);
+  });
+
+  test("the heading returns /mcp to /configure", async ({ page }) => {
+    await page.goto("/mcp?demo=refs");
+    await expect(page.getByText(/Analyzing demo/)).toBeVisible();
+
+    await page
+      .getByRole("heading", { name: "OpenAPI Description Structure Viewer" })
+      .locator("a")
+      .click();
+    await expect(page).toHaveURL(/\/configure$/);
+  });
+});

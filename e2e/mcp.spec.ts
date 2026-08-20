@@ -73,6 +73,28 @@ test.describe("MCP demo page", () => {
     expect(wire).toContain("inputResponses");
   });
 
+  test("Try it over MCP from the configure page analyzes the entered document", async ({
+    page,
+  }) => {
+    await page.goto("/configure");
+    await page.locator(".doc-row").first().locator("input.url").fill("/fixtures/petstore-3.1.yaml");
+    await page.getByRole("button", { name: "Try it over MCP" }).click();
+
+    // Url-only inputs stay bookmarkable, same as a direct /view?doc= load.
+    await expect(page).toHaveURL(/\/mcp\?doc=/);
+    await expect(page.getByText(/Analyzing: petstore-3\.1\.yaml/)).toBeVisible();
+    await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("Render OAD from the MCP page opens the same source in the explorer", async ({ page }) => {
+    await page.goto("/mcp?demo=refs");
+    await expect(page.getByText(/Analyzing demo/)).toBeVisible();
+
+    await page.getByRole("button", { name: "Render OAD" }).click();
+    await expect(page).toHaveURL(/\/view\?demo=refs/);
+    await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
+  });
+
   test("code-split guard: /configure never requests the MCP chunk, /mcp does", async ({ page }) => {
     const isMcpChunk = (url: string) => /mcp[/-]hosts[/-]browser|modelcontextprotocol/i.test(url);
 
