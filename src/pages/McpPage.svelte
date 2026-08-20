@@ -20,6 +20,12 @@
   // current view (or a demo picked here), and shows the real capability list, arguments form, wire
   // log, and result for any tool call. `session.current` (written by ViewPage) is the only way to see
   // an uploaded/URL-loaded OAD; a bare demo id in the URL survives a reload, when the session is empty.
+  //
+  // Laid out as a workbench: the left column is the action side (source, tool call, result — the
+  // elicitation panel included, since an `input_required` reply is semantically the call's result);
+  // the right column is a sticky wire log, so every left-hand action visibly produces traffic on the
+  // right without scrolling. Capabilities — the server's advertised surface, not something you act on
+  // — sits collapsed below both, out of the way until asked for.
 
   // Not imported from the SDK: `ListResourceTemplatesResult`'s item type is a bare zod inference with
   // no exported name. Only the two fields the capability panel shows are needed here.
@@ -37,6 +43,14 @@
       cacheScope: result.cacheScope as string | undefined,
     };
   }
+
+  // A demo-document resource (`oas://demo/{demoId}/{filename}`) is the one sublist long enough (25 of
+  // the 53 total resources) to need truncating behind an expander — everything else the capabilities
+  // panel lists is short enough to show in full.
+  function isDemoDocUri(uri: string): boolean {
+    return /^oas:\/\/demo\/[^/]+\/[^/]+$/.test(uri);
+  }
+  const DEMO_DOC_PREVIEW = 8;
 
   let { request, config }: { request: ViewRequest | null; config: ViewerConfig } = $props();
 
@@ -96,6 +110,11 @@
     cacheScope?: string;
   } | null>(null);
   let prompts = $state<{ items: Prompt[]; ttlMs?: number; cacheScope?: string } | null>(null);
+  let showAllDemoDocs = $state(false);
+  // Split once here rather than with an inline `{@const}` per list — the capabilities panel renders
+  // the two groups (everything else, then the truncatable demo-document sublist) separately.
+  const otherResources = $derived(resources?.items.filter((r) => !isDemoDocUri(r.uri)) ?? []);
+  const demoDocResources = $derived(resources?.items.filter((r) => isDemoDocUri(r.uri)) ?? []);
 
   let selectedToolName = $state<string>(TOOL_NAMES.analyzeDocument);
   const selectedTool = $derived(tools?.items.find((t) => t.name === selectedToolName) ?? null);
@@ -108,6 +127,7 @@
     h: McpBrowserHost,
     opts: { refresh?: boolean } = {},
   ): Promise<void> {
+    if (opts.refresh) h.beginAction("Refresh capabilities");
     const cacheMode = opts.refresh ? ("refresh" as const) : undefined;
     const [t, r, rt, p] = await Promise.all([
       h.client.listTools(undefined, { cacheMode }),
@@ -155,6 +175,7 @@
     opts: { requestProgress: boolean },
   ): Promise<void> {
     if (!host || !selectedTool) return;
+    host.beginAction(`Call ${selectedTool.title ?? selectedTool.name}`);
     calling = true;
     callError = null;
     result = null;
@@ -182,6 +203,7 @@
 
   async function readLink(uri: string): Promise<void> {
     if (!host) return;
+    host.beginAction(`Read ${uri}`);
     try {
       await host.client.readResource({ uri });
     } catch (e) {
@@ -204,6 +226,11 @@
       // (kind "urls" or "session") is exactly what ViewPage expects.
       navigate(viewPath(session.current!.request, session.current!.config));
     }
+  }
+
+  function selectScenario(e: Event): void {
+    const value = (e.target as HTMLSelectElement).value;
+    scenarioId = value === "" ? null : value;
   }
 </script>
 
@@ -241,174 +268,223 @@
       </ul>
     </section>
   {:else}
-    <p class="mcp-source-strip">
-      {#if source.kind === "demo"}
-        Analyzing demo &quot;{source.label}&quot; · {session.current
-          ? "from the current view"
-          : "from this link"}
-      {:else if source.kind === "scenario"}
-        Analyzing scenario &quot;{source.scenario.label}&quot; · {source.scenario.docs.length} inline
-        documents
-        <button type="button" class="scenario-clear" onclick={() => (scenarioId = null)}>
-          Leave the scenario
-        </button>
-      {:else}
-        Analyzing: {source.entry} · {source.docs.length} document{source.docs.length === 1
-          ? ""
-          : "s"} · from the current view
-      {/if}
-      {#if canOpenView}
-        <button type="button" class="mcp-view-open" onclick={openView}>Render OAD</button>
-      {/if}
-    </p>
-    {#if source.kind === "inline" && overLimit}
-      <p class="mcp-limit-refusal" role="alert">
-        This view has {source.docs.length} documents, which is too much to analyze inline here (the tool
-        caps inline input at {MAX_INLINE_DOCS} documents / {MAX_DOC_CHARS.toLocaleString()} characters
-        total). Try a bundled demo instead.
+    <section class="mcp-source-section">
+      <p class="mcp-source-strip">
+        {#if source.kind === "demo"}
+          Analyzing demo &quot;{source.label}&quot; · {session.current
+            ? "from the current view"
+            : "from this link"}
+        {:else if source.kind === "scenario"}
+          Analyzing scenario &quot;{source.scenario.label}&quot; · {source.scenario.docs.length} inline
+          documents
+          <button type="button" class="scenario-clear" onclick={() => (scenarioId = null)}>
+            Leave the scenario
+          </button>
+        {:else}
+          Analyzing: {source.entry} · {source.docs.length} document{source.docs.length === 1
+            ? ""
+            : "s"} · from the current view
+        {/if}
+        {#if canOpenView}
+          <button type="button" class="mcp-view-open" onclick={openView}>Render OAD</button>
+        {/if}
       </p>
-    {/if}
-  {/if}
-
-  {#if connecting}
-    <p role="status">Connecting to the MCP server…</p>
-  {:else if connectError}
-    <p class="mcp-error" role="alert">{connectError}</p>
-  {:else}
-    <section aria-labelledby="mcp-caps-heading">
-      <div class="mcp-caps-header">
-        <h2 id="mcp-caps-heading">Capabilities</h2>
-        <button
-          type="button"
-          class="mcp-refresh"
-          disabled={!host}
-          onclick={() => host && loadCapabilities(host, { refresh: true })}
-        >
-          Refresh
-        </button>
-      </div>
-      <div class="mcp-caps-grid">
-        <div class="mcp-caps-col">
-          <h3>Tools</h3>
-          {#if tools}
-            <p class="mcp-cache-note">ttl {tools.ttlMs ?? 0}ms · {tools.cacheScope ?? "private"}</p>
-            <ul>
-              {#each tools.items as t (t.name)}
-                <li><code>{t.name}</code></li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-        <div class="mcp-caps-col">
-          <h3>Resources</h3>
-          {#if resources}
-            <p class="mcp-cache-note">
-              ttl {resources.ttlMs ?? 0}ms · {resources.cacheScope ?? "private"}
-            </p>
-            <ul>
-              {#each resources.items as r (r.uri)}
-                <li><code>{r.uri}</code></li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-        <div class="mcp-caps-col">
-          <h3>Resource templates</h3>
-          {#if resourceTemplates}
-            <p class="mcp-cache-note">
-              ttl {resourceTemplates.ttlMs ?? 0}ms · {resourceTemplates.cacheScope ?? "private"}
-            </p>
-            <ul>
-              {#each resourceTemplates.items as t (t.name)}
-                <li><code>{t.uriTemplate}</code></li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-        <div class="mcp-caps-col">
-          <h3>Prompts</h3>
-          {#if prompts}
-            <p class="mcp-cache-note">
-              ttl {prompts.ttlMs ?? 0}ms · {prompts.cacheScope ?? "private"}
-            </p>
-            <ul>
-              {#each prompts.items as p (p.name)}
-                <li><code>{p.name}</code></li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
-      </div>
-    </section>
-
-    {#if source && !overLimit}
-      <section aria-labelledby="mcp-call-heading">
-        <h2 id="mcp-call-heading">Call a tool</h2>
-        <label class="mcp-tool-picker">
-          <span>Tool</span>
-          <select bind:value={selectedToolName}>
-            {#each tools?.items ?? [] as t (t.name)}
-              <option value={t.name}>{t.title ?? t.name}</option>
+      {#if source.kind !== "scenario"}
+        <label class="mcp-scenario-picker">
+          <span>Or make the server ask you something</span>
+          <select value={scenarioId ?? ""} onchange={selectScenario}>
+            <option value="">— pick a scenario —</option>
+            {#each scenarios as scenario (scenario.id)}
+              <option value={scenario.id}>{scenario.label}</option>
             {/each}
           </select>
         </label>
-        {#if selectedTool}
-          {#key selectedTool.name}
-            <ArgsForm
-              tool={selectedTool}
-              omit={selectedTool.name === TOOL_NAMES.analyzeDocument ? ["demo", "documents"] : []}
-              initial={selectedTool.name === TOOL_NAMES.analyzeDocument
-                ? { config: configSeed, minSeverity: "info" }
-                : {}}
-              onsubmit={callTool}
-            />
-          {/key}
-        {/if}
-        {#if calling}<p role="status">Calling {selectedTool?.name}…</p>{/if}
-        {#if callError}<p class="mcp-error" role="alert">{callError}</p>{/if}
-      </section>
-    {/if}
-
-    {#if pendingElicit}
-      <section aria-labelledby="mcp-elicit-heading">
-        <h2 id="mcp-elicit-heading">The server needs more information</h2>
-        <ElicitPanel
-          message={pendingElicit.message}
-          requestedSchema={pendingElicit.requestedSchema}
-          onRespond={(response) => pendingElicit?.respond(response)}
-        />
-      </section>
-    {/if}
-
-    <section aria-labelledby="mcp-wire-heading">
-      <h2 id="mcp-wire-heading">Wire log</h2>
-      <WireLog exchanges={wireLog} />
+      {/if}
+      {#if source.kind === "inline" && overLimit}
+        <p class="mcp-limit-refusal" role="alert">
+          This view has {source.docs.length} documents, which is too much to analyze inline here (the
+          tool caps inline input at {MAX_INLINE_DOCS} documents / {MAX_DOC_CHARS.toLocaleString()} characters
+          total). Try a bundled demo instead.
+        </p>
+      {/if}
     </section>
 
-    {#if result}
-      <section aria-labelledby="mcp-result-heading">
-        <h2 id="mcp-result-heading">Result</h2>
-        {#if result.isError}
-          <p class="mcp-result-error" role="alert">
-            The tool returned an error — see the text below.
-          </p>
-        {/if}
-        {#each result.content as block, i (i)}
-          {#if block.type === "text"}
-            <pre class="mcp-result-text">{block.text}</pre>
-          {:else if block.type === "resource_link"}
-            <button type="button" class="mcp-resource-link" onclick={() => readLink(block.uri)}>
-              {block.name ?? block.uri}
-            </button>
+    {#if connecting}
+      <p role="status">Connecting to the MCP server…</p>
+    {:else if connectError}
+      <p class="mcp-error" role="alert">{connectError}</p>
+    {:else}
+      <div class="mcp-workbench">
+        <div class="mcp-workbench-main">
+          {#if source && !overLimit}
+            <section class="mcp-call-section" aria-labelledby="mcp-call-heading">
+              <h2 id="mcp-call-heading">Call a tool</h2>
+              <label class="mcp-tool-picker">
+                <span>Tool</span>
+                <select bind:value={selectedToolName}>
+                  {#each tools?.items ?? [] as t (t.name)}
+                    <option value={t.name}>{t.title ?? t.name}</option>
+                  {/each}
+                </select>
+              </label>
+              {#if selectedTool}
+                {#key selectedTool.name}
+                  <ArgsForm
+                    tool={selectedTool}
+                    omit={selectedTool.name === TOOL_NAMES.analyzeDocument
+                      ? ["demo", "documents"]
+                      : []}
+                    initial={selectedTool.name === TOOL_NAMES.analyzeDocument
+                      ? { config: configSeed, minSeverity: "info" }
+                      : {}}
+                    onsubmit={callTool}
+                  />
+                {/key}
+              {/if}
+            </section>
           {/if}
-        {/each}
-        {#if result.structuredContent}
-          <details class="mcp-structured">
-            <summary>Structured content</summary>
-            <pre>{JSON.stringify(result.structuredContent, null, 2)}</pre>
-          </details>
-        {/if}
-      </section>
+
+          <section class="mcp-result-section" aria-labelledby="mcp-result-heading">
+            <h2 id="mcp-result-heading">Result</h2>
+            {#if pendingElicit}
+              <h3 id="mcp-elicit-heading">The server needs more information</h3>
+              <ElicitPanel
+                message={pendingElicit.message}
+                requestedSchema={pendingElicit.requestedSchema}
+                onRespond={(response) => pendingElicit?.respond(response)}
+              />
+            {:else if calling}
+              <p role="status">Calling {selectedTool?.name}…</p>
+            {:else if callError}
+              <p class="mcp-error" role="alert">{callError}</p>
+            {:else if result}
+              {#if result.isError}
+                <p class="mcp-result-error" role="alert">
+                  The tool returned an error — see the text below.
+                </p>
+              {/if}
+              {#each result.content as block, i (i)}
+                {#if block.type === "text"}
+                  <pre class="mcp-result-text">{block.text}</pre>
+                {:else if block.type === "resource_link"}
+                  <button
+                    type="button"
+                    class="mcp-resource-link"
+                    onclick={() => readLink(block.uri)}
+                  >
+                    {block.name ?? block.uri}
+                  </button>
+                {/if}
+              {/each}
+              {#if result.structuredContent}
+                <details class="mcp-structured">
+                  <summary>Structured content</summary>
+                  <pre>{JSON.stringify(result.structuredContent, null, 2)}</pre>
+                </details>
+              {/if}
+            {:else}
+              <p class="mcp-result-empty">No result yet — call a tool above.</p>
+            {/if}
+          </section>
+        </div>
+
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex (WCAG 2.1.1: a scrollable region must be keyboard-reachable, matching WireLog.svelte's own .wire-json panes) -->
+        <div class="mcp-workbench-wire" tabindex="0" aria-labelledby="mcp-wire-heading">
+          <section>
+            <h2 id="mcp-wire-heading">Wire log</h2>
+            <WireLog exchanges={wireLog} />
+          </section>
+        </div>
+      </div>
+
+      <details class="mcp-caps-details">
+        <summary>
+          Capabilities — the server's advertised surface, discovered over MCP at connect (<code
+            >tools/list</code
+          >, <code>resources/list</code>,
+          <code>resources/templates/list</code>, <code>prompts/list</code>)
+        </summary>
+        <div class="mcp-caps-body">
+          <div class="mcp-caps-header">
+            <button
+              type="button"
+              class="mcp-refresh"
+              disabled={!host}
+              onclick={() => host && loadCapabilities(host, { refresh: true })}
+            >
+              Refresh
+            </button>
+          </div>
+          <div class="mcp-caps-grid">
+            <div class="mcp-caps-col">
+              <h3>Tools</h3>
+              {#if tools}
+                <p class="mcp-cache-note">
+                  ttl {tools.ttlMs ?? 0}ms · {tools.cacheScope ?? "private"}
+                </p>
+                <ul>
+                  {#each tools.items as t (t.name)}
+                    <li><code>{t.name}</code></li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+            <div class="mcp-caps-col">
+              <h3>Resources</h3>
+              {#if resources}
+                <p class="mcp-cache-note">
+                  ttl {resources.ttlMs ?? 0}ms · {resources.cacheScope ?? "private"}
+                </p>
+                <ul>
+                  {#each otherResources as r (r.uri)}
+                    <li><code>{r.uri}</code></li>
+                  {/each}
+                  {#each demoDocResources.slice(0, showAllDemoDocs ? demoDocResources.length : DEMO_DOC_PREVIEW) as r (r.uri)}
+                    <li><code>{r.uri}</code></li>
+                  {/each}
+                  {#if !showAllDemoDocs && demoDocResources.length > DEMO_DOC_PREVIEW}
+                    <li>
+                      <button
+                        type="button"
+                        class="mcp-caps-more"
+                        onclick={() => (showAllDemoDocs = true)}
+                      >
+                        …and {demoDocResources.length - DEMO_DOC_PREVIEW} more
+                      </button>
+                    </li>
+                  {/if}
+                </ul>
+              {/if}
+            </div>
+            <div class="mcp-caps-col">
+              <h3>Resource templates</h3>
+              {#if resourceTemplates}
+                <p class="mcp-cache-note">
+                  ttl {resourceTemplates.ttlMs ?? 0}ms · {resourceTemplates.cacheScope ?? "private"}
+                </p>
+                <ul>
+                  {#each resourceTemplates.items as t (t.name)}
+                    <li><code>{t.uriTemplate}</code></li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+            <div class="mcp-caps-col">
+              <h3>Prompts</h3>
+              {#if prompts}
+                <p class="mcp-cache-note">
+                  ttl {prompts.ttlMs ?? 0}ms · {prompts.cacheScope ?? "private"}
+                </p>
+                <ul>
+                  {#each prompts.items as p (p.name)}
+                    <li><code>{p.name}</code></li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </details>
     {/if}
   {/if}
 </section>

@@ -1381,12 +1381,101 @@ body {
   color: var(--text-dim);
   margin-bottom: 0.4rem;
 }
-.mcp-page > section {
+.mcp-page > section,
+.mcp-workbench-main > section,
+.mcp-workbench-wire > section,
+.mcp-caps-details {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.9rem 1rem;
 }
+
+/* Workbench layout: left column is the action side (source → call → result, the elicitation panel
+   included since it's the call's result), right column is the wire log — every left-hand action
+   should visibly produce traffic on the right within one viewport, hence the sticky column. Below
+   900px (matching the viewer's own breakpoint) it collapses to one column in DOM order, which is
+   already source → call → result → wire log; the sticky column becomes a plain block. */
+.mcp-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  align-items: start;
+  gap: 1.1rem;
+}
+.mcp-workbench-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-width: 0;
+}
+.mcp-workbench-wire {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .mcp-workbench {
+    grid-template-columns: 1fr;
+  }
+  .mcp-workbench-wire {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+/* Capabilities: collapsed by default (see McpPage.svelte) — a `<details>` needs no ARIA to be an
+   accessible disclosure, so its own summary text carries what an h2 used to. */
+.mcp-caps-details > summary {
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.mcp-caps-details[open] > summary {
+  margin-bottom: 0.7rem;
+}
+.mcp-caps-details summary code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.mcp-caps-more {
+  font-family: var(--font);
+  font-size: 0.78rem;
+  background: none;
+  border: none;
+  color: var(--link);
+  cursor: pointer;
+  padding: 0;
+}
+.mcp-caps-more:hover {
+  text-decoration: underline;
+}
+
+.mcp-scenario-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.mcp-scenario-picker select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 0.3rem 0.45rem;
+  font-size: 0.8rem;
+  font-family: var(--font);
+}
+.mcp-result-empty {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
 .mcp-source-strip {
   font-size: 0.88rem;
   color: var(--text-dim);
@@ -1434,7 +1523,7 @@ body {
 .mcp-caps-header {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.6rem;
 }
 .mcp-refresh {

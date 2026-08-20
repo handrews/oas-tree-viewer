@@ -11,20 +11,28 @@ test.describe("MCP demo page", () => {
     await expect(page).toHaveURL(/\/mcp\?demo=refs/);
     await expect(page.getByText(/Analyzing demo/)).toBeVisible();
 
-    // Capabilities and the wire log come from a real handshake over the real handler.
-    await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
-    const headers = page.locator(".wire-headers").first();
+    // Capabilities and the wire log come from a real handshake over the real handler, grouped under
+    // the connect/discovery action and collapsed by default.
+    const discoveryGroup = page.locator(".wire-group").first();
+    await expect(discoveryGroup).toBeVisible({ timeout: 10_000 });
+    await expect(discoveryGroup.locator("> details")).not.toHaveAttribute("open");
+    await discoveryGroup.locator("> details > summary").click();
+    await discoveryGroup.locator(".wire-exchange").first().locator("summary").click();
+    const headers = discoveryGroup.locator(".wire-headers").first();
     await expect(headers).toContainText("mcp-protocol-version");
     await expect(headers).toContainText("2026-07-28");
 
-    // Call analyze-document with the schema-generated form's defaults; the demo's own diagnostics come
-    // back as the issue report text plus resource_link chips.
+    // Call analyze-document with the schema-generated form's defaults; the demo's own diagnostics
+    // come back as the issue report text plus resource_link chips, in a new group — expanded by
+    // default — whose exchange summary shows the SSE contrast (analyze-document reports progress).
     await page.getByRole("button", { name: /^Call / }).click();
     await expect(page.locator(".mcp-result-text")).toContainText("issue report", {
       timeout: 10_000,
     });
+    const callGroup = page.locator(".wire-group").last();
+    await expect(callGroup.locator(".wire-ct").first()).toContainText("text/event-stream");
 
-    // A resource_link chip issues a real resources/read — one more logged exchange.
+    // A resource_link chip issues a real resources/read — one more logged exchange, in its own group.
     const before = await page.locator(".wire-exchange").count();
     await page.getByRole("button", { name: /Reference type mismatch/ }).click();
     await expect(page.locator(".wire-exchange")).toHaveCount(before + 1, { timeout: 10_000 });
@@ -34,18 +42,18 @@ test.describe("MCP demo page", () => {
     page,
   }) => {
     await page.goto("mcp?demo=refs");
-    await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
 
     await page
       .locator(".mcp-tool-picker select")
       .selectOption({ label: "Explain a diagnostic code" });
     await page.getByRole("button", { name: /^Call / }).click();
 
-    await expect
-      .poll(async () => (await page.locator(".wire-exchange").allTextContents()).join("\n"), {
-        timeout: 10_000,
-      })
-      .toContain("application/json");
+    // The content-type is on the exchange's one-line summary — visible without expanding anything.
+    const callGroup = page.locator(".wire-group").last();
+    await expect(callGroup.locator(".wire-ct").first()).toContainText("application/json", {
+      timeout: 10_000,
+    });
   });
 
   // The elicitation round trip is the demo's whole reason for shipping a scenario: no bundled demo
@@ -67,10 +75,14 @@ test.describe("MCP demo page", () => {
 
     await expect(page.getByRole("heading", { name: "Result" })).toBeVisible({ timeout: 15_000 });
 
-    // The server asked, then the client answered on a retry: both halves are on the wire.
+    // The server asked, then the client answered on a retry: both halves are on the wire, and — since
+    // the retry is issued from inside the same call the page already labeled — grouped as one action
+    // (discovery group, then a single "Call …" group holding both tools/call exchanges).
     const wire = await page.evaluate(() => document.body.textContent ?? "");
     expect(wire).toContain("input_required");
     expect(wire).toContain("inputResponses");
+    await expect(page.locator(".wire-group")).toHaveCount(2);
+    await expect(page.locator(".wire-group").last().locator(".wire-exchange")).toHaveCount(2);
   });
 
   test("Try it over MCP from the configure page analyzes the entered document", async ({
@@ -86,7 +98,7 @@ test.describe("MCP demo page", () => {
     // Url-only inputs stay bookmarkable, same as a direct /view?doc= load.
     await expect(page).toHaveURL(/\/mcp\?doc=/);
     await expect(page.getByText(/Analyzing: petstore-3\.1\.yaml/)).toBeVisible();
-    await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("Render OAD from the MCP page opens the same source in the explorer", async ({ page }) => {
@@ -120,7 +132,7 @@ test.describe("MCP demo page", () => {
     page.removeAllListeners("response");
     const mcpBodies = scriptBodies(page);
     await page.goto("mcp?demo=refs");
-    await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
     expect((await Promise.all(mcpBodies)).some(isMcpModule)).toBe(true);
   });
 });

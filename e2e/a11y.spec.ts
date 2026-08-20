@@ -180,7 +180,7 @@ for (const theme of ["dark", "light"] as const) {
 
     test("MCP demo page (idle)", async ({ page }) => {
       await page.goto("/mcp?demo=refs");
-      await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
       await setTheme(page, theme);
       const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
       expect(results.violations.filter(blocking), summarize(results)).toEqual([]);
@@ -188,7 +188,7 @@ for (const theme of ["dark", "light"] as const) {
 
     test("MCP demo page (with a result shown)", async ({ page }) => {
       await page.goto("/mcp?demo=refs");
-      await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
       await page.getByRole("button", { name: /^Call / }).click();
       await expect(page.locator(".mcp-result-text")).toContainText("issue report", {
         timeout: 10_000,
