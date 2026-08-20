@@ -30,7 +30,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   is visible without scrolling on shorter screens. Its Call button reads "Call tool" (here and on
   `explain-diagnostic`'s still schema-generated form), the empty-result message reads "Call a tool
   above to see the result here", and the source strip reads "MCP interface for …" instead of
-  "Analyzing …".
+  "Analyzing …". The wire log's connect/discovery group summary now links "capabilities" straight to
+  the capabilities panel below, opening and scrolling to it on click without toggling the wire group
+  itself.
 - **"Try it over MCP" no longer runs a local pipeline.** A URL-only source encodes straight into the
   bookmarkable `/mcp?doc=...` request, which the MCP page fetches itself; a source that includes an
   upload is materialized to raw text and handed off in memory. Either way, no local load/validate

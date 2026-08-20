@@ -16,7 +16,11 @@ test.describe("MCP demo page", () => {
     const discoveryGroup = page.locator(".wire-group").first();
     await expect(discoveryGroup).toBeVisible({ timeout: 10_000 });
     await expect(discoveryGroup.locator("> details")).not.toHaveAttribute("open");
-    await discoveryGroup.locator("> details > summary").click();
+    // A plain `.click()` targets the summary's bounding-box center, which — in this narrow sidebar
+    // column — lands on the embedded "capabilities" link-span (see McpPage.svelte's openCapabilities),
+    // opening the capabilities panel instead of toggling this group. Click near the left edge instead,
+    // same as a person going for the disclosure marker.
+    await discoveryGroup.locator("> details > summary").click({ position: { x: 4, y: 8 } });
     await discoveryGroup.locator(".wire-exchange").first().locator("summary").click();
     const headers = discoveryGroup.locator(".wire-headers").first();
     await expect(headers).toContainText("mcp-protocol-version");

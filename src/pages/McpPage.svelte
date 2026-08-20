@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import type { ViewRequest } from "../app/viewUrl";
   import type { ViewerConfig } from "../app/config";
   import type { Severity } from "../diagnostics/types";
@@ -11,7 +11,7 @@
   import { navigate } from "../app/router.svelte";
   import { mcpPath, viewPath } from "../app/viewUrl";
   import { demos, demoById } from "../app/demos";
-  import { TOOL_NAMES, MAX_INLINE_DOCS, MAX_DOC_CHARS } from "../mcp/info";
+  import { TOOL_NAMES, MAX_INLINE_DOCS, MAX_DOC_CHARS, CONNECT_ACTION } from "../mcp/info";
   import { inlineDocsFromOad } from "../mcp/fromOad";
   import { errorMessage } from "../errors";
   import DocumentTypesSelect from "../ui/DocumentTypesSelect.svelte";
@@ -199,6 +199,9 @@
   } | null>(null);
   let prompts = $state<{ items: Prompt[]; ttlMs?: number; cacheScope?: string } | null>(null);
   let showAllDemoDocs = $state(false);
+  // Bound to the capabilities <details> (see the template below) so the wire log's connect-group
+  // summary link can open it programmatically, not just toggle it via a click on <summary> itself.
+  let capsOpen = $state(false);
   // Split once here rather than with an inline `{@const}` per list — the capabilities panel renders
   // the two groups (everything else, then the truncatable demo-document sublist) separately.
   const otherResources = $derived(resources?.items.filter((r) => !isDemoDocUri(r.uri)) ?? []);
@@ -301,6 +304,29 @@
    *  from the shared config widgets' state, with no form/submit event in the loop. */
   function submitAnalyzeCall(): void {
     void callTool({ config: $state.snapshot(mcpConfig), minSeverity }, { requestProgress });
+  }
+
+  // The connect group's summary must read exactly as CONNECT_ACTION (see WireLog.svelte's index-0
+  // grouping) even with its last word styled as a link — split from the constant itself, rather than
+  // hand-copied, so wording and link text can't drift apart.
+  const CONNECT_LINK_TEXT = "capabilities";
+  const CONNECT_PREFIX = CONNECT_ACTION.slice(0, -CONNECT_LINK_TEXT.length);
+
+  /** The wire log's connect-group summary triggers this on click. Deliberately a plain `<span>`, not
+   *  an `<a>`/`<button>` (see the template below): a `<summary>` is itself a focusable control, and
+   *  axe's nested-interactive check (WCAG 4.1.2) flags any focusable descendant of one — even with
+   *  `tabindex="-1"`, since assistive tech can still reach it. The capabilities panel stays fully
+   *  keyboard-reachable on its own (it's a `<details>` further down the page); this is a mouse/touch
+   *  shortcut to it, not the only path — so trading its keyboard-focusability away here is safe.
+   *  The wire group's own `<details>` sits right above this click in the DOM: `preventDefault` stops
+   *  the browser's native summary-click toggle (gated on the event's defaultPrevented flag, not on
+   *  propagation), and `stopPropagation` stops it from reaching any ancestor listener too. */
+  async function openCapabilities(e: MouseEvent): Promise<void> {
+    e.preventDefault();
+    e.stopPropagation();
+    capsOpen = true;
+    await tick();
+    document.getElementById("mcp-capabilities")?.scrollIntoView({ behavior: "smooth" });
   }
 
   async function readLink(uri: string): Promise<void> {
@@ -492,12 +518,22 @@
           <div class="mcp-workbench-wire" tabindex="0" aria-labelledby="mcp-wire-heading">
             <section>
               <h2 id="mcp-wire-heading">Wire log</h2>
-              <WireLog exchanges={wireLog} />
+              <WireLog exchanges={wireLog}>
+                {#snippet connectSummary()}
+                  <!-- The span (not a link/button — see openCapabilities's comment) must sit right
+                       after the text with no whitespace between, so the rendered summary reads as one
+                       CONNECT_ACTION-matching string. -->
+                  {CONNECT_PREFIX}<!-- svelte-ignore a11y_no_static_element_interactions --><!-- svelte-ignore a11y_click_events_have_key_events --><span
+                    class="wire-connect-link"
+                    onclick={openCapabilities}>{CONNECT_LINK_TEXT}</span
+                  >
+                {/snippet}
+              </WireLog>
             </section>
           </div>
         </div>
 
-        <details class="mcp-caps-details">
+        <details class="mcp-caps-details" id="mcp-capabilities" bind:open={capsOpen}>
           <summary>
             Capabilities — the server's advertised surface, discovered over MCP at connect (<code
               >tools/list</code

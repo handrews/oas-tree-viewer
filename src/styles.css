@@ -1700,6 +1700,13 @@ body {
   font-weight: 600;
   color: var(--text);
 }
+/* Styled like a link but not a real interactive element (see McpPage.svelte's openCapabilities) —
+   nesting a focusable control inside <summary>, which is itself focusable, fails WCAG 4.1.2. */
+.wire-connect-link {
+  color: var(--link);
+  text-decoration: underline;
+  cursor: pointer;
+}
 .wire-log {
   list-style: none;
   display: grid;

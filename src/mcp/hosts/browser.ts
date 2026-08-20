@@ -22,6 +22,7 @@ import {
 } from "@modelcontextprotocol/client";
 import { createHandler } from "../server";
 import { browserFixtures } from "../fixtures.browser";
+import { CONNECT_ACTION } from "../info";
 
 /** One decoded SSE frame (`event:`/`data:` lines up to the blank-line separator). */
 export interface WireFrame {
@@ -44,9 +45,6 @@ export interface PendingElicit {
   requestedSchema: ElicitFormSchema;
   respond(result: ElicitResult): void;
 }
-
-/** The label `beginAction` stamped on this exchange — what WireLog.svelte groups by. */
-export const CONNECT_ACTION = "Connect and discover capabilities";
 
 /** One request/response exchange on the wire, as shown by WireLog.svelte. */
 export interface WireExchange {

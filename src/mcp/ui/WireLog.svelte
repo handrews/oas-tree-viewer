@@ -3,6 +3,7 @@
   // imports it for exactly that reason (see App.svelte). WireLog.svelte is imported statically by
   // McpPage.svelte, so a runtime (value) import here would join that dynamic boundary right back to
   // the main bundle — only the erased type is safe to name.
+  import type { Snippet } from "svelte";
   import type { WireExchange } from "../hosts/browser";
 
   // Renders exactly what went over the wire, grouped by the user action that caused it (see
@@ -16,7 +17,15 @@
   // region to be keyboard-reachable — svelte-check's generic a11y heuristic flags a <pre> as
   // "noninteractive" and warns on this, but the warning is exactly backwards here.
 
-  let { exchanges }: { exchanges: WireExchange[] } = $props();
+  let {
+    exchanges,
+    connectSummary,
+  }: {
+    exchanges: WireExchange[];
+    /** Rendered as group 0's summary in place of its plain action label, when supplied — McpPage.svelte
+     *  uses it to turn the connect group's summary into a link to the capabilities panel below. */
+    connectSummary?: Snippet;
+  } = $props();
 
   interface Group {
     action: string;
@@ -83,7 +92,13 @@
     {#each groups as group, i (group.action)}
       <li class="wire-group">
         <details open={i > 0}>
-          <summary>{group.action}</summary>
+          <summary>
+            {#if i === 0 && connectSummary}
+              {@render connectSummary()}
+            {:else}
+              {group.action}
+            {/if}
+          </summary>
           <ol class="wire-log">
             {#each group.exchanges as exchange (exchange.id)}
               <li class="wire-exchange">

@@ -3,12 +3,8 @@ import { browserFixtures } from "../../src/mcp/fixtures.browser";
 import { bundledFixtures } from "../../src/mcp/fixtures.bundled";
 import { demoDocuments } from "../../src/mcp/documents";
 import { demos } from "../../src/app/demos";
-import {
-  McpBrowserHost,
-  CONNECT_ACTION,
-  type WireExchange,
-  type PendingElicit,
-} from "../../src/mcp/hosts/browser";
+import { CONNECT_ACTION } from "../../src/mcp/info";
+import { McpBrowserHost, type WireExchange, type PendingElicit } from "../../src/mcp/hosts/browser";
 
 // A bare Path Item Object fragment (no openapi/$id/$schema) — loads only with document fragments
 // enabled, referenced at its root by ENTRY.

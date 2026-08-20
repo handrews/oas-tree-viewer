@@ -3,6 +3,7 @@ import { render } from "vitest-browser-svelte";
 import McpPage from "../../src/pages/McpPage.svelte";
 import { defaultConfig } from "../../src/app/config";
 import { session } from "../../src/app/session.svelte";
+import { CONNECT_ACTION } from "../../src/mcp/info";
 
 // A raw-docs handoff (session.mcpDocs) and the current view (session.current) are both in-memory
 // state shared across every test in this file — reset them so one test's source never leaks into the
@@ -207,4 +208,49 @@ test("the Call a tool section reuses the Configure page's shared config widgets"
 
   // Resolution options: the shared collapsed <details>.
   expect(callSection.querySelector(".resolution-options")).not.toBeNull();
+});
+
+// Drift guard: the wire log's group-0 summary turns CONNECT_ACTION's last word into a (visually)
+// link-styled span, but must still read exactly as CONNECT_ACTION — the string hosts/browser.ts
+// stamps on every exchange before the first user action (see WireLog.svelte's index-0 grouping).
+// It's a <span>, not a real <a>/<button>: nesting a focusable control inside <summary> (itself
+// focusable) fails axe's WCAG 4.1.2 check — see McpPage.svelte's openCapabilities comment.
+test("the wire log's connect-group summary reads exactly as CONNECT_ACTION, link text included", async () => {
+  const screen = await render(McpPage, {
+    request: { kind: "demo", demoId: "refs" },
+    config: defaultConfig,
+  });
+  await expect.element(screen.getByText(/MCP interface for demo/)).toBeVisible();
+
+  await expect
+    .poll(() => document.querySelectorAll(".wire-group").length, { timeout: 5000 })
+    .toBeGreaterThan(0);
+  const summary = document.querySelector(".wire-group summary")!;
+  expect(summary.textContent?.trim()).toBe(CONNECT_ACTION);
+  expect(summary.querySelector(".wire-connect-link")?.textContent).toBe("capabilities");
+});
+
+// The link's click handler must open the panel and scroll to it without also toggling the wire
+// group's own <details> — the link sits inside that group's <summary>.
+test("the wire log's connect-group link opens the capabilities panel without toggling the wire group", async () => {
+  const screen = await render(McpPage, {
+    request: { kind: "demo", demoId: "refs" },
+    config: defaultConfig,
+  });
+  await expect.element(screen.getByText(/MCP interface for demo/)).toBeVisible();
+
+  await expect
+    .poll(() => document.querySelectorAll(".wire-group").length, { timeout: 5000 })
+    .toBeGreaterThan(0);
+  const wireGroupDetails = document.querySelector(".wire-group > details") as HTMLDetailsElement;
+  expect(wireGroupDetails.open).toBe(false);
+  const capsDetails = document.querySelector(".mcp-caps-details") as HTMLDetailsElement;
+  expect(capsDetails.id).toBe("mcp-capabilities");
+  expect(capsDetails.open).toBe(false);
+
+  const link = document.querySelector(".wire-group summary .wire-connect-link") as HTMLElement;
+  link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+
+  await expect.poll(() => capsDetails.open, { timeout: 5000 }).toBe(true);
+  expect(wireGroupDetails.open).toBe(false);
 });
