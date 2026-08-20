@@ -38,6 +38,12 @@ body {
   font-size: 1.4rem;
   color: var(--accent);
 }
+/* The heading link (hidden on /configure, where it has nowhere to go) must look exactly like the
+   plain text it replaces — only the browser's default focus ring marks it as interactive. */
+#app-header h1 a {
+  color: inherit;
+  text-decoration: none;
+}
 .theme-toggle {
   position: absolute;
   top: 1rem;

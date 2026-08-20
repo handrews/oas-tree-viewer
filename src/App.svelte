@@ -2,7 +2,7 @@
   import ThemeToggle from "./ui/ThemeToggle.svelte";
   import ConfigurePage from "./pages/ConfigurePage.svelte";
   import ViewPage from "./pages/ViewPage.svelte";
-  import { router } from "./app/router.svelte";
+  import { router, navigate, appHref } from "./app/router.svelte";
 
   // App is the shell: a fixed header plus the routed page. The pages own their own
   // state — ConfigurePage collects sources/demos, ViewPage loads and renders the OAD. McpPage pulls
@@ -15,10 +15,27 @@
   // alongside the app (see vite/doc-pages.ts); GitHub points at the repository (and its README).
   const version = __APP_VERSION__;
   const repoUrl = "https://github.com/handrews/oas-tree-viewer";
+
+  // A real <a> (not a click handler on the h1) so middle-click/new-tab work; a plain left-click is
+  // intercepted to keep it an SPA transition instead of a full navigation. Skipped on the configure
+  // page itself, where the heading has nowhere further to send you.
+  function onHeadingClick(e: MouseEvent): void {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate("/configure");
+  }
 </script>
 
 <header id="app-header">
-  <h1>OpenAPI Description Structure Viewer</h1>
+  <h1>
+    {#if router.route.page === "configure"}
+      OpenAPI Description Structure Viewer
+    {:else}
+      <a href={appHref("/configure")} onclick={onHeadingClick}>
+        OpenAPI Description Structure Viewer
+      </a>
+    {/if}
+  </h1>
   <p class="header-meta">
     <span class="version">v{version}</span>
     <span class="sep" aria-hidden="true">•</span>
