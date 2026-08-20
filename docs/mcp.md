@@ -365,6 +365,12 @@ There is **no public endpoint**: the deployed site at
 no network hop (`hosts/browser.ts`) — it does not expose a reachable server. Connecting an external
 host means running one locally, over stdio or `mcp:http`, on your own machine.
 
+The page itself is a two-column workbench on wide screens: calling a tool and its result sit on the
+left, a sticky wire log tracks every exchange on the right — grouped by the action that caused it, so
+a call and any MRTR retry it triggers read as one group — and the full capability list collapses under
+a `<details>` at the bottom, out of the way until asked for. Below the viewer's usual breakpoint it
+drops to a single column in the same source → call → result → wire log → capabilities order.
+
 ### Deliberately unused
 
 Roots, Sampling, and Logging are all deprecated in the 2026-07-28 revision and are not registered.

@@ -14,6 +14,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   whatever it's currently analyzing (a demo or the current view) in the Explore page; and the app
   heading is a link back to `/configure` from every other page.
 
+### Changed
+
+- **The MCP page is now a two-column workbench.** Calling a tool and its result (the elicitation
+  panel included, as the result of an `input_required` call) sit on the left, above the fold; a
+  sticky wire log tracks every exchange on the right, grouped by the action that caused it, so a
+  call and any MRTR retry it triggers read as one group; and the full capability list — tools,
+  resources, resource templates, prompts — collapses under a `<details>` at the bottom. Each wire
+  exchange is now a one-line summary (method, tool/resource name, status, content-type) that expands
+  to the full request/response detail, and a compact scenario picker on the source strip means
+  reaching the elicitation demo no longer requires the cold picker. Narrow screens fall back to a
+  single column in the same source → call → result → wire log → capabilities order.
+
 ## [0.10.1] — 2026-08-18
 
 ### Fixed
