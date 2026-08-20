@@ -461,6 +461,27 @@ body {
 .render-cancel:hover {
   background: var(--surface2);
 }
+/* "Try it over MCP" beside Render OAD — secondary (outlined), same shape as Cancel/Load anyway, so
+   Render OAD reads as the primary action even though this one submits the same form. --link (not
+   --accent-solid, which is tuned for white text on a filled background) keeps it >=AA on --bg. */
+.render-actions .mcp-open {
+  font-family: var(--font);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--link);
+  color: var(--link);
+}
+.render-actions .mcp-open:hover {
+  background: var(--surface2);
+}
+.render-actions .mcp-open:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
 .resolution-options > summary {
   font-size: 0.95rem;
   font-weight: 600;
@@ -1378,6 +1399,22 @@ body {
 }
 .scenario-clear:hover {
   border-color: var(--text-dim);
+}
+/* Same inline placement as .scenario-clear, but a return trip to the rendered view — so it takes the
+   --link styling of a real action rather than a small correction. */
+.mcp-view-open {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--link);
+  background: transparent;
+  border: 1px solid var(--link);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.mcp-view-open:hover {
+  background: var(--surface2);
 }
 .mcp-limit-refusal,
 .mcp-error,
