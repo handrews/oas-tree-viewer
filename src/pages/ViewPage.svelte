@@ -69,6 +69,10 @@
     // Carries the loaded view over to /mcp for any source (demo, online URLs, or upload) — unlike
     // `session.result`, which is written only on the upload path (ConfigurePage.svelte).
     session.current = { oad: oadResult, diagnostics: diagnosticsResult, config, request };
+    // A freshly rendered view supersedes any earlier raw-docs handoff (ConfigurePage's MCP-native
+    // "Try it over MCP" with an upload): without this, McpPage's handoff-first priority would keep
+    // showing that stale upload set instead of what's actually on screen now.
+    session.mcpDocs = null;
   }
 
   function fail(message: string): void {
