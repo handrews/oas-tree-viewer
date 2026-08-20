@@ -9,7 +9,7 @@
   import { navigate } from "../app/router.svelte";
   import { viewPath, mcpPath } from "../app/viewUrl";
   import { type ViewerConfig, defaultConfig } from "../app/config";
-  import { FRAGMENTS_CONTROL_LABEL, FRAGMENTS_OPTIONS } from "../app/fragmentsText";
+  import { FRAGMENTS_CONTROL_LABEL, FRAGMENTS_OPTIONS } from "../fragmentsText";
 
   // The Configure page: choose document sources (the existing form) or a pre-built demo, set
   // resolution options, then route to the Explore page or the MCP page. Rendering to the Explore

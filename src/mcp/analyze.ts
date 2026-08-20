@@ -14,7 +14,7 @@ import type { Oad } from "../types";
 import type { Diagnostic } from "../diagnostics/types";
 import { runPipeline, type PipelineResult } from "../app/bootstrap";
 import { defaultConfig, type ViewerConfig } from "../app/config";
-import { FRAGMENTS_LOAD_HINT } from "../app/fragmentsText";
+import { FRAGMENTS_LOAD_HINT } from "../fragmentsText";
 import { demoById, demoInputs } from "../app/demos";
 import { diagnosticCatalog, severityFor } from "../diagnostics/catalog";
 import {

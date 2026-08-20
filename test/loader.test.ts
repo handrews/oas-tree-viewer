@@ -7,7 +7,7 @@ import {
   SchemaValidationError,
   UnsupportedVersionError,
 } from "../src/errors";
-import { FRAGMENTS_LOAD_HINT } from "../src/app/fragmentsText";
+import { FRAGMENTS_LOAD_HINT } from "../src/fragmentsText";
 
 const valid = (extra = "") =>
   `openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths: {}\n${extra}`;
@@ -60,7 +60,7 @@ components: { schemas: { Pet: { type: strang } } }
   });
 
   // src/mcp/analyze.ts's fragment-consent MRTR detection string-matches this exact message tail
-  // (FRAGMENTS_LOAD_HINT, src/app/fragmentsText.ts) to tell "needs fragment consent" apart from any
+  // (FRAGMENTS_LOAD_HINT, src/fragmentsText.ts) to tell "needs fragment consent" apart from any
   // other load failure. This pins the real thrown message to that same constant, so a hand-edit of
   // either side that lets them drift apart fails here instead of silently breaking the elicitation.
   it("names the fragments control in its message, matching analyze.ts's MRTR detection constant", async () => {

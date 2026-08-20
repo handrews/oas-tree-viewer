@@ -5,7 +5,7 @@
 
 import * as z from "zod/v4";
 import { DIAGNOSTIC_CODES } from "../diagnostics/types";
-import { FRAGMENTS_CONTROL_LABEL, fragmentsFieldDescription } from "../app/fragmentsText";
+import { FRAGMENTS_CONTROL_LABEL, fragmentsFieldDescription } from "../fragmentsText";
 import { MAX_DOC_CHARS, MAX_INLINE_DOCS } from "./info";
 
 const SeverityEnum = z.enum(["error", "warning", "info"]);
@@ -16,7 +16,7 @@ const DocKindEnum = z.enum(["openapi", "schema", "fragment"]);
 const VersionFamilyEnum = z.enum(["3.0", "3.1", "3.2"]);
 // Shared with the fragment-consent elicitation in server.ts, so the tool's `config.fragments` input
 // and the elicited answer can never drift apart. Described once here (from the same text the
-// Configure page's selector uses — src/app/fragmentsText.ts) so `config.fragments` and the
+// Configure page's selector uses — src/fragmentsText.ts) so `config.fragments` and the
 // elicitation's `fragments` answer both carry it in their JSON Schema, since both fields reuse this
 // one enum.
 export const FragmentsEnum = z

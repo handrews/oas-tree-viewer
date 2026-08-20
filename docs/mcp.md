@@ -272,7 +272,7 @@ its own, mirroring choices the app's own Configure page already asks a person to
 JSON Schema document loads only if `config.fragments` is widened from its `"none"` default. Rather
 than silently retrying with a looser setting, the tool elicits the choice — `"none"` / `"root"` /
 `"any"` — exactly mirroring the Configure page's own **Document types** selector; both read their
-wording from the same module (`src/app/fragmentsText.ts`), which is also where the elicitation's
+wording from the same module (`src/fragmentsText.ts`), which is also where the elicitation's
 `requestedSchema` gets its `title`/`description`.
 
 **Ambiguous entry document.** Inline `documents[]` with zero or more than one `isEntry: true` elicits

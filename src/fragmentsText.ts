@@ -3,12 +3,11 @@
 // unrecognized-document error, the MCP tool's schema (config.fragments and the fragment-consent
 // elicitation answer share one zod enum), and the elicitation message itself — and used to describe
 // itself differently in each. Everything that names or explains the setting reads from here instead,
-// so the wording can only drift by editing this file. See `ViewerConfig.fragments` (./config.ts) for
-// the field's actual semantics.
+// so the wording can only drift by editing this file. It sits below the app layer because
+// `loader.ts` (engine) builds its error text from it; `ViewerConfig.fragments` (src/app/config.ts)
+// takes its value type from here for the same single-source reason.
 
-import type { ViewerConfig } from "./config";
-
-export type FragmentsValue = ViewerConfig["fragments"];
+export type FragmentsValue = "none" | "root" | "any";
 
 /** The control's display name, as the Configure page labels its selector. */
 export const FRAGMENTS_CONTROL_LABEL = "Document types";

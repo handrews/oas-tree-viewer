@@ -15,7 +15,7 @@ import {
 } from "@modelcontextprotocol/server";
 import { runAnalysis, type AnalyzeDecisions } from "./analyze";
 import { demoById } from "../app/demos";
-import { FRAGMENTS_CONTROL_LABEL, fragmentsOption } from "../app/fragmentsText";
+import { FRAGMENTS_CONTROL_LABEL, fragmentsOption } from "../fragmentsText";
 import { diagnosticCatalog } from "../diagnostics/catalog";
 import { explainCode } from "./explain";
 import { SERVER_NAME, TOOL_NAMES } from "./info";
@@ -184,7 +184,7 @@ export function createServer(deps: McpDeps): McpServer {
           inputRequests: {
             fragments: inputRequired.elicit({
               // Reuses the same per-option wording the Configure page's "Document types" selector and
-              // the MCP schema's field description carry (src/app/fragmentsText.ts), so the choice
+              // the MCP schema's field description carry (src/fragmentsText.ts), so the choice
               // this asks about reads the same everywhere it's explained.
               message:
                 "One of these documents is neither a complete OpenAPI description nor a recognized " +

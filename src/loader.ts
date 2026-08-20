@@ -16,7 +16,7 @@ import {
   errorMessage,
 } from "./errors";
 import { defaultLimits, formatBytes, type Limits } from "./limits";
-import { FRAGMENTS_LOAD_HINT } from "./app/fragmentsText";
+import { FRAGMENTS_LOAD_HINT } from "./fragmentsText";
 import { parseDocument } from "./parse/detectFormat";
 import { documentPositions } from "./parse/positions";
 import { buildTree } from "./model/treeBuilder";
