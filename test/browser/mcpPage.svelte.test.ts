@@ -175,3 +175,36 @@ test("the result section renders immediately after the call section in the DOM",
   expect(callSection.closest(".mcp-workbench-main")).not.toBeNull();
   expect(resultSection.closest(".mcp-workbench-main")).not.toBeNull();
 });
+
+// The "Call a tool" section for analyze-document reuses the Configure page's own shared widgets
+// (src/ui/DocumentTypesSelect.svelte, src/ui/ResolutionOptions.svelte) rather than a schema-generated
+// lookalike, so the same setting reads identically — and is discoverable by the same classes — on
+// both pages.
+test("the Call a tool section reuses the Configure page's shared config widgets", async () => {
+  const screen = await render(McpPage, {
+    request: { kind: "demo", demoId: "refs" },
+    config: defaultConfig,
+  });
+  await expect.element(screen.getByText(/Analyzing demo/)).toBeVisible();
+
+  await expect
+    .poll(() => document.querySelector(".mcp-call-section .load-behavior"), { timeout: 5000 })
+    .not.toBeNull();
+  const callSection = document.querySelector(".mcp-call-section")!;
+
+  // Document types: the first .load-behavior-field in DOM order (the Tool row, restyled to the same
+  // pattern, is the second).
+  const docTypesField = callSection.querySelector(".load-behavior-field")!;
+  expect(docTypesField.querySelector(".load-behavior-label")?.textContent).toBe("Document types");
+  expect(docTypesField.querySelector("select.load-behavior")).not.toBeNull();
+
+  // Minimum severity: an English label using the same .option classes as the Configure page's
+  // resolution options.
+  const severityLabel = Array.from(callSection.querySelectorAll(".option-label")).find(
+    (el) => el.textContent === "Minimum severity",
+  );
+  expect(severityLabel).toBeTruthy();
+
+  // Resolution options: the shared collapsed <details>.
+  expect(callSection.querySelector(".resolution-options")).not.toBeNull();
+});

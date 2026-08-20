@@ -23,7 +23,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   resources, resource templates, prompts — collapses under a `<details>` at the bottom. Each wire
   exchange is now a one-line summary (method, tool/resource name, status, content-type) that expands
   to the full request/response detail. Narrow screens fall back to a single column in the same
-  source → call → result → wire log → capabilities order.
+  source → call → result → wire log → capabilities order. The "Call a tool" section for
+  `analyze-document` now reuses the Configure page's own config widgets
+  (`src/ui/DocumentTypesSelect.svelte`, `src/ui/ResolutionOptions.svelte`) instead of a
+  schema-generated lookalike — same labels, same classes, less vertical space, so the result panel
+  is visible without scrolling on shorter screens. Its Call button reads "Call tool" (here and on
+  `explain-diagnostic`'s still schema-generated form).
 - **"Try it over MCP" no longer runs a local pipeline.** A URL-only source encodes straight into the
   bookmarkable `/mcp?doc=...` request, which the MCP page fetches itself; a source that includes an
   upload is materialized to raw text and handed off in memory. Either way, no local load/validate

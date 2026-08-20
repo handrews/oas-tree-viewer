@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import type { ViewRequest } from "../app/viewUrl";
   import type { ViewerConfig } from "../app/config";
+  import type { Severity } from "../diagnostics/types";
   import type { Tool, Resource, Prompt, CallToolResult } from "@modelcontextprotocol/client";
   import type { McpBrowserHost, WireExchange, PendingElicit } from "../mcp/hosts/browser";
   import type { InlineDoc } from "../mcp/documents";
@@ -12,6 +14,8 @@
   import { TOOL_NAMES, MAX_INLINE_DOCS, MAX_DOC_CHARS } from "../mcp/info";
   import { inlineDocsFromOad } from "../mcp/fromOad";
   import { errorMessage } from "../errors";
+  import DocumentTypesSelect from "../ui/DocumentTypesSelect.svelte";
+  import ResolutionOptions from "../ui/ResolutionOptions.svelte";
   import WireLog from "../mcp/ui/WireLog.svelte";
   import ArgsForm from "../mcp/ui/ArgsForm.svelte";
   import ElicitPanel from "../mcp/ui/ElicitPanel.svelte";
@@ -203,6 +207,16 @@
   let selectedToolName = $state<string>(TOOL_NAMES.analyzeDocument);
   const selectedTool = $derived(tools?.items.find((t) => t.name === selectedToolName) ?? null);
 
+  // analyze-document's arguments, collected by the same shared widgets the Configure page uses
+  // (DocumentTypesSelect, ResolutionOptions) rather than a schema-generated ArgsForm — seeded once
+  // from configSeed, same as the form's old `initial` prop was (and, like ArgsForm's own `values`,
+  // `untrack`ed to mark that one-time read as deliberate rather than a lost reactive dependency).
+  // explain-diagnostic's one argument still goes through ArgsForm below, with its own independent
+  // `requestProgress`.
+  let mcpConfig = $state<ViewerConfig>(untrack(() => configSeed));
+  let minSeverity = $state<Severity>("info");
+  let requestProgress = $state(true);
+
   let result = $state<CallToolResult | null>(null);
   let callError = $state<string | null>(null);
   let calling = $state(false);
@@ -281,6 +295,12 @@
     } finally {
       calling = false;
     }
+  }
+
+  /** analyze-document's own Call tool button (see the template below) — its arguments come straight
+   *  from the shared config widgets' state, with no form/submit event in the loop. */
+  function submitAnalyzeCall(): void {
+    void callTool({ config: $state.snapshot(mcpConfig), minSeverity }, { requestProgress });
   }
 
   async function readLink(uri: string): Promise<void> {
@@ -372,28 +392,55 @@
             {#if !overLimit}
               <section class="mcp-call-section" aria-labelledby="mcp-call-heading">
                 <h2 id="mcp-call-heading">Call a tool</h2>
-                <label class="mcp-tool-picker">
-                  <span>Tool</span>
-                  <select bind:value={selectedToolName}>
-                    {#each tools?.items ?? [] as t (t.name)}
-                      <option value={t.name}>{t.title ?? t.name}</option>
-                    {/each}
-                  </select>
-                </label>
-                {#if selectedTool}
-                  {#key selectedTool.name}
-                    <ArgsForm
-                      tool={selectedTool}
-                      omit={selectedTool.name === TOOL_NAMES.analyzeDocument
-                        ? ["demo", "documents"]
-                        : []}
-                      initial={selectedTool.name === TOOL_NAMES.analyzeDocument
-                        ? { config: configSeed, minSeverity: "info" }
-                        : {}}
-                      onsubmit={callTool}
-                    />
-                  {/key}
-                {/if}
+                <div class="config-group">
+                  <div class="doc-region">
+                    {#if selectedTool?.name === TOOL_NAMES.analyzeDocument}
+                      <DocumentTypesSelect bind:config={mcpConfig} />
+                    {/if}
+                    <label class="load-behavior-field">
+                      <span class="load-behavior-label">Tool</span>
+                      <select class="load-behavior" bind:value={selectedToolName}>
+                        {#each tools?.items ?? [] as t (t.name)}
+                          <option value={t.name}>{t.title ?? t.name}</option>
+                        {/each}
+                      </select>
+                    </label>
+                    {#if selectedTool?.name === TOOL_NAMES.analyzeDocument}
+                      <label class="option">
+                        <span class="option-label">Minimum severity</span>
+                        <select class="option-select" bind:value={minSeverity}>
+                          <option value="error">error</option>
+                          <option value="warning">warning</option>
+                          <option value="info">info</option>
+                        </select>
+                      </label>
+                    {/if}
+                  </div>
+
+                  {#if selectedTool?.name === TOOL_NAMES.analyzeDocument}
+                    <div class="resolution-box">
+                      <ResolutionOptions bind:config={mcpConfig} />
+                      <div class="render-actions">
+                        <button
+                          type="button"
+                          class="render"
+                          disabled={calling}
+                          onclick={submitAnalyzeCall}
+                        >
+                          Call tool
+                        </button>
+                        <label class="args-label args-checkbox args-progress">
+                          <input type="checkbox" bind:checked={requestProgress} />
+                          <span>Request progress</span>
+                        </label>
+                      </div>
+                    </div>
+                  {:else if selectedTool}
+                    {#key selectedTool.name}
+                      <ArgsForm tool={selectedTool} onsubmit={callTool} />
+                    {/key}
+                  {/if}
+                </div>
               </section>
             {/if}
 

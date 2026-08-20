@@ -1,6 +1,8 @@
 <script lang="ts">
   import { fetchUrlDocument, type DocInput } from "../loader";
   import OadForm from "../ui/OadForm.svelte";
+  import DocumentTypesSelect from "../ui/DocumentTypesSelect.svelte";
+  import ResolutionOptions from "../ui/ResolutionOptions.svelte";
   import type { RenderOutcome, RenderOptions } from "../ui/oadForm";
   import { pipelineClient, PipelineCancelled } from "../app/pipelineClient";
   import { errorMessage } from "../errors";
@@ -9,7 +11,6 @@
   import { navigate } from "../app/router.svelte";
   import { viewPath, mcpPath } from "../app/viewUrl";
   import { type ViewerConfig, defaultConfig } from "../app/config";
-  import { FRAGMENTS_CONTROL_LABEL, FRAGMENTS_OPTIONS } from "../fragmentsText";
 
   // The Configure page: choose document sources (the existing form) or a pre-built demo, set
   // resolution options, then route to the Explore page or the MCP page. Rendering to the Explore
@@ -144,39 +145,13 @@
 <section id="input-panel" aria-label="OAD input">
   <div class="config-group">
     <div class="doc-region">
-      <!-- Document-type selector, labeled to its left, above the documents it governs. The visible
-           "Document types" text is the select's accessible name (so no aria-label). -->
-      <label class="load-behavior-field">
-        <span class="load-behavior-label">{FRAGMENTS_CONTROL_LABEL}</span>
-        <select class="load-behavior" bind:value={config.fragments}>
-          {#each FRAGMENTS_OPTIONS as opt (opt.value)}
-            <option value={opt.value}>{opt.label}</option>
-          {/each}
-        </select>
-      </label>
+      <!-- Document-type selector, above the documents it governs. -->
+      <DocumentTypesSelect bind:config />
       <OadForm {onRender} />
     </div>
 
     <div class="resolution-box">
-      <details class="resolution-options">
-        <summary>Resolution options</summary>
-        <div class="option-body">
-          <label class="option">
-            <span class="option-label">Discriminator <code>mapping</code> values resolve as</span>
-            <select class="option-select" bind:value={config.mappingPrecedence}>
-              <option value="name-first">a component name first (default)</option>
-              <option value="uri-first">a URI-reference first</option>
-            </select>
-          </label>
-          <label class="option">
-            <span class="option-label">Look up component names in</span>
-            <select class="option-select" bind:value={config.componentLookup}>
-              <option value="entry">the entry document (default)</option>
-              <option value="local">the local document</option>
-            </select>
-          </label>
-        </div>
-      </details>
+      <ResolutionOptions bind:config />
       <!-- Sits inside the options box and on its header line (shown whether the box is open or closed),
          but is a sibling of <details> rather than nested in <summary> — nesting interactive controls is
          a serious a11y violation. Both buttons submit the OadForm by its id; each sets `destination`

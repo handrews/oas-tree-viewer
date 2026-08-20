@@ -1535,23 +1535,9 @@ body {
   margin-bottom: 0.35rem;
 }
 
-/* Tool picker + arguments form */
-.mcp-tool-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.8rem;
-  font-size: 0.88rem;
-}
-.mcp-tool-picker select {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 0.35rem 0.5rem;
-  font-size: 0.85rem;
-  font-family: var(--font);
-}
+/* Arguments form (explain-diagnostic's schema-generated fields; analyze-document's Tool row and
+   config widgets reuse the Configure page's own .load-behavior-field / .option classes instead —
+   see the "Document-type / resolution group" rules above and McpPage.svelte). */
 .args-form {
   display: flex;
   flex-direction: column;

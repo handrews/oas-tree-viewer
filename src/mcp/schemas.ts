@@ -73,11 +73,15 @@ const ConfigInputSchema = z
   .describe("Resolution options, mirroring the viewer's Configure page.")
   .meta({ title: "Resolution options" });
 
+const MinSeverityEnum = SeverityEnum.describe(
+  "Suppress diagnostics below this severity from the result.",
+).meta({ title: "Minimum severity" });
+
 export const AnalyzeInputSchema = z.object({
   demo: z.string().optional(),
   documents: z.array(InlineDocumentSchema).max(MAX_INLINE_DOCS).optional(),
   config: ConfigInputSchema.optional(),
-  minSeverity: SeverityEnum.default("info"),
+  minSeverity: MinSeverityEnum.default("info"),
 });
 
 export type AnalyzeInput = z.infer<typeof AnalyzeInputSchema>;

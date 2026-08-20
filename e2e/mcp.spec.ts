@@ -44,8 +44,10 @@ test.describe("MCP demo page", () => {
     await page.goto("mcp?demo=refs");
     await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
 
+    // The Tool row uses the Configure page's own load-behavior-field pattern, so its accessible
+    // name is the visible "Tool" label, not a dedicated class.
     await page
-      .locator(".mcp-tool-picker select")
+      .getByRole("combobox", { name: "Tool" })
       .selectOption({ label: "Explain a diagnostic code" });
     await page.getByRole("button", { name: /^Call / }).click();
 

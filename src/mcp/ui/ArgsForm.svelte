@@ -165,5 +165,5 @@
     <span>Request progress</span>
   </label>
 
-  <button type="submit" class="args-submit">Call {tool.title ?? tool.name}</button>
+  <button type="submit" class="args-submit">Call tool</button>
 </form>
