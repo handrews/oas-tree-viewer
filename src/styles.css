@@ -344,8 +344,8 @@ body {
   padding: 0.45rem 0.9rem;
   cursor: pointer;
   background: transparent;
-  border: 1px solid var(--accent-solid);
-  color: var(--accent-solid);
+  border: 1px solid var(--link);
+  color: var(--link);
 }
 .load-anyway:hover {
   background: var(--surface2);
@@ -461,8 +461,8 @@ body {
   padding: 0.5rem 0.95rem;
   cursor: pointer;
   background: transparent;
-  border: 1px solid var(--accent-solid);
-  color: var(--accent-solid);
+  border: 1px solid var(--link);
+  color: var(--link);
 }
 .render-cancel:hover {
   background: var(--surface2);
@@ -550,8 +550,8 @@ body {
   padding: 0.45rem 0.9rem;
   cursor: pointer;
   background: transparent;
-  border: 1px solid var(--accent-solid);
-  color: var(--accent-solid);
+  border: 1px solid var(--link);
+  color: var(--link);
   margin-top: 0.8rem;
 }
 .view-cancel:hover {
