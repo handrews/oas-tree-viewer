@@ -8,6 +8,12 @@
 // Excluded from coverage (see vitest.config.ts): this is live browser wiring, exercised in
 // test/browser/mcpBrowserHost.svelte.test.ts and e2e/mcp.spec.ts, not node-testable — mirroring why
 // pipelineClient.ts is excluded.
+//
+// `beginAction` stamps every exchange from here until the next call with a caller-supplied label —
+// what WireLog.svelte groups by. It is a plain field, not per-request bookkeeping: an elicitation
+// retry happens inside the same `client.callTool()` the page already labeled, with no intervening
+// `beginAction` call, so the retry shares its originating call's label for free — exactly the pairing
+// the MRTR demo needs.
 
 import {
   Client,
@@ -39,10 +45,16 @@ export interface PendingElicit {
   respond(result: ElicitResult): void;
 }
 
+/** The label `beginAction` stamped on this exchange — what WireLog.svelte groups by. */
+export const CONNECT_ACTION = "Connect and discover capabilities";
+
 /** One request/response exchange on the wire, as shown by WireLog.svelte. */
 export interface WireExchange {
   id: number;
   method: string;
+  /** The user action that caused this exchange (see `beginAction`); `CONNECT_ACTION` before the
+   *  first one. */
+  action: string;
   url: string;
   requestHeaders: Record<string, string>;
   requestBody: unknown;
@@ -91,6 +103,7 @@ export class McpBrowserHost {
   private readonly onElicit?: (pending: PendingElicit | null) => void;
   private exchanges: WireExchange[] = [];
   private nextId = 1;
+  private currentAction: string = CONNECT_ACTION;
 
   readonly client: Client;
   readonly connected: Promise<void>;
@@ -140,6 +153,11 @@ export class McpBrowserHost {
     });
   }
 
+  /** Labels every wire exchange from here until the next call — see the file header. */
+  beginAction(label: string): void {
+    this.currentAction = label;
+  }
+
   private replace(exchange: WireExchange): void {
     this.exchanges = this.exchanges.map((e) => (e.id === exchange.id ? exchange : e));
     this.onWireLog(this.exchanges);
@@ -150,6 +168,7 @@ export class McpBrowserHost {
     let exchange: WireExchange = {
       id: this.nextId++,
       method: body.method ?? "?",
+      action: this.currentAction,
       url: String(url),
       requestHeaders: headerRecord(init?.headers),
       requestBody: body,

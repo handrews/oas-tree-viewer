@@ -3,7 +3,12 @@ import { browserFixtures } from "../../src/mcp/fixtures.browser";
 import { bundledFixtures } from "../../src/mcp/fixtures.bundled";
 import { demoDocuments } from "../../src/mcp/documents";
 import { demos } from "../../src/app/demos";
-import { McpBrowserHost, type WireExchange, type PendingElicit } from "../../src/mcp/hosts/browser";
+import {
+  McpBrowserHost,
+  CONNECT_ACTION,
+  type WireExchange,
+  type PendingElicit,
+} from "../../src/mcp/hosts/browser";
 
 // A bare Path Item Object fragment (no openapi/$id/$schema) — loads only with document fragments
 // enabled, referenced at its root by ENTRY.
@@ -122,6 +127,50 @@ test("McpBrowserHost drives the fragment-consent MRTR round trip through a real 
   expect(secondParams.inputResponses).toMatchObject({
     fragments: { action: "accept", content: { fragments: "root" } },
   });
+
+  await host.close();
+});
+
+// WireLog.svelte groups exchanges by `WireExchange.action` (see hosts/browser.ts's header): a
+// `beginAction` call stamps every exchange until the next one, so an elicitation retry — issued from
+// inside the same `client.callTool()` the page already labeled — shares its originating call's label
+// without the page doing anything extra. That's what lets the round trip render as one group.
+test("beginAction labels an elicitation round trip's two exchanges the same, distinct from the label before it", async () => {
+  let log: WireExchange[] = [];
+  let pending: PendingElicit | null = null;
+  const host = new McpBrowserHost(
+    (snapshot) => (log = snapshot),
+    (p) => {
+      pending = p;
+      if (p) {
+        void Promise.resolve().then(() =>
+          p.respond({ action: "accept", content: { fragments: "root" } }),
+        );
+      }
+    },
+  );
+  await host.connected;
+  await host.client.listTools(); // stands in for the page's own connect-time capability discovery
+
+  host.beginAction("Call analyze-document");
+  await host.client.callTool({
+    name: "analyze-document",
+    arguments: {
+      documents: [
+        { filename: "entry.yaml", text: ENTRY, isEntry: true },
+        { filename: "pathitem.yaml", text: PATHITEM, isEntry: false },
+      ],
+    },
+  });
+  expect(pending).toBeNull();
+
+  const calls = log.filter((e) => e.method === "tools/call");
+  expect(calls).toHaveLength(2);
+  expect(calls[0]!.action).toBe("Call analyze-document");
+  expect(calls[1]!.action).toBe("Call analyze-document");
+  // Everything logged before the first `beginAction` call — the connect + capability discovery — is
+  // its own, distinct label.
+  expect(log.some((e) => e.action === CONNECT_ACTION)).toBe(true);
 
   await host.close();
 });

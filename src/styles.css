@@ -1634,10 +1634,27 @@ body {
 }
 
 /* Wire log */
+.wire-groups {
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+.wire-group > details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+.wire-group > details > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
 .wire-log {
   list-style: none;
   display: grid;
   gap: 0.5rem;
+  margin-top: 0.6rem;
 }
 .wire-exchange > details {
   border: 1px solid var(--border);
@@ -1655,6 +1672,11 @@ body {
 .wire-method {
   font-weight: 700;
   font-family: var(--mono);
+}
+.wire-subject {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--link);
 }
 .wire-status,
 .wire-ct {
