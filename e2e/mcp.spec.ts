@@ -1,10 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 test.describe("MCP demo page", () => {
   test("Try it over MCP carries the current view over and shows a real wire log", async ({
     page,
   }) => {
-    await page.goto("/view?demo=refs");
+    await page.goto("view?demo=refs");
     await expect(page.locator("svg.tree-canvas g.doc").first()).toBeVisible();
 
     await page.getByRole("button", { name: "Try it over MCP" }).click();
@@ -33,7 +33,7 @@ test.describe("MCP demo page", () => {
   test("explain-diagnostic answers plain JSON, in contrast to analyze-document's SSE stream", async ({
     page,
   }) => {
-    await page.goto("/mcp?demo=refs");
+    await page.goto("mcp?demo=refs");
     await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
 
     await page
@@ -53,7 +53,7 @@ test.describe("MCP demo page", () => {
   test("a scenario drives a real elicitation round trip, both halves visible in the wire log", async ({
     page,
   }) => {
-    await page.goto("/mcp");
+    await page.goto("mcp");
     await page.getByRole("button", { name: "A document fragment" }).click();
     await expect(page.getByText(/Analyzing scenario/)).toBeVisible();
 
@@ -76,8 +76,11 @@ test.describe("MCP demo page", () => {
   test("Try it over MCP from the configure page analyzes the entered document", async ({
     page,
   }) => {
-    await page.goto("/configure");
-    await page.locator(".doc-row").first().locator("input.url").fill("/fixtures/petstore-3.1.yaml");
+    await page.goto("configure");
+    // Base-safe: derive the fixture URL from the current page's own origin+base rather than
+    // hardcoding "/fixtures/...", which would escape a sub-path deploy base and 404.
+    const fixtureUrl = new URL("fixtures/petstore-3.1.yaml", page.url()).pathname;
+    await page.locator(".doc-row").first().locator("input.url").fill(fixtureUrl);
     await page.getByRole("button", { name: "Try it over MCP" }).click();
 
     // Url-only inputs stay bookmarkable, same as a direct /view?doc= load.
@@ -87,7 +90,7 @@ test.describe("MCP demo page", () => {
   });
 
   test("Render OAD from the MCP page opens the same source in the explorer", async ({ page }) => {
-    await page.goto("/mcp?demo=refs");
+    await page.goto("mcp?demo=refs");
     await expect(page.getByText(/Analyzing demo/)).toBeVisible();
 
     await page.getByRole("button", { name: "Render OAD" }).click();
@@ -96,19 +99,28 @@ test.describe("MCP demo page", () => {
   });
 
   test("code-split guard: /configure never requests the MCP chunk, /mcp does", async ({ page }) => {
-    const isMcpChunk = (url: string) => /mcp[/-]hosts[/-]browser|modelcontextprotocol/i.test(url);
+    // Match on response *content*, not the request URL: the dev server serves unbundled source
+    // (URLs literally contain "mcp/hosts/browser" and "@modelcontextprotocol"), but a production
+    // build folds that module into a content-hashed chunk name that carries none of those
+    // substrings — only the bundled code itself still does.
+    const isMcpModule = (body: string) => /modelcontextprotocol/i.test(body);
+    const scriptBodies = (p: Page): Promise<string>[] => {
+      const bodies: Promise<string>[] = [];
+      p.on("response", (res) => {
+        if (res.request().resourceType() === "script") bodies.push(res.text().catch(() => ""));
+      });
+      return bodies;
+    };
 
-    const configureRequests: string[] = [];
-    page.on("request", (req) => configureRequests.push(req.url()));
-    await page.goto("/configure");
+    const configureBodies = scriptBodies(page);
+    await page.goto("configure");
     await expect(page.locator(".oad-form")).toBeVisible();
-    expect(configureRequests.some(isMcpChunk)).toBe(false);
+    expect((await Promise.all(configureBodies)).some(isMcpModule)).toBe(false);
 
-    page.removeAllListeners("request");
-    const mcpRequests: string[] = [];
-    page.on("request", (req) => mcpRequests.push(req.url()));
-    await page.goto("/mcp?demo=refs");
+    page.removeAllListeners("response");
+    const mcpBodies = scriptBodies(page);
+    await page.goto("mcp?demo=refs");
     await expect(page.locator(".wire-exchange").first()).toBeVisible({ timeout: 10_000 });
-    expect(mcpRequests.some(isMcpChunk)).toBe(true);
+    expect((await Promise.all(mcpBodies)).some(isMcpModule)).toBe(true);
   });
 });

@@ -155,8 +155,8 @@ test.describe("error handling", () => {
 });
 
 test.describe("demos, online URLs & bookmarking", () => {
-  test("/ redirects to /configure and shows the form", async ({ page }) => {
-    await page.goto("/");
+  test("/ redirects to /configure and shows the form @smoke", async ({ page }) => {
+    await page.goto("");
     await expect(page).toHaveURL(/\/configure$/);
     await expect(page.locator(".oad-form")).toBeVisible();
   });
@@ -175,8 +175,8 @@ test.describe("demos, online URLs & bookmarking", () => {
     await expect(page.locator(".oad-form")).toBeVisible();
   });
 
-  test("a demo loads, is bookmarkable, and Back returns to configure", async ({ page }) => {
-    await page.goto("/configure");
+  test("a demo loads, is bookmarkable, and Back returns to configure @smoke", async ({ page }) => {
+    await page.goto("configure");
     await page.getByRole("button", { name: "Broken & external references (3.1)" }).click();
 
     await expect(page).toHaveURL(/\/view\?demo=refs/);
@@ -214,8 +214,14 @@ test.describe("demos, online URLs & bookmarking", () => {
     await expect(page.locator("#issues .issue")).toHaveCount(0);
   });
 
-  test("an online document URL loads directly and is bookmarkable", async ({ page }) => {
-    await page.goto("/view?doc=" + encodeURIComponent("/fixtures/petstore-3.1.yaml"));
+  test("an online document URL loads directly and is bookmarkable @smoke", async ({
+    page,
+    baseURL,
+  }) => {
+    // Base-safe: derive the fixture path from the configured baseURL rather than hardcoding
+    // "/fixtures/...", which would escape a sub-path deploy base and 404.
+    const fixtureUrl = new URL("fixtures/petstore-3.1.yaml", baseURL).pathname;
+    await page.goto("view?doc=" + encodeURIComponent(fixtureUrl));
     await expect(page.locator("svg.tree-canvas g.doc")).toHaveCount(1);
   });
 

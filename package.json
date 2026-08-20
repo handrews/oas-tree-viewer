@@ -20,6 +20,7 @@
     "bench": "VITE_BENCH=1 vitest run --reporter=verbose bench",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
+    "e2e:prod": "playwright test --config playwright.prod.config.ts",
     "build:mcp": "vite build --config vite.mcp.config.ts",
     "mcp": "npm run build:mcp && node dist-mcp/stdio.mjs",
     "mcp:http": "npm run build:mcp && node dist-mcp/http.mjs",
