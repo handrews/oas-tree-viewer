@@ -41,7 +41,7 @@ Input, mirroring `ViewerConfig` field-for-field:
 | --- | --- | --- |
 | `demo` | `string` | A bundled demo id. Mutually exclusive with `documents`. |
 | `documents` | array of `{filename, text, retrievalUri?, isEntry}` | Inline document set, capped at 20 documents / 1,000,000 characters each. |
-| `config` | `{mappingPrecedence?, componentLookup?, fragments?}` | Overrides `defaultConfig`; a demo's own config partial (if any) wins over this. |
+| `config` | `{mappingPrecedence?, componentLookup?, fragments?}` | Overrides `defaultConfig`. A demo's own config partial (if any) is only a *default* on top of that — this field, when given, overrides the demo's default in turn. |
 | `minSeverity` | `"error" \| "warning" \| "info"` | Default `"info"`. |
 
 Calling it against the `refs` demo:
@@ -271,7 +271,9 @@ its own, mirroring choices the app's own Configure page already asks a person to
 **Fragment consent.** A document that is neither a complete OpenAPI description nor a recognized
 JSON Schema document loads only if `config.fragments` is widened from its `"none"` default. Rather
 than silently retrying with a looser setting, the tool elicits the choice — `"none"` / `"root"` /
-`"any"` — exactly mirroring the Configure page's own **Document types** selector.
+`"any"` — exactly mirroring the Configure page's own **Document types** selector; both read their
+wording from the same module (`src/app/fragmentsText.ts`), which is also where the elicitation's
+`requestedSchema` gets its `title`/`description`.
 
 **Ambiguous entry document.** Inline `documents[]` with zero or more than one `isEntry: true` elicits
 which filename is the entry, since `assembleOad` requires exactly one.
@@ -281,10 +283,17 @@ A round trip looks like this — first, the server's `input_required` result:
 ```json
 {
   "mode": "form",
-  "message": "One of these documents is neither a complete OpenAPI description nor a recognized JSON Schema document. \"root\" loads it only if a reference points at its root; \"any\" also types it from references to its interior. Enable document fragments to load it anyway?",
+  "message": "One of these documents is neither a complete OpenAPI description nor a recognized JSON Schema document. Under \"Document types\": \"root\" loads a fragment only if a reference points at its root; \"any\" also types a fragment from references to its interior, tolerating one left unreferenced. Widen it to load this document anyway?",
   "requestedSchema": {
     "type": "object",
-    "properties": { "fragments": { "type": "string", "enum": ["none", "root", "any"] } },
+    "properties": {
+      "fragments": {
+        "type": "string",
+        "title": "Document types",
+        "description": "Whether to load fragmentary documents (neither a complete OpenAPI document nor a recognized JSON Schema document): \"none\" refuses a fragment entirely; \"root\" loads a fragment only if a reference points at its root; \"any\" also types a fragment from references to its interior, tolerating one left unreferenced.",
+        "enum": ["none", "root", "any"]
+      }
+    },
     "required": ["fragments"]
   }
 }
@@ -323,12 +332,15 @@ anyway, so there is nothing a state token could carry that the retry doesn't alr
 HMAC-sealed with a TTL (`src/mcp/state.ts`), so a tampered or expired token never reaches the tool
 handler.
 
-No bundled demo can ever reach either elicitation: a demo's own `config` partial always wins over the
-caller's override, so a demo needing fragments enabled always arrives with them already enabled, and
-every demo has exactly one `isEntry: true` document by construction. `/mcp` ships a dedicated
-*scenario* (`src/mcp/scenarios.ts`, "A document fragment") built from inline documents specifically to
-reach the fragment-consent path, so the round trip has something real to demonstrate in the browser
-page's wire log.
+A demo's own `config` partial is only a *default*: `{ demo: "fragment" }` alone loads cleanly (the
+demo's own `fragments: "root"` applies), but an explicit `config` in the call overrides it —
+`{ demo: "fragment", config: { fragments: "none" } }` genuinely elicits, the same question a caller
+would hit sending the fragment demo's documents inline with no `config` at all. `/mcp` reaches this
+the ordinary way: the page seeds the arguments form's `config` from whatever's on screen (the current
+view, or the URL's own config on a cold load), so calling `analyze-document` against the fragment demo
+with its default (strict) config — no demo-picking tricks, no dedicated fixture — reaches the
+elicitation directly, and the same happens for any real document set that turns out to need fragments
+enabled, once "Try it over MCP" gets it there.
 
 ## Security model
 

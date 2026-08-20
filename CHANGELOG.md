@@ -22,9 +22,29 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   call and any MRTR retry it triggers read as one group; and the full capability list — tools,
   resources, resource templates, prompts — collapses under a `<details>` at the bottom. Each wire
   exchange is now a one-line summary (method, tool/resource name, status, content-type) that expands
-  to the full request/response detail, and a compact scenario picker on the source strip means
-  reaching the elicitation demo no longer requires the cold picker. Narrow screens fall back to a
-  single column in the same source → call → result → wire log → capabilities order.
+  to the full request/response detail. Narrow screens fall back to a single column in the same
+  source → call → result → wire log → capabilities order.
+- **"Try it over MCP" no longer runs a local pipeline.** A URL-only source encodes straight into the
+  bookmarkable `/mcp?doc=...` request, which the MCP page fetches itself; a source that includes an
+  upload is materialized to raw text and handed off in memory. Either way, no local load/validate
+  pass can block the navigation or pre-empt an outcome (like fragment consent) that belongs to the
+  tool call itself. "Render OAD" is unchanged.
+- **An explicit `config` now overrides a demo's own config default in `analyze-document`.** A demo's
+  config partial (e.g. the "fragment" demo's `fragments: "root"`) used to always win over the
+  caller's; now it's applied first, as a default, and an explicit `config` in the call overrides it.
+  `{ demo: "fragment" }` alone still loads via the demo's default; `{ demo: "fragment", config: {
+  fragments: "none" } }` now genuinely elicits fragment consent instead of silently loading anyway.
+- **One shared vocabulary for the "Document types" (fragments) setting.** The Configure page's
+  selector, the loader's unrecognized-document error, the MCP tool's schema
+  (`title`/`description` on `config.fragments`), and the fragment-consent elicitation message all
+  read their wording from one module (`src/app/fragmentsText.ts`) instead of four independent copies.
+
+### Removed
+
+- **The MCP page's scenario picker** (`src/mcp/scenarios.ts`), which existed only because no bundled
+  demo could reach the fragment-consent elicitation under the old config precedence. Now that an
+  explicit config overrides a demo's default, the fragment demo reaches it directly, and any real
+  document set that needs fragments enabled reaches it through the ordinary "Try it over MCP" flow.
 
 ## [0.10.1] — 2026-08-18
 
