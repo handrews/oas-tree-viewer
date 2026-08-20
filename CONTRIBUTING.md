@@ -90,6 +90,7 @@ Run the full set locally before opening or merging a change — these mirror the
 | `npm run typecheck` | `svelte-check` against the project `tsconfig` |
 | `npm run coverage` | Both Vitest projects (node + browser) plus the coverage thresholds |
 | `npm run e2e` | Playwright end-to-end tests, including axe accessibility checks |
+| `npm run e2e:prod` | The MCP spec plus a `@smoke` slice of the render spec, against a real production build under its deploy sub-path |
 | `npm run build` | Production build (`vite build`) |
 | `npm run build:mcp` | MCP server build (`vite build --config vite.mcp.config.ts` — `dist-mcp/{stdio,http}.mjs`) |
 
@@ -103,7 +104,9 @@ and on pushes to `main` (an in-flight run is cancelled when newer commits land),
   error or broken build fails here), installs Playwright Chromium for the browser project, then
   `npm run coverage` and `npm run build:mcp`. The MCP server is a separate Vite target that
   `prepare` does not build, so it needs its own step.
-- **E2E** — installs Playwright Chromium, then `npm run e2e`; traces are uploaded on failure.
+- **E2E** — installs Playwright Chromium, then `npm run e2e` and `npm run e2e:prod` (the latter
+  builds and serves the app under its production sub-path, see
+  [`playwright.prod.config.ts`](playwright.prod.config.ts)); traces are uploaded on failure.
 
 Dependency updates are automated by Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)):
 weekly **version-update** PRs grouped into one per ecosystem (npm, GitHub Actions); **security
@@ -204,6 +207,7 @@ npm run format:check # Prettier formatting check
 npm run typecheck
 npm run coverage     # runs the tests and enforces the coverage thresholds
 npm run e2e          # Playwright + axe (starts its own dev server)
+npm run e2e:prod     # MCP + smoke specs against a real production build, deploy sub-path included
 npm run build
 ```
 

@@ -10,7 +10,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://localhost:5173",
+    // Trailing slash matters: it's what lets a baseURL-relative goto("view?...") resolve the same
+    // way here and under playwright.prod.config.ts's sub-path baseURL.
+    baseURL: "http://localhost:5173/",
     browserName: "chromium",
     viewport: { width: 1280, height: 800 },
     trace: "on-first-retry",

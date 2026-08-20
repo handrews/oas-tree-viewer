@@ -98,6 +98,12 @@ jobs:
       - name: Run e2e tests
         run: npm run e2e
 
+      # The dev leg above always runs at base "/"; production deploys under "/projects/oas/"
+      # (vite.config.ts sets base by mode), so this is the only automated check that a build
+      # actually works from its real deploy path (see playwright.prod.config.ts).
+      - name: Run e2e tests against the production build
+        run: npm run e2e:prod
+
       # Traces are captured on first retry; keep them when a run fails so the
       # failure can be inspected with `npx playwright show-trace`.
       - name: Upload Playwright traces
