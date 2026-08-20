@@ -56,20 +56,22 @@ test.describe("MCP demo page", () => {
     });
   });
 
-  // The elicitation round trip is the demo's whole reason for shipping a scenario: no bundled demo
-  // can reach it, because a demo's own config always wins over the caller's.
-  test("a scenario drives a real elicitation round trip, both halves visible in the wire log", async ({
+  // Under the current config precedence (default < demoConfig < args.config < decisions), a demo's
+  // own config is only a default: the MCP page seeds the arguments form's `config` from the URL's
+  // (here, default/strict) config, so calling analyze-document against the "fragment" demo with no
+  // `fragments=` override genuinely elicits — the demo's `fragments: "root"` default no longer wins
+  // unconditionally over an explicit caller config.
+  test("the fragment demo with a strict config elicits fragment consent, both tools/call exchanges in one wire group", async ({
     page,
   }) => {
-    await page.goto("mcp");
-    await page.getByRole("button", { name: "A document fragment" }).click();
-    await expect(page.getByText(/Analyzing scenario/)).toBeVisible();
+    await page.goto("mcp?demo=fragment");
+    await expect(page.getByText(/Analyzing demo/)).toBeVisible();
 
     await page.getByRole("button", { name: /^Call / }).click();
 
     const panel = page.locator(".elicit-panel");
     await expect(panel).toBeVisible({ timeout: 15_000 });
-    await expect(panel).toContainText("document fragments");
+    await expect(panel).toContainText("Document types");
     await panel.locator("select").first().selectOption("root");
     await panel.getByRole("button", { name: "Submit" }).click();
 
@@ -95,10 +97,48 @@ test.describe("MCP demo page", () => {
     await page.locator(".doc-row").first().locator("input.url").fill(fixtureUrl);
     await page.getByRole("button", { name: "Try it over MCP" }).click();
 
-    // Url-only inputs stay bookmarkable, same as a direct /view?doc= load.
+    // Url-only inputs stay bookmarkable, same as a direct /view?doc= load — no pipeline ever ran on
+    // the configure page; McpPage fetches the documents itself.
     await expect(page).toHaveURL(/\/mcp\?doc=/);
     await expect(page.getByText(/Analyzing: petstore-3\.1\.yaml/)).toBeVisible();
     await expect(page.locator(".wire-group").first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  // The user story that motivated the MCP-native redesign: adding real documents by URL — no demo,
+  // no scenario, no knowledge that "fragment consent" exists — should still be able to reach the
+  // elicitation, because the strict default "Document types" setting now genuinely reaches the tool
+  // call instead of being pre-empted by a local pipeline run that fails before /mcp is ever reached.
+  test("adding the fragment fixture files by URL and trying them over MCP reaches fragment consent", async ({
+    page,
+  }) => {
+    await page.goto("configure");
+    const fixture = (name: string) => new URL(`fixtures/${name}`, page.url()).pathname;
+
+    await page
+      .locator(".doc-row")
+      .first()
+      .locator("input.url")
+      .fill(fixture("ref-to-fragment-3.0.yaml"));
+    await page.getByRole("button", { name: "+ Add document" }).click();
+    await page
+      .locator(".doc-row")
+      .nth(1)
+      .locator("input.url")
+      .fill(fixture("pet-pathitem-3.0.yaml"));
+    await page.getByRole("button", { name: "+ Add document" }).click();
+    await page.locator(".doc-row").nth(2).locator("input.url").fill(fixture("pet-schema-3.0.yaml"));
+
+    // "Document types" is left at its strict default — the whole point is that nobody had to know to
+    // widen it before finding out (via the elicitation) that they needed to.
+    await page.getByRole("button", { name: "Try it over MCP" }).click();
+    await expect(page).toHaveURL(/\/mcp\?doc=/);
+    await expect(page.getByText(/Analyzing: ref-to-fragment-3\.0\.yaml/)).toBeVisible();
+
+    await page.getByRole("button", { name: /^Call / }).click();
+
+    const panel = page.locator(".elicit-panel");
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    await expect(panel).toContainText("Document types");
   });
 
   test("Render OAD from the MCP page opens the same source in the explorer", async ({ page }) => {

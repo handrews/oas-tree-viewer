@@ -1454,23 +1454,6 @@ body {
   text-decoration: underline;
 }
 
-.mcp-scenario-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.6rem;
-  font-size: 0.82rem;
-  color: var(--text-dim);
-}
-.mcp-scenario-picker select {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 0.3rem 0.45rem;
-  font-size: 0.8rem;
-  font-family: var(--font);
-}
 .mcp-result-empty {
   color: var(--text-dim);
   font-size: 0.85rem;
@@ -1480,23 +1463,8 @@ body {
   font-size: 0.88rem;
   color: var(--text-dim);
 }
-/* Inline with the strip's sentence rather than a block button: leaving a scenario is a small
-   correction, not a primary action. */
-.scenario-clear {
-  margin-left: 0.5rem;
-  padding: 0.1rem 0.45rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.scenario-clear:hover {
-  border-color: var(--text-dim);
-}
-/* Same inline placement as .scenario-clear, but a return trip to the rendered view — so it takes the
-   --link styling of a real action rather than a small correction. */
+/* Inline with the strip's sentence rather than a block button — a return trip to the rendered view is
+   a small, secondary action, not the primary one. */
 .mcp-view-open {
   margin-left: 0.5rem;
   padding: 0.1rem 0.5rem;

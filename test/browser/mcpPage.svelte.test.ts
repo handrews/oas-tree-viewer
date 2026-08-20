@@ -1,7 +1,16 @@
-import { expect, test } from "vitest";
+import { expect, test, afterEach } from "vitest";
 import { render } from "vitest-browser-svelte";
 import McpPage from "../../src/pages/McpPage.svelte";
 import { defaultConfig } from "../../src/app/config";
+import { session } from "../../src/app/session.svelte";
+
+// A raw-docs handoff (session.mcpDocs) and the current view (session.current) are both in-memory
+// state shared across every test in this file — reset them so one test's source never leaks into the
+// next (e.g. a lingering handoff would otherwise outrank a later test's plain `demo` request).
+afterEach(() => {
+  session.mcpDocs = null;
+  session.current = null;
+});
 
 // End-to-end over a real in-page Client + handler (hosts/browser.ts): connects, lists real
 // capabilities, and the wire log shows the actual MCP-required headers on every exchange —
@@ -69,16 +78,31 @@ test("McpPage connects, lists capabilities, and analyzes a demo with a real wire
     .toBeGreaterThan(before);
 });
 
-// Neither the cold picker (nothing to render) nor a scenario (inline-only, no /view equivalent) has
-// a round trip back to the explorer.
-test("Render OAD is hidden for the cold picker and a scenario", async () => {
+// The cold picker has nothing to render, so there's no round trip back to the explorer.
+test("Render OAD is hidden for the cold picker", async () => {
   const screen = await render(McpPage, { request: null, config: defaultConfig });
 
   await expect.element(screen.getByText("Choose a demo to analyze")).toBeVisible();
   expect(document.querySelector(".mcp-view-open")).toBeNull();
+});
 
-  await screen.getByRole("button", { name: "A document fragment" }).click();
-  await expect.element(screen.getByText(/Analyzing scenario/)).toBeVisible();
+// A raw-docs handoff (ConfigurePage's MCP-native "Try it over MCP" for a source with an upload) was
+// never resolved into session.result, so /view would just show its empty state — the back-link hides.
+test("Render OAD is hidden for a raw-docs handoff with no session.result to reproduce it from", async () => {
+  session.mcpDocs = {
+    docs: [
+      {
+        filename: "entry.yaml",
+        text: "openapi: 3.1.0\ninfo: { title: T, version: '1' }\npaths: {}\n",
+        isEntry: true,
+      },
+    ],
+    config: defaultConfig,
+    request: { kind: "session" },
+  };
+  const screen = await render(McpPage, { request: null, config: defaultConfig });
+
+  await expect.element(screen.getByText(/Analyzing: entry\.yaml/)).toBeVisible();
   expect(document.querySelector(".mcp-view-open")).toBeNull();
 });
 

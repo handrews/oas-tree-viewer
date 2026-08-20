@@ -36,7 +36,8 @@ export const FRAGMENTS_OPTIONS: readonly FragmentsOption[] = [
   {
     value: "any",
     label: "Allow any fragmentary OpenAPI document",
-    detail: "also types a fragment from references to its interior, tolerating one left unreferenced",
+    detail:
+      "also types a fragment from references to its interior, tolerating one left unreferenced",
   },
 ];
 
