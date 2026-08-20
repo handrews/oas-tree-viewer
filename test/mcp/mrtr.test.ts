@@ -244,3 +244,45 @@ describe("analyze-document — MRTR (fragment consent, ambiguous entry)", () => 
     ).rejects.toThrow(/Invalid or expired requestState/);
   });
 });
+
+// A demo's own config partial (e.g. "fragment" needs `fragments: "root"` just to load) is a DEFAULT
+// under the current precedence, not a floor: naming no config still gets it, but an explicit caller
+// config overrides it — the same choice a person makes on the Configure page before hitting "Try it
+// over MCP". See analyze.ts's config-merge comment for why this has to be true for the fragment
+// elicitation to be a real question rather than theater.
+describe("analyze-document — demo config precedence", () => {
+  let harness: MrtrHarness | undefined;
+
+  afterEach(async () => {
+    if (harness) await closeTestClient(harness);
+    harness = undefined;
+  });
+
+  it('demo + explicit strict config ("fragments: none") overrides the demo default and elicits', async () => {
+    harness = await connectMrtrClient((): ElicitResult => ({
+      action: "accept",
+      content: { fragments: "root" },
+    }));
+    const result = await harness.client.callTool({
+      name: TOOL_NAMES.analyzeDocument,
+      arguments: { demo: "fragment", config: { fragments: "none" } },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const calls = harness.exchanges.filter((e) => e.method === "tools/call");
+    expect(calls).toHaveLength(2); // the demo's own default alone would have loaded in one
+  });
+
+  it("demo + no config at all still loads via the demo's own default, unchanged", async () => {
+    harness = await connectMrtrClient((): ElicitResult => {
+      throw new Error("should not be asked anything — the demo's own config should just load");
+    });
+    const result = await harness.client.callTool({
+      name: TOOL_NAMES.analyzeDocument,
+      arguments: { demo: "fragment" },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(harness.exchanges.filter((e) => e.method === "tools/call")).toHaveLength(1);
+  });
+});

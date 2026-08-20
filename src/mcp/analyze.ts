@@ -122,15 +122,18 @@ export async function runAnalysis(
   const materialized = await materializeDocs(deps, args.demo, documents, signal, notify);
   if (!materialized.ok) return materialized;
 
-  // A demo's own config partial (e.g. "fragment" needs `fragments: "root"` just to load) wins over
-  // the caller's override, mirroring ConfigurePage.svelte's `{ ...config, ...demo.config }` — without
-  // this, the fragment demos would fail to load through this tool at all. An answered fragment-consent
-  // elicitation wins over both: it is what the caller just told this specific call to do.
+  // A demo's own config partial (e.g. "fragment" needs `fragments: "root"` just to load) is only a
+  // DEFAULT here — unlike ConfigurePage.svelte's `openDemo`, where a demo's config always wins for a
+  // smooth built-in-demo experience. A caller that names no config still gets the demo's default, but
+  // one that sends an explicit config is deliberately overriding it: `{ demo: "fragment", config: {
+  // fragments: "none" } }` must genuinely elicit rather than silently loading anyway, or the consent
+  // question this tool asks isn't a real question. An answered fragment-consent elicitation wins over
+  // both — it is what the caller just told this specific call to do.
   const demoConfig = args.demo !== undefined ? demoById(args.demo)?.config : undefined;
   const config: ViewerConfig = {
     ...defaultConfig,
-    ...args.config,
     ...demoConfig,
+    ...args.config,
     ...(decisions.fragments !== undefined ? { fragments: decisions.fragments } : {}),
   };
 
