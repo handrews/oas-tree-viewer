@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@hyperjump/json-schema": "^1.17.8",
-    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/client": "^2.2.0",
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "d3": "^7.9.0",
