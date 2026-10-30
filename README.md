@@ -2,6 +2,12 @@
 
 _Produced by Henry Andrews using Claude Code._
 
+_This was my first effort at AI-assisted coding, and work has halted at a
+proof-of-concept demo state.  I may or may not return to develop it further.
+As it is a solo learning project, there are no outside reviewers involved.
+The restrictive license is a placeholder while I decide what to do with this.
+Please inquire if you'd like to use this code under an Open Source license._
+
 The OpenAPI Description Structure Viewer is a browser tool that renders an
 [OpenAPI Description](https://learn.openapis.org/glossary.html) (OAD) or JSON Schema as navigable
 trees and draws its references as arcs between fields and their targets. It shows how a description
